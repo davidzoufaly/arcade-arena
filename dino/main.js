@@ -97,7 +97,7 @@ reset();
 function spawnObstacle() {
   const high = state.allowHigh && Math.random() < 0.4;
   if (high) {
-    state.obs.push({ x: canvas.width, y: groundY() - 110, w: 36, h: 30, type: 'high' });
+    state.obs.push({ x: canvas.width, y: groundY() - 75, w: 36, h: 45, type: 'high' });
   } else {
     state.obs.push({ x: canvas.width, y: groundY() - 30, w: 28, h: 30, type: 'low' });
   }
