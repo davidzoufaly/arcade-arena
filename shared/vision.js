@@ -88,9 +88,9 @@ export async function createPoseTracker(video) {
 
 // Helpers used by dino/main.js for gesture interpretation
 export function isFingerUp(hand) {
-  // landmark 8 = index tip, 6 = index PIP. tip Y < PIP Y (Y grows down).
-  if (!hand || !hand[8] || !hand[6]) return false;
-  return hand[8].y < hand[6].y - 0.05;
+  if (!hand || !hand[8] || !hand[6] || !hand[0]) return false;
+  // tip clearly above PIP, OR whole hand raised high in frame
+  return hand[8].y < hand[6].y - 0.02 || hand[0].y < 0.45;
 }
 
 export function isPalmOpen(hand) {

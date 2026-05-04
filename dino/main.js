@@ -65,6 +65,7 @@ const STAGE_CFG = [
 ];
 
 const bannerEl = document.getElementById('banner');
+const debugEl = document.getElementById('debug');
 const stageDots = document.querySelectorAll('#stages .dot');
 
 state.pose = null;
@@ -185,6 +186,13 @@ function readInput() {
       if (isJumpingPose(pose, state.poseBaseline.shoulderY)) jump = true;
       if (isCrouchingPose(pose, state.poseBaseline.hipY)) duck = true;
     }
+  }
+  if (debugEl) {
+    const hand0 = hands[0];
+    const tipY = hand0?.[8]?.y?.toFixed(2) ?? '--';
+    const pipY = hand0?.[6]?.y?.toFixed(2) ?? '--';
+    const wristY = hand0?.[0]?.y?.toFixed(2) ?? '--';
+    debugEl.innerHTML = `mode: ${state.mode}<br>hands: ${hands.length}<br>tip Y: ${tipY}<br>pip Y: ${pipY}<br>wrist Y: ${wristY}<br>jump: ${jump ? 'YES' : 'no'}<br>duck: ${duck ? 'YES' : 'no'}`;
   }
   return { jump, duck };
 }
