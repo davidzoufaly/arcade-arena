@@ -2,7 +2,7 @@ import { drawGridFloor, fadeOverlay, withGlow, ScreenShake } from '../shared/neo
 import { createAudioInput } from '../shared/audio.js';
 import { showDenialModal } from '../shared/perms.js';
 import { createStageManager } from '../shared/stages.js';
-import { generateCode, renderEndScreen } from '../shared/score-panel.js';
+import { generateCode, renderEndScreen, saveRun, showDebugIfRequested } from '../shared/score-panel.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -176,6 +176,7 @@ function die() {
 
 function showEndScreen() {
   const code = generateCode(state.score, Date.now());
+  saveRun('flappy', state.score, code);
   const overlay = document.createElement('div');
   overlay.className = 'end-overlay';
   overlay.id = 'end';
@@ -226,3 +227,5 @@ function frame() {
   requestAnimationFrame(frame);
 }
 frame();
+
+showDebugIfRequested('flappy');

@@ -2,7 +2,7 @@ import { drawGridFloor, fadeOverlay, withGlow, ScreenShake } from '../shared/neo
 import { createCamStream, createHandTracker, createPoseTracker, isFingerUp, isPalmOpen, isFist, isArmOverhead, isJumpingPose, isCrouchingPose } from '../shared/vision.js';
 import { createStageManager } from '../shared/stages.js';
 import { showDenialModal } from '../shared/perms.js';
-import { generateCode, renderEndScreen } from '../shared/score-panel.js';
+import { generateCode, renderEndScreen, saveRun, showDebugIfRequested } from '../shared/score-panel.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -253,6 +253,7 @@ function die() {
   state.running = false;
   shake.trigger(8, 12);
   const code = generateCode(state.score, Date.now());
+  saveRun('dino', state.score, code);
   const overlay = document.createElement('div');
   overlay.className = 'end-overlay';
   document.body.appendChild(overlay);
@@ -286,3 +287,5 @@ function frame() {
   requestAnimationFrame(frame);
 }
 frame();
+
+showDebugIfRequested('dino');

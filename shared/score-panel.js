@@ -30,3 +30,24 @@ export function renderEndScreen(container, { score, code, message }) {
     </div>
   `;
 }
+
+export function saveRun(game, score, code) {
+  const key = `runs.${game}`;
+  const list = JSON.parse(localStorage.getItem(key) ?? '[]');
+  list.push({ score, code, at: Date.now() });
+  if (list.length > 20) list.shift();
+  localStorage.setItem(key, JSON.stringify(list));
+}
+
+export function loadRuns(game) {
+  return JSON.parse(localStorage.getItem(`runs.${game}`) ?? '[]');
+}
+
+export function showDebugIfRequested(game) {
+  if (!new URLSearchParams(location.search).has('debug')) return;
+  const runs = loadRuns(game);
+  const pre = document.createElement('pre');
+  pre.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow:auto;background:#000c;color:#0ff;padding:8px;font-size:11px;z-index:100';
+  pre.textContent = runs.map(r => `${new Date(r.at).toLocaleTimeString()}  ${r.score}/30  ${r.code}`).join('\n');
+  document.body.appendChild(pre);
+}
