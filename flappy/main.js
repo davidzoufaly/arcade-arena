@@ -123,6 +123,7 @@ function reset() {
   state.dead = false;
   state.trail = [];
   state.pulseT = 0;
+  state.worldX = 0;
   stageMgr.reset();
   setStage(1);
   hudEl.textContent = 'SCORE 0';
@@ -158,7 +159,7 @@ async function start() {
     const floor = samples[Math.floor(samples.length / 2)] || 0;
     state.triggerThreshold = Math.max(0.025, floor + 0.02);
     state.audio.setSustainThreshold(Math.max(0.10, floor + 0.08));
-    bannerEl.textContent = 'YELL TO START!';
+    bannerEl.textContent = 'MAKE NOISE TO START';
     const wait = () => {
       if (state.audio.amplitude() > state.triggerThreshold * 1.5) {
         bannerEl.textContent = '';
@@ -223,7 +224,12 @@ function step() {
   state.orb.y += state.orb.vy;
   if (state.orb.y < state.orb.r || state.orb.y > canvas.height - state.orb.r) die();
 
-  state.trail.push({ x: state.orb.x, y: state.orb.y });
+  state.worldX += state.speed;
+  state.trail.push({ worldX: state.worldX, y: state.orb.y });
+  // drop points that have scrolled off the left edge
+  while (state.trail.length > 0 && state.orb.x - (state.worldX - state.trail[0].worldX) < -40) {
+    state.trail.shift();
+  }
   if (state.trail.length > TRAIL_MAX) state.trail.shift();
   state.pulseT += 0.06;
 
@@ -344,9 +350,11 @@ function drawTrail() {
     }
     const alpha = 0.15 + 0.65 * t; // older = fainter
     ctx.strokeStyle = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(bl)}, ${alpha})`;
+    const ax = state.orb.x - (state.worldX - a.worldX);
+    const bx = state.orb.x - (state.worldX - b.worldX);
     ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
+    ctx.moveTo(ax, a.y);
+    ctx.lineTo(bx, b.y);
     ctx.stroke();
   }
   ctx.restore();
