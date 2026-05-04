@@ -278,7 +278,7 @@ function showEndScreen() {
 function draw() {
   ctx.save();
   shake.apply(ctx);
-  fadeOverlay(ctx, 0.2);
+  fadeOverlay(ctx, 0.95);
   drawGridFloor(ctx, state.scroll);
   // pipes
   withGlow(ctx, '#ff00ff', 16, () => {

@@ -513,7 +513,7 @@ function drawArmoredBall(cx, top, w, h) {
 function draw() {
   ctx.save();
   shake.apply(ctx);
-  fadeOverlay(ctx, 0.2);
+  fadeOverlay(ctx, 0.95);
   drawSky();
   drawGridFloor(ctx, state.scroll, '#ff00ff');
   drawGround();
