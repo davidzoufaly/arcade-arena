@@ -53,6 +53,7 @@ const state = {
   spawnTimer: 0,
   spawnEvery: 90,
   allowHigh: false, // S2+ enables high obstacles
+  dt: 1,
 };
 
 function groundY() { return canvas.height * GROUND_Y_RATIO; }
@@ -273,21 +274,21 @@ function step() {
     state.knight.vy = -strength;
   }
   state.knight.ducking = duck && onGround;
-  state.knight.vy += 0.8;
-  state.knight.y += state.knight.vy;
+  state.knight.vy += 0.8 * state.dt;
+  state.knight.y += state.knight.vy * state.dt;
   if (state.knight.y + state.knight.h > groundY()) {
     state.knight.y = groundY() - state.knight.h;
     state.knight.vy = 0;
   }
-  state.meters += state.speed * 0.06;
+  state.meters += state.speed * 0.06 * state.dt;
 
-  state.spawnTimer -= 1;
+  state.spawnTimer -= state.dt;
   if (state.spawnTimer <= 0) {
     spawnObstacle();
     state.spawnTimer = state.spawnEvery + Math.random() * 30;
   }
   for (const o of state.obs) {
-    o.x -= state.speed;
+    o.x -= state.speed * state.dt;
     if (!o.passed && o.x + o.w < state.knight.x) {
       o.passed = true;
       state.score = Math.min(16, state.score + 1);
@@ -518,7 +519,6 @@ function draw() {
   drawSky();
   drawGridFloor(ctx, state.scroll, '#ff00ff');
   drawGround();
-  drawDunes();
   drawKnight();
   drawObstacles();
   ctx.restore();
@@ -715,60 +715,6 @@ function drawWidgetCard(x, y, idx) {
   ctx.restore();
 }
 
-function drawDunes() {
-  // Replace the old desert dunes with two parallax silhouette layers of data pipelines + server racks
-  const baseY = groundY();
-  const w = canvas.width;
-
-  // Distant racks layer
-  ctx.save();
-  ctx.fillStyle = 'rgba(40, 0, 80, 0.5)';
-  const off1 = (state.scroll * 30) % 200;
-  for (let x = -off1; x < w + 200; x += 200) {
-    drawRackSilhouette(x, baseY, 90, 38, 'far');
-  }
-  ctx.restore();
-
-  // Closer pipeline layer
-  ctx.save();
-  ctx.fillStyle = 'rgba(80, 0, 100, 0.55)';
-  ctx.strokeStyle = 'rgba(255, 0, 255, 0.5)';
-  ctx.lineWidth = 2;
-  const off2 = (state.scroll * 60) % 300;
-  for (let x = -off2; x < w + 300; x += 300) {
-    drawPipelineSilhouette(x, baseY);
-  }
-  ctx.restore();
-}
-
-function drawRackSilhouette(x, baseY, w, h, depth) {
-  ctx.fillRect(x, baseY - h, w, h);
-  // Slot lines (server units)
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-  const slots = 5;
-  for (let i = 1; i < slots; i++) {
-    ctx.fillRect(x + 4, baseY - h + (i / slots) * h, w - 8, 1);
-  }
-  ctx.fillStyle = depth === 'far' ? 'rgba(40, 0, 80, 0.5)' : 'rgba(80, 0, 100, 0.55)';
-  // Indicator LED
-  ctx.fillStyle = '#00ffff';
-  ctx.fillRect(x + w - 8, baseY - h + 4, 3, 3);
-  ctx.fillStyle = depth === 'far' ? 'rgba(40, 0, 80, 0.5)' : 'rgba(80, 0, 100, 0.55)';
-}
-
-function drawPipelineSilhouette(x, baseY) {
-  // Rack
-  ctx.fillRect(x, baseY - 56, 60, 56);
-  ctx.strokeRect(x, baseY - 56, 60, 56);
-  // Connecting pipe to next rack
-  ctx.fillRect(x + 60, baseY - 38, 240, 4);
-  ctx.strokeRect(x + 60, baseY - 38, 240, 4);
-  // Pipe blob (data flowing) — magenta dot
-  const blobOffset = (state.scroll * 100) % 240;
-  ctx.fillStyle = '#ff00ff';
-  ctx.fillRect(x + 60 + blobOffset, baseY - 41, 6, 10);
-}
-
 function drawGround() {
   const gy = groundY();
   // Solid ground band beneath horizon
@@ -791,6 +737,7 @@ function drawGround() {
   ctx.lineWidth = 2;
 }
 
+let prevFrameTs = performance.now();
 function frame() {
   fpsFrames++;
   const fpsNow = performance.now();
@@ -799,9 +746,12 @@ function frame() {
     fpsFrames = 0;
     fpsLast = fpsNow;
   }
+  const dt = Math.min(2.5, (fpsNow - prevFrameTs) / 16.6667);
+  prevFrameTs = fpsNow;
+  state.dt = dt;
   if (state.running) step();
   draw();
-  state.scroll += state.running ? 0.06 : 0.02;
+  state.scroll += (state.running ? 0.06 : 0.02) * dt;
   requestAnimationFrame(frame);
 }
 frame();
