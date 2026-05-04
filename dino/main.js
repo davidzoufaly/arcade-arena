@@ -614,20 +614,7 @@ function drawStackTraceBars(o) {
 
 function drawSky() {
   const w = canvas.width, h = canvas.height;
-  // chart-style horizontal gridlines (only sky portion)
-  ctx.save();
-  ctx.strokeStyle = 'rgba(0, 255, 255, 0.05)';
-  ctx.lineWidth = 1;
   const skyH = groundY();
-  const rows = 5;
-  for (let i = 1; i < rows; i++) {
-    const y = (i / rows) * skyH;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
-    ctx.stroke();
-  }
-  ctx.restore();
 
   // Rotating donut/gauge chart in upper-right
   const cx = w * 0.78;
