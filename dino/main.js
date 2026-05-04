@@ -71,7 +71,7 @@ const stageProgressEl = document.getElementById('stage-progress');
 const stageNameEl = document.getElementById('stage-name');
 const stageCountEl = document.getElementById('stage-count');
 const DINO_LABELS = ['FINGER', 'HAND', 'ARM', 'BODY'];
-const DINO_THRESHOLDS = [0, 8, 16, 23, 31];
+const DINO_THRESHOLDS = [0, 4, 8, 12, 16];
 const fingerDotsEl = document.getElementById('finger-dots');
 const jumpFillEl = document.getElementById('jump-fill');
 const jumpLabelEl = document.getElementById('jump-label');
@@ -150,7 +150,7 @@ async function setStage(n) {
 }
 
 state.currentStage = 1;
-const stageMgr = createStageManager([8, 16, 23], setStage);
+const stageMgr = createStageManager([4, 8, 12], setStage);
 setStage(1);
 
 function reset() {
@@ -286,7 +286,16 @@ function step() {
     spawnObstacle();
     state.spawnTimer = state.spawnEvery + Math.random() * 30;
   }
-  for (const o of state.obs) o.x -= state.speed;
+  for (const o of state.obs) {
+    o.x -= state.speed;
+    if (!o.passed && o.x + o.w < state.knight.x) {
+      o.passed = true;
+      state.score = Math.min(16, state.score + 1);
+      hudEl.textContent = `SCORE ${state.score}`;
+      stageMgr.update(state.score);
+      updateStageProgress();
+    }
+  }
   state.obs = state.obs.filter(o => o.x + o.w > 0);
 
   const k = state.knight;
@@ -295,14 +304,6 @@ function step() {
   const knightBox = { x: k.x, y: ky, w: k.w, h: kh };
   for (const o of state.obs) {
     if (intersects(knightBox, o)) die();
-  }
-
-  const newScore = Math.min(30, Math.floor(state.meters / 100));
-  if (newScore !== state.score) {
-    state.score = newScore;
-    hudEl.textContent = `SCORE ${state.score}`;
-    updateStageProgress();
-    stageMgr.update(state.score);
   }
 
   if (state.mode === 'body' && state.pose) {
@@ -558,52 +559,56 @@ function drawObstacles() {
 
 function drawAlertPopup(o) {
   ctx.save();
-  // Card background
-  ctx.fillStyle = 'rgba(10, 10, 26, 0.85)';
-  ctx.strokeStyle = '#ff00ff';
-  ctx.lineWidth = 2;
+  // White-outlined cyan card, bright
+  ctx.fillStyle = '#00ffff';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.roundRect(o.x, o.y, o.w, o.h, 4);
   ctx.fill();
   ctx.stroke();
-  // Top alert bar (red)
-  ctx.fillStyle = '#ff5a3c';
-  ctx.fillRect(o.x, o.y, o.w, 4);
-  // Exclamation icon
-  ctx.fillStyle = '#ff5a3c';
-  ctx.font = `bold ${Math.round(o.h * 0.6)}px 'Courier New', monospace`;
+  // Top alert bar (red, full opacity)
+  ctx.fillStyle = '#ff003c';
+  ctx.fillRect(o.x, o.y, o.w, 6);
+  // Bold dark exclamation icon for contrast
+  ctx.fillStyle = '#0a0a1a';
+  ctx.font = `bold ${Math.round(o.h * 0.7)}px 'Press Start 2P', 'Courier New', monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('!', o.x + o.w / 2, o.y + o.h * 0.6);
+  ctx.fillText('!', o.x + o.w / 2, o.y + o.h * 0.65);
+  // Outer glow ring (bright)
+  ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(o.x - 3, o.y - 3, o.w + 6, o.h + 6, 6);
+  ctx.stroke();
   ctx.restore();
 }
 
 function drawStackTraceBars(o) {
   ctx.save();
-  // Spawn 4 vertical magenta bars of varying heights inside obstacle bbox
+  // Solid bright-yellow block with magenta border, then bar chart on top
+  ctx.fillStyle = '#1a0033';
+  ctx.fillRect(o.x - 2, o.y - 2, o.w + 4, o.h + 4);
+  ctx.strokeStyle = '#ffff00';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(o.x - 2, o.y - 2, o.w + 4, o.h + 4);
+
   const bars = 4;
   const gap = 2;
   const barW = (o.w - gap * (bars - 1)) / bars;
-  // Stable per-obstacle pattern: hash by integer x-position
   const seed = Math.abs(Math.floor(o.x / 7)) % 1000;
-  ctx.fillStyle = '#ff00ff';
   for (let i = 0; i < bars; i++) {
     const h = 8 + ((seed * 13 + i * 31) % Math.max(8, Math.floor(o.h * 0.85)));
     const bx = o.x + i * (barW + gap);
     const by = o.y + (o.h - h);
-    withGlow(ctx, '#ff00ff', 8, () => {
-      ctx.beginPath();
-      ctx.rect(bx, by, barW, h);
-      ctx.fill();
-    });
+    // bright magenta fill
+    ctx.fillStyle = '#ff00ff';
+    ctx.fillRect(bx, by, barW, h);
+    // white tip
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(bx, by, barW, 2);
   }
-  // Tiny baseline tick under all bars
-  ctx.strokeStyle = '#ff00ff';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(o.x, o.y + o.h);
-  ctx.lineTo(o.x + o.w, o.y + o.h);
-  ctx.stroke();
   ctx.restore();
 }
 
@@ -797,20 +802,6 @@ function drawGround() {
   ctx.lineTo(canvas.width, gy);
   ctx.stroke();
   ctx.lineWidth = 2;
-
-  // Faint vertical chart gridlines on ground (x-axis ticks)
-  ctx.save();
-  ctx.strokeStyle = 'rgba(0, 255, 255, 0.10)';
-  ctx.lineWidth = 1;
-  const colSpacing = 80;
-  const offset = (state.scroll * 50) % colSpacing;
-  for (let x = -offset; x < canvas.width; x += colSpacing) {
-    ctx.beginPath();
-    ctx.moveTo(x, gy);
-    ctx.lineTo(x, canvas.height);
-    ctx.stroke();
-  }
-  ctx.restore();
 }
 
 function frame() {
