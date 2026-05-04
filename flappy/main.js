@@ -55,7 +55,8 @@ const state = {
   gap: 220,
   triggerThreshold: 0.03,
   trail: [],
-  pulseT: 0
+  pulseT: 0,
+  dt: 1
 };
 
 const STAGE_CFG = [
@@ -216,31 +217,31 @@ function step() {
   } else if (state.mode === 'chant') {
     // demand sustained chant: if not sustained, extra gravity
     thrust = amp * 12 + (state.audio.isSustained() ? 6 : 0);
-    if (!state.audio.isSustained()) state.orb.vy += 0.6;
+    if (!state.audio.isSustained()) state.orb.vy += 0.6 * state.dt;
   }
-  state.orb.vy += 0.3;
-  state.orb.vy -= thrust;
+  state.orb.vy += 0.3 * state.dt;
+  state.orb.vy -= thrust * state.dt;
   state.orb.vy = Math.max(-9, Math.min(9, state.orb.vy));
-  state.orb.y += state.orb.vy;
+  state.orb.y += state.orb.vy * state.dt;
   if (state.orb.y < state.orb.r || state.orb.y > canvas.height - state.orb.r) die();
 
-  state.worldX += state.speed;
+  state.worldX += state.speed * state.dt;
   state.trail.push({ worldX: state.worldX, y: state.orb.y });
   // drop points that have scrolled off the left edge
   while (state.trail.length > 0 && state.orb.x - (state.worldX - state.trail[0].worldX) < -40) {
     state.trail.shift();
   }
   if (state.trail.length > TRAIL_MAX) state.trail.shift();
-  state.pulseT += 0.06;
+  state.pulseT += 0.06 * state.dt;
 
-  state.spawnTimer -= 1;
+  state.spawnTimer -= state.dt;
   if (state.spawnTimer <= 0) {
     spawnPipe();
     state.spawnTimer = state.spawnEvery;
   }
 
   for (const p of state.pipes) {
-    p.x -= state.speed;
+    p.x -= state.speed * state.dt;
     if (!p.passed && p.x + PIPE_W < state.orb.x) {
       p.passed = true;
       state.score = Math.min(30, state.score + 1);
@@ -451,6 +452,7 @@ function draw() {
   ctx.restore();
 }
 
+let prevFrameTs = performance.now();
 function frame() {
   fpsFrames++;
   const fpsNow = performance.now();
@@ -459,9 +461,13 @@ function frame() {
     fpsFrames = 0;
     fpsLast = fpsNow;
   }
+  // dt: 1.0 = one 60fps frame. Cap to avoid huge spikes after tab-switch.
+  const dt = Math.min(2.5, (fpsNow - prevFrameTs) / 16.6667);
+  prevFrameTs = fpsNow;
+  state.dt = dt;
   if (state.running) step();
   draw();
-  state.scroll += state.running ? 0.04 : 0.01;
+  state.scroll += (state.running ? 0.04 : 0.01) * dt;
   requestAnimationFrame(frame);
 }
 frame();
