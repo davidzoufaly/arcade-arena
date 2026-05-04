@@ -109,8 +109,17 @@ async function start() {
     showDenialModal('camera');
     return;
   }
-  reset();
-  state.running = true;
+  bannerEl.textContent = 'WAVE A HAND TO START...';
+  const calibrate = () => {
+    if (state.hand.latest().hands.length > 0) {
+      bannerEl.textContent = '';
+      reset();
+      state.running = true;
+    } else {
+      requestAnimationFrame(calibrate);
+    }
+  };
+  calibrate();
 }
 
 window.addEventListener('keydown', (e) => {

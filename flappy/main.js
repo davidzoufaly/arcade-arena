@@ -80,8 +80,18 @@ async function start() {
     showDenialModal('microphone');
     return;
   }
-  reset();
-  state.running = true;
+  // calibrate: wait for first sound > 0.05
+  bannerEl.textContent = 'SAY SOMETHING TO START...';
+  const calibrate = () => {
+    if (state.audio.amplitude() > 0.05) {
+      bannerEl.textContent = '';
+      reset();
+      state.running = true;
+    } else {
+      requestAnimationFrame(calibrate);
+    }
+  };
+  calibrate();
 }
 
 window.addEventListener('keydown', (e) => {
