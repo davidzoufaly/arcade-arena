@@ -29,7 +29,7 @@ canvas { display: block; width: 100vw; height: 100vh; }
   top: 16px; left: 16px;
   font-size: 24px;
   color: var(--score);
-  text-shadow: 0 0 12px var(--score);
+  text-shadow: 0 0 4px var(--score);
   pointer-events: none;
   z-index: 10;
 }
@@ -40,7 +40,7 @@ canvas { display: block; width: 100vw; height: 100vh; }
   transform: translateX(-50%);
   font-size: 18px;
   color: var(--title);
-  text-shadow: 0 0 16px var(--title);
+  text-shadow: 0 0 6px var(--title);
   letter-spacing: 0.1em;
   z-index: 10;
   pointer-events: none;
@@ -58,7 +58,7 @@ canvas { display: block; width: 100vw; height: 100vh; }
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
 }
-.stage-track .dot.active { background: var(--brand); box-shadow: 0 0 12px var(--brand); }
+.stage-track .dot.active { background: var(--brand); box-shadow: 0 0 6px var(--brand); }
 
 .title-overlay, .end-overlay, .denial-overlay {
   position: fixed; inset: 0;
@@ -71,12 +71,12 @@ canvas { display: block; width: 100vw; height: 100vh; }
 }
 .title-overlay h1, .end-overlay h1, .denial-overlay h1 {
   color: var(--title);
-  text-shadow: 0 0 24px var(--title);
+  text-shadow: 0 0 8px var(--title);
   font-size: 36px;
   margin-bottom: 24px;
 }
 .end-overlay .score, .end-overlay .code { font-size: 24px; margin: 12px 0; }
-.end-overlay .code { color: var(--brand); text-shadow: 0 0 12px var(--brand); }
+.end-overlay .code { color: var(--brand); text-shadow: 0 0 4px var(--brand); }
 .end-overlay .hint, .title-overlay .hint { font-size: 14px; color: var(--score); margin-top: 32px; }
 
 .denial-box { max-width: 560px; }
@@ -108,7 +108,7 @@ canvas { display: block; width: 100vw; height: 100vh; }
   background: rgba(255, 0, 255, 0.15);
   border: 1px solid var(--hazard);
   color: var(--hazard);
-  text-shadow: 0 0 8px var(--hazard);
+  text-shadow: 0 0 3px var(--hazard);
   font-size: 12px;
   z-index: 20;
 }
