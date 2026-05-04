@@ -550,32 +550,231 @@ function die() {
 }
 
 function drawObstacles() {
-  withGlow(ctx, '#ff00ff', 14, () => {
-    ctx.fillStyle = '#ff00ff';
-    for (const o of state.obs) ctx.fillRect(o.x, o.y, o.w, o.h);
-  });
+  for (const o of state.obs) {
+    if (o.type === 'high') drawAlertPopup(o);
+    else drawStackTraceBars(o);
+  }
+}
+
+function drawAlertPopup(o) {
+  ctx.save();
+  // Card background
+  ctx.fillStyle = 'rgba(10, 10, 26, 0.85)';
+  ctx.strokeStyle = '#ff00ff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(o.x, o.y, o.w, o.h, 4);
+  ctx.fill();
+  ctx.stroke();
+  // Top alert bar (red)
+  ctx.fillStyle = '#ff5a3c';
+  ctx.fillRect(o.x, o.y, o.w, 4);
+  // Exclamation icon
+  ctx.fillStyle = '#ff5a3c';
+  ctx.font = `bold ${Math.round(o.h * 0.6)}px 'Courier New', monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('!', o.x + o.w / 2, o.y + o.h * 0.6);
+  ctx.restore();
+}
+
+function drawStackTraceBars(o) {
+  ctx.save();
+  // Spawn 4 vertical magenta bars of varying heights inside obstacle bbox
+  const bars = 4;
+  const gap = 2;
+  const barW = (o.w - gap * (bars - 1)) / bars;
+  // Stable per-obstacle pattern: hash by integer x-position
+  const seed = Math.abs(Math.floor(o.x / 7)) % 1000;
+  ctx.fillStyle = '#ff00ff';
+  for (let i = 0; i < bars; i++) {
+    const h = 8 + ((seed * 13 + i * 31) % Math.max(8, Math.floor(o.h * 0.85)));
+    const bx = o.x + i * (barW + gap);
+    const by = o.y + (o.h - h);
+    withGlow(ctx, '#ff00ff', 8, () => {
+      ctx.beginPath();
+      ctx.rect(bx, by, barW, h);
+      ctx.fill();
+    });
+  }
+  // Tiny baseline tick under all bars
+  ctx.strokeStyle = '#ff00ff';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(o.x, o.y + o.h);
+  ctx.lineTo(o.x + o.w, o.y + o.h);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawSky() {
-  // Magenta sun + glow
-  const cx = canvas.width * 0.78;
-  const cy = canvas.height * 0.32;
-  const r = Math.min(canvas.width, canvas.height) * 0.13;
-  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-  grad.addColorStop(0, '#ff00ff');
-  grad.addColorStop(0.6, '#aa0066');
-  grad.addColorStop(1, 'rgba(170,0,102,0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  // Distant stars
-  ctx.fillStyle = '#ffff00';
-  ctx.globalAlpha = 0.6;
-  for (let i = 0; i < 30; i++) {
-    const x = ((i * 137.5) % canvas.width);
-    const y = (i * 41.3) % (canvas.height * 0.45);
-    ctx.fillRect(x, y, 2, 2);
+  const w = canvas.width, h = canvas.height;
+  // chart-style horizontal gridlines (only sky portion)
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0, 255, 255, 0.05)';
+  ctx.lineWidth = 1;
+  const skyH = groundY();
+  const rows = 5;
+  for (let i = 1; i < rows; i++) {
+    const y = (i / rows) * skyH;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Rotating donut/gauge chart in upper-right
+  const cx = w * 0.78;
+  const cy = h * 0.28;
+  const radius = Math.min(w, h) * 0.10;
+  const phase = state.scroll * 0.5;
+  ctx.save();
+  // outer ring
+  ctx.strokeStyle = 'rgba(255, 0, 255, 0.4)';
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  // arc segments
+  const segments = 5;
+  for (let i = 0; i < segments; i++) {
+    const start = (i / segments) * Math.PI * 2 + phase;
+    const end = start + (Math.PI * 2 / segments) * 0.8;
+    ctx.strokeStyle = i % 2 === 0 ? '#ff00ff' : '#00ffff';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, start, end);
+    ctx.stroke();
+  }
+  // inner value
+  ctx.fillStyle = '#ffff00';
+  ctx.font = `bold ${Math.round(radius * 0.5)}px 'Courier New', monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${state.score}`, cx, cy);
+  ctx.restore();
+
+  // Drifting widget cards (procedural, fixed seeds based on slot index)
+  const numCards = 6;
+  for (let i = 0; i < numCards; i++) {
+    const seed = i * 137.5;
+    const baseX = (seed % w);
+    const baseY = ((seed * 0.31) % (skyH * 0.7)) + 30;
+    const driftX = (baseX - state.scroll * (10 + (i % 3) * 6)) % (w + 200) - 50;
+    drawWidgetCard(driftX, baseY, i);
+  }
+}
+
+function drawWidgetCard(x, y, idx) {
+  const w = 70, h = 36;
+  if (x + w < 0 || x > canvas.width) return;
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = 'rgba(10, 10, 26, 0.7)';
+  ctx.strokeStyle = idx % 2 === 0 ? 'rgba(0, 255, 255, 0.5)' : 'rgba(255, 0, 255, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 4);
+  ctx.fill();
+  ctx.stroke();
+
+  // Mini visualisation per card type (cycle by idx % 3)
+  const t = idx % 3;
+  if (t === 0) {
+    // sparkline
+    ctx.strokeStyle = '#ffff00';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const px = x + 6 + (i / 7) * (w - 12);
+      const py = y + h - 6 - ((Math.sin(i * 0.9 + idx) + 1) / 2) * (h - 12);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  } else if (t === 1) {
+    // bar chart
+    const bars = 5;
+    const barW = 6;
+    const gap = 2;
+    for (let i = 0; i < bars; i++) {
+      const bx = x + 8 + i * (barW + gap);
+      const bh = 6 + ((i * 13 + idx * 7) % (h - 14));
+      ctx.fillStyle = i % 2 === 0 ? '#ff5a3c' : '#ff00ff';
+      ctx.fillRect(bx, y + h - 6 - bh, barW, bh);
+    }
+  } else {
+    // gauge
+    const cx = x + w / 2;
+    const cy = y + h - 6;
+    const r = Math.min(w / 2 - 6, h - 12);
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI, 0);
+    ctx.stroke();
+    ctx.strokeStyle = '#00ffff';
+    ctx.lineWidth = 3;
+    const fill = ((idx * 0.27) % 1);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI, Math.PI + Math.PI * fill);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawDunes() {
+  // Replace the old desert dunes with two parallax silhouette layers of data pipelines + server racks
+  const baseY = groundY();
+  const w = canvas.width;
+
+  // Distant racks layer
+  ctx.save();
+  ctx.fillStyle = 'rgba(40, 0, 80, 0.5)';
+  const off1 = (state.scroll * 30) % 200;
+  for (let x = -off1; x < w + 200; x += 200) {
+    drawRackSilhouette(x, baseY, 90, 38, 'far');
+  }
+  ctx.restore();
+
+  // Closer pipeline layer
+  ctx.save();
+  ctx.fillStyle = 'rgba(80, 0, 100, 0.55)';
+  ctx.strokeStyle = 'rgba(255, 0, 255, 0.5)';
+  ctx.lineWidth = 2;
+  const off2 = (state.scroll * 60) % 300;
+  for (let x = -off2; x < w + 300; x += 300) {
+    drawPipelineSilhouette(x, baseY);
+  }
+  ctx.restore();
+}
+
+function drawRackSilhouette(x, baseY, w, h, depth) {
+  ctx.fillRect(x, baseY - h, w, h);
+  // Slot lines (server units)
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  const slots = 5;
+  for (let i = 1; i < slots; i++) {
+    ctx.fillRect(x + 4, baseY - h + (i / slots) * h, w - 8, 1);
+  }
+  ctx.fillStyle = depth === 'far' ? 'rgba(40, 0, 80, 0.5)' : 'rgba(80, 0, 100, 0.55)';
+  // Indicator LED
+  ctx.fillStyle = '#00ffff';
+  ctx.fillRect(x + w - 8, baseY - h + 4, 3, 3);
+  ctx.fillStyle = depth === 'far' ? 'rgba(40, 0, 80, 0.5)' : 'rgba(80, 0, 100, 0.55)';
+}
+
+function drawPipelineSilhouette(x, baseY) {
+  // Rack
+  ctx.fillRect(x, baseY - 56, 60, 56);
+  ctx.strokeRect(x, baseY - 56, 60, 56);
+  // Connecting pipe to next rack
+  ctx.fillRect(x + 60, baseY - 38, 240, 4);
+  ctx.strokeRect(x + 60, baseY - 38, 240, 4);
+  // Pipe blob (data flowing) — magenta dot
+  const blobOffset = (state.scroll * 100) % 240;
+  ctx.fillStyle = '#ff00ff';
+  ctx.fillRect(x + 60 + blobOffset, baseY - 41, 6, 10);
 }
 
 function drawGround() {
@@ -598,34 +797,20 @@ function drawGround() {
   ctx.lineTo(canvas.width, gy);
   ctx.stroke();
   ctx.lineWidth = 2;
-}
 
-function drawDunes() {
-  // Two dune silhouettes parallax-scrolling
-  const baseY = groundY();
-  ctx.fillStyle = 'rgba(80, 0, 80, 0.4)';
-  ctx.beginPath();
-  const offset = (state.scroll * 30) % canvas.width;
-  ctx.moveTo(-offset, baseY);
-  for (let x = 0; x <= canvas.width + 100; x += 60) {
-    const h = 24 + Math.sin((x + offset) * 0.012) * 18;
-    ctx.lineTo(x - offset, baseY - h);
+  // Faint vertical chart gridlines on ground (x-axis ticks)
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0, 255, 255, 0.10)';
+  ctx.lineWidth = 1;
+  const colSpacing = 80;
+  const offset = (state.scroll * 50) % colSpacing;
+  for (let x = -offset; x < canvas.width; x += colSpacing) {
+    ctx.beginPath();
+    ctx.moveTo(x, gy);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
   }
-  ctx.lineTo(canvas.width, baseY);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = 'rgba(140, 0, 110, 0.3)';
-  ctx.beginPath();
-  const offset2 = (state.scroll * 60) % canvas.width;
-  ctx.moveTo(-offset2, baseY);
-  for (let x = 0; x <= canvas.width + 100; x += 40) {
-    const h = 14 + Math.sin((x + offset2) * 0.02 + 1.5) * 10;
-    ctx.lineTo(x - offset2, baseY - h);
-  }
-  ctx.lineTo(canvas.width, baseY);
-  ctx.closePath();
-  ctx.fill();
+  ctx.restore();
 }
 
 function frame() {
