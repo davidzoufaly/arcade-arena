@@ -53,15 +53,16 @@ const state = {
 };
 
 const STAGE_CFG = [
-  { gap: 340, speed: 2.4, spawn: 130, mode: 'discrete' }, // S1 Whisper
-  { gap: 280, speed: 3.4, spawn: 100, mode: 'continuous' }, // S2 Loudness
-  { gap: 230, speed: 4.2, spawn: 85,  mode: 'sustain' }, // S3 Sustain
-  { gap: 190, speed: 5.0, spawn: 75,  mode: 'chant' }, // S4 Chant
+  { gap: 340, speed: 2.4, spawn: 180, mode: 'discrete' }, // S1 Whisper
+  { gap: 280, speed: 3.4, spawn: 150, mode: 'continuous' }, // S2 Loudness
+  { gap: 230, speed: 4.2, spawn: 130, mode: 'sustain' }, // S3 Sustain
+  { gap: 190, speed: 5.0, spawn: 115, mode: 'chant' }, // S4 Chant
 ];
 
 const bannerEl = document.getElementById('banner');
 const stageDots = document.querySelectorAll('#stages .dot');
 const debugEl = document.getElementById('debug');
+const noiseFill = document.getElementById('noise-fill');
 let fpsLast = performance.now();
 let fpsFrames = 0;
 let fpsValue = 0;
@@ -142,6 +143,11 @@ function spawnPipe() {
 
 function step() {
   const amp = state.audio.amplitude();
+  if (noiseFill) {
+    // amplitude is normally 0–0.5, scale to 0-100% with a gentle curve so quiet voice still shows
+    const pct = Math.min(100, Math.sqrt(amp * 2) * 100);
+    noiseFill.style.height = `${pct}%`;
+  }
   if (amp > 0.05) lastSoundAt = performance.now();
   if (performance.now() - lastSoundAt > 10000) {
     showToast('CHECK MIC?');
