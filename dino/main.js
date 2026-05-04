@@ -65,7 +65,9 @@ async function setStage(n) {
   state.allowHigh = cfg.allowHigh;
   bannerEl.textContent = `STAGE ${n}: ${cfg.label}`;
   stageDots.forEach((d, i) => d.classList.toggle('active', i < n));
-  setTimeout(() => { if (state.currentStage === n) bannerEl.textContent = ''; }, 2200);
+  if (n < 4) {
+    setTimeout(() => { if (state.currentStage === n) bannerEl.textContent = ''; }, 2200);
+  }
   state.currentStage = n;
 
   if (n === 4 && !state.pose) {
