@@ -67,6 +67,8 @@ const STAGE_CFG = [
 const bannerEl = document.getElementById('banner');
 const debugEl = document.getElementById('debug');
 const stageDots = document.querySelectorAll('#stages .dot');
+const stageProgressEl = document.getElementById('stage-progress');
+const DINO_THRESHOLDS = [0, 8, 16, 23, 31];
 const fingerDotsEl = document.getElementById('finger-dots');
 const jumpFillEl = document.getElementById('jump-fill');
 const jumpLabelEl = document.getElementById('jump-label');
@@ -109,6 +111,15 @@ let fpsValue = 0;
 state.pose = null;
 state.poseBaseline = null;
 
+function updateStageProgress() {
+  if (!stageProgressEl) return;
+  const stage = state.currentStage || 1;
+  const lo = DINO_THRESHOLDS[stage - 1];
+  const hi = DINO_THRESHOLDS[stage];
+  const pct = Math.max(0, Math.min(100, ((state.score - lo) / (hi - lo)) * 100));
+  stageProgressEl.style.width = `${pct}%`;
+}
+
 async function setStage(n) {
   const cfg = STAGE_CFG[n - 1];
   state.mode = cfg.mode;
@@ -126,6 +137,7 @@ async function setStage(n) {
     state.pose = await createPoseTracker(camEl);
     bannerEl.textContent = 'JUMPER TO CENTER · CROUCH + JUMP';
   }
+  updateStageProgress();
 }
 
 state.currentStage = 1;
@@ -280,6 +292,7 @@ function step() {
   if (newScore !== state.score) {
     state.score = newScore;
     hudEl.textContent = `SCORE ${state.score}`;
+    updateStageProgress();
     stageMgr.update(state.score);
   }
 

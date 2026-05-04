@@ -61,11 +61,22 @@ const STAGE_CFG = [
 
 const bannerEl = document.getElementById('banner');
 const stageDots = document.querySelectorAll('#stages .dot');
+const stageProgressEl = document.getElementById('stage-progress');
+const FLAPPY_THRESHOLDS = [0, 5, 13, 23, 31];
 const debugEl = document.getElementById('debug');
 const noiseFill = document.getElementById('noise-fill');
 let fpsLast = performance.now();
 let fpsFrames = 0;
 let fpsValue = 0;
+
+function updateStageProgress() {
+  if (!stageProgressEl) return;
+  const stage = state.currentStage || 1;
+  const lo = FLAPPY_THRESHOLDS[stage - 1];
+  const hi = FLAPPY_THRESHOLDS[stage];
+  const pct = Math.max(0, Math.min(100, ((state.score - lo) / (hi - lo)) * 100));
+  stageProgressEl.style.width = `${pct}%`;
+}
 
 function setStage(n) {
   const cfg = STAGE_CFG[n - 1];
@@ -77,6 +88,7 @@ function setStage(n) {
   stageDots.forEach((d, i) => d.classList.toggle('active', i < n));
   setTimeout(() => { if (state.currentStage === n) bannerEl.textContent = ''; }, 2200);
   state.currentStage = n;
+  updateStageProgress();
 }
 
 state.currentStage = 1;
@@ -183,6 +195,7 @@ function step() {
       p.passed = true;
       state.score = Math.min(30, state.score + 1);
       hudEl.textContent = `SCORE ${state.score}`;
+      updateStageProgress();
       stageMgr.update(state.score);
     }
     const inX = state.orb.x + state.orb.r > p.x && state.orb.x - state.orb.r < p.x + PIPE_W;

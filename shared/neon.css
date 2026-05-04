@@ -112,3 +112,23 @@ canvas { display: block; width: 100vw; height: 100vh; }
   font-size: 12px;
   z-index: 20;
 }
+
+.stage-progress {
+  position: fixed;
+  bottom: 44px; left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  z-index: 10;
+  pointer-events: none;
+}
+.stage-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--brand), var(--score));
+  transition: width 0.2s ease-out;
+  box-shadow: 0 0 4px var(--brand);
+}
