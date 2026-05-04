@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Wizard Quest</title>
+  <link rel="stylesheet" href="../shared/neon.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <video id="cam" autoplay muted playsinline></video>
+  <div class="hud" id="hud">SCORE 0</div>
+  <div class="banner" id="banner"></div>
+  <div class="stage-track" id="stages">
+    <div class="dot active"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+  </div>
+  <div class="scanlines"></div>
+  <div class="title-overlay" id="title">
+    <h1>WIZARD QUEST</h1>
+    <p>Stale Data Storm sweeps the desert.<br>You are the ETL Knight.</p>
+    <p style="color:var(--brand);text-shadow:0 0 12px var(--brand)">WAVE / JUMP TO SURVIVE</p>
+    <p class="hint">PRESS SPACE TO START</p>
+  </div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

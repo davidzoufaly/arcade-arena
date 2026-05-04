@@ -1,0 +1,11 @@
+#cam {
+  position: fixed;
+  top: 16px; right: 16px;
+  width: 160px;
+  height: 120px;
+  border: 2px solid var(--hazard);
+  box-shadow: 0 0 16px var(--hazard);
+  z-index: 10;
+  transform: scaleX(-1); /* mirror so user feels natural */
+}
+.hud { color: var(--score); text-shadow: 0 0 12px var(--score); }
