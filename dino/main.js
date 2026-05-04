@@ -90,6 +90,7 @@ function reset() {
   state.dead = false;
   state.obs = [];
   state.spawnTimer = 0;
+  state.poseBaseline = null;
   hudEl.textContent = 'SCORE 0';
   stageMgr.reset();
   setStage(1);
