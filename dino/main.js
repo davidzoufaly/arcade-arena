@@ -299,20 +299,193 @@ function step() {
 
 function drawKnight() {
   const k = state.knight;
-  const h = k.ducking ? k.h * 0.55 : k.h;
-  const yTop = k.y + (k.h - h);
-  withGlow(ctx, '#ffff00', 16, () => {
-    ctx.fillStyle = '#ffff00';
-    ctx.fillRect(k.x, yTop, k.w, h);
-    // diamond head
+  const ducking = k.ducking;
+  const baseW = k.w;
+  const baseH = ducking ? k.h * 0.55 : k.h;
+  const top = k.y + (k.h - baseH);
+  const cx = k.x + baseW / 2;
+  const onGround = k.y + k.h >= groundY() - 0.5;
+  const runPhase = state.scroll * 8; // legs swing by scroll
+
+  ctx.save();
+
+  if (ducking) {
+    // Crouched: rounded armored ball, shield up
+    drawArmoredBall(cx, top, baseW, baseH);
+  } else {
+    drawCape(cx, top, baseW, baseH, runPhase);
+    drawLegs(cx, top, baseW, baseH, runPhase, onGround);
+    drawTorso(cx, top, baseW, baseH);
+    drawShield(cx, top, baseW, baseH);
+    drawSword(cx, top, baseW, baseH);
+    drawHelmet(cx, top, baseW);
+  }
+
+  ctx.restore();
+}
+
+function drawCape(cx, top, w, h, phase) {
+  ctx.save();
+  ctx.strokeStyle = '#ff00ff';
+  ctx.globalAlpha = 0.55;
+  ctx.lineWidth = 3;
+  const wave = Math.sin(phase) * 4;
+  ctx.beginPath();
+  ctx.moveTo(cx - w * 0.4, top + 2);
+  ctx.bezierCurveTo(cx - w * 0.9 + wave, top + h * 0.3, cx - w * 0.7 - wave, top + h * 0.7, cx - w * 0.3, top + h);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - w * 0.2, top + 2);
+  ctx.bezierCurveTo(cx - w * 0.6 + wave, top + h * 0.35, cx - w * 0.5 - wave, top + h * 0.75, cx - w * 0.1, top + h);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawLegs(cx, top, w, h, phase, onGround) {
+  const hipY = top + h * 0.7;
+  const footY = top + h;
+  const swing = onGround ? Math.sin(phase) * 6 : 4;
+  ctx.save();
+  ctx.strokeStyle = '#ffff00';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  // back leg
+  ctx.beginPath();
+  ctx.moveTo(cx - 4, hipY);
+  ctx.lineTo(cx - 4 - swing, footY);
+  ctx.stroke();
+  // front leg
+  ctx.beginPath();
+  ctx.moveTo(cx + 4, hipY);
+  ctx.lineTo(cx + 4 + swing, footY);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawTorso(cx, top, w, h) {
+  // Cuirass: trapezoid w/ bar-chart engraving
+  const torsoY = top + h * 0.32;
+  const torsoH = h * 0.4;
+  withGlow(ctx, '#ffff00', 8, () => {
     ctx.beginPath();
-    ctx.moveTo(k.x + k.w / 2, yTop - 14);
-    ctx.lineTo(k.x + k.w, yTop);
-    ctx.lineTo(k.x + k.w / 2, yTop + 14);
-    ctx.lineTo(k.x, yTop);
+    ctx.moveTo(cx - w / 2, torsoY);
+    ctx.lineTo(cx + w / 2, torsoY);
+    ctx.lineTo(cx + w / 2 - 2, torsoY + torsoH);
+    ctx.lineTo(cx - w / 2 + 2, torsoY + torsoH);
     ctx.closePath();
     ctx.fill();
   });
+  // Bar-chart engraving (3 vertical bars in increasing height)
+  ctx.save();
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(cx - 6, torsoY + torsoH - 6, 3, 4);
+  ctx.fillRect(cx - 1, torsoY + torsoH - 8, 3, 6);
+  ctx.fillRect(cx + 4, torsoY + torsoH - 11, 3, 9);
+  ctx.restore();
+}
+
+function drawShield(cx, top, w, h) {
+  // Shield on left (in front of player from screen perspective)
+  const sx = cx - w / 2 - 4;
+  const sy = top + h * 0.4;
+  ctx.save();
+  ctx.fillStyle = '#ff5a3c';
+  ctx.strokeStyle = '#ffff00';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(sx - 6, sy, 10, 16, 3);
+  ctx.fill();
+  ctx.stroke();
+  // Dashboard ring glyph
+  ctx.strokeStyle = '#0a0a1a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(sx - 1, sy + 8, 3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(sx - 1, sy + 8, 1, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSword(cx, top, w, h) {
+  // Sword raised: from right shoulder, up and slightly back
+  const handX = cx + w / 2 - 2;
+  const handY = top + h * 0.36;
+  const tipX = handX + 14;
+  const tipY = top - 14;
+  withGlow(ctx, '#ffff00', 12, () => {
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#ffff00';
+    ctx.beginPath();
+    ctx.moveTo(handX, handY);
+    ctx.lineTo(tipX, tipY);
+    ctx.stroke();
+  });
+  // Crossguard
+  ctx.save();
+  ctx.strokeStyle = '#ff5a3c';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(handX - 3, handY + 1);
+  ctx.lineTo(handX + 6, handY - 5);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawHelmet(cx, top, w) {
+  // Helmet body
+  withGlow(ctx, '#ffff00', 8, () => {
+    ctx.beginPath();
+    ctx.moveTo(cx - w / 2 + 2, top + 16);
+    ctx.lineTo(cx - w / 2 + 4, top + 4);
+    ctx.lineTo(cx - 4, top - 2);
+    ctx.lineTo(cx + 4, top - 2);
+    ctx.lineTo(cx + w / 2 - 4, top + 4);
+    ctx.lineTo(cx + w / 2 - 2, top + 16);
+    ctx.closePath();
+    ctx.fill();
+  });
+  // Visor slit
+  ctx.save();
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(cx - 8, top + 6, 16, 3);
+  // Magenta glow eye through visor
+  ctx.fillStyle = '#ff00ff';
+  ctx.shadowColor = '#ff00ff';
+  ctx.shadowBlur = 8;
+  ctx.fillRect(cx - 4, top + 6, 8, 3);
+  ctx.shadowBlur = 0;
+  ctx.restore();
+  // Crest spike
+  ctx.save();
+  ctx.strokeStyle = '#ff00ff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, top - 2);
+  ctx.lineTo(cx, top - 10);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawArmoredBall(cx, top, w, h) {
+  // Crouched armored ball
+  withGlow(ctx, '#ffff00', 10, () => {
+    ctx.beginPath();
+    ctx.arc(cx, top + h * 0.5, Math.max(w, h) * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  // Shield raised over head
+  ctx.save();
+  ctx.fillStyle = '#ff5a3c';
+  ctx.strokeStyle = '#ffff00';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(cx - 14, top - 4, 28, 8, 3);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
 }
 
 function draw() {
