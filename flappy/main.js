@@ -2,6 +2,7 @@ import { drawGridFloor, fadeOverlay, withGlow, ScreenShake } from '../shared/neo
 import { createAudioInput } from '../shared/audio.js';
 import { showDenialModal } from '../shared/perms.js';
 import { createStageManager } from '../shared/stages.js';
+import { generateCode, renderEndScreen } from '../shared/score-panel.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -149,17 +150,24 @@ function die() {
 }
 
 function showEndScreen() {
-  // Will be filled in Task 12. For now, brief overlay.
+  const code = generateCode(state.score, Date.now());
   const overlay = document.createElement('div');
   overlay.className = 'end-overlay';
   overlay.id = 'end';
-  overlay.innerHTML = `
-    <h1>CUSTOMER RESCUED: ${state.score}/30</h1>
-    <div class="hint">PRESS SPACE TO PLAY AGAIN</div>
-  `;
   document.body.appendChild(overlay);
-  const remove = () => { overlay.remove(); window.removeEventListener('keydown', onKey); };
-  const onKey = (e) => { if (e.code === 'Space') remove(); };
+  renderEndScreen(overlay, {
+    score: state.score,
+    code,
+    message: `CUSTOMERS RESCUED: ${state.score}`
+  });
+  const onKey = (e) => {
+    if (e.code === 'Space') {
+      overlay.remove();
+      window.removeEventListener('keydown', onKey);
+      reset();
+      state.running = true;
+    }
+  };
   window.addEventListener('keydown', onKey);
 }
 
