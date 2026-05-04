@@ -1,13 +1,3 @@
-export async function requestMic() {
-  return navigator.mediaDevices.getUserMedia({ audio: true });
-}
-
-export async function requestCam() {
-  return navigator.mediaDevices.getUserMedia({
-    video: { width: 640, height: 480, facingMode: 'user' }
-  });
-}
-
 export function showDenialModal(kind) {
   const overlay = document.createElement('div');
   overlay.className = 'denial-overlay';
