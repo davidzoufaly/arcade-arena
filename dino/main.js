@@ -1,6 +1,7 @@
 import { drawGridFloor, fadeOverlay, withGlow, ScreenShake } from '../shared/neon-fx.js';
 import { createCamStream, createHandTracker, isFingerUp, isPalmOpen, isFist } from '../shared/vision.js';
 import { showDenialModal } from '../shared/perms.js';
+import { generateCode, renderEndScreen } from '../shared/score-panel.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -26,6 +27,10 @@ const state = {
   hand: null,
   pose: null,
   mode: 'finger', // finger | hand | arm | body
+  obs: [],
+  spawnTimer: 0,
+  spawnEvery: 90,
+  allowHigh: false, // S2+ enables high obstacles
 };
 
 function groundY() { return canvas.height * GROUND_Y_RATIO; }
@@ -37,9 +42,24 @@ function reset() {
   state.meters = 0;
   state.speed = 6;
   state.dead = false;
+  state.obs = [];
+  state.spawnTimer = 0;
   hudEl.textContent = 'SCORE 0';
 }
 reset();
+
+function spawnObstacle() {
+  const high = state.allowHigh && Math.random() < 0.4;
+  if (high) {
+    state.obs.push({ x: canvas.width, y: groundY() - 110, w: 36, h: 30, type: 'high' });
+  } else {
+    state.obs.push({ x: canvas.width, y: groundY() - 30, w: 28, h: 30, type: 'low' });
+  }
+}
+
+function intersects(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
 
 async function start() {
   titleEl.style.display = 'none';
@@ -87,6 +107,28 @@ function step() {
     state.knight.vy = 0;
   }
   state.meters += state.speed * 0.06;
+
+  state.spawnTimer -= 1;
+  if (state.spawnTimer <= 0) {
+    spawnObstacle();
+    state.spawnTimer = state.spawnEvery + Math.random() * 30;
+  }
+  for (const o of state.obs) o.x -= state.speed;
+  state.obs = state.obs.filter(o => o.x + o.w > 0);
+
+  const k = state.knight;
+  const kh = k.ducking ? k.h * 0.55 : k.h;
+  const ky = k.y + (k.h - kh);
+  const knightBox = { x: k.x, y: ky, w: k.w, h: kh };
+  for (const o of state.obs) {
+    if (intersects(knightBox, o)) die();
+  }
+
+  const newScore = Math.min(30, Math.floor(state.meters / 100));
+  if (newScore !== state.score) {
+    state.score = newScore;
+    hudEl.textContent = `SCORE ${state.score}`;
+  }
 }
 
 function drawKnight() {
@@ -113,7 +155,40 @@ function draw() {
   fadeOverlay(ctx, 0.2);
   drawGridFloor(ctx, state.scroll, '#ff00ff');
   drawKnight();
+  drawObstacles();
   ctx.restore();
+}
+
+function die() {
+  if (state.dead) return;
+  state.dead = true;
+  state.running = false;
+  shake.trigger(8, 12);
+  const code = generateCode(state.score, Date.now());
+  const overlay = document.createElement('div');
+  overlay.className = 'end-overlay';
+  document.body.appendChild(overlay);
+  renderEndScreen(overlay, {
+    score: state.score,
+    code,
+    message: `KNIGHT FALLEN AT ${Math.floor(state.meters)}m`
+  });
+  const onKey = (e) => {
+    if (e.code === 'Space') {
+      overlay.remove();
+      window.removeEventListener('keydown', onKey);
+      reset();
+      state.running = true;
+    }
+  };
+  window.addEventListener('keydown', onKey);
+}
+
+function drawObstacles() {
+  withGlow(ctx, '#ff00ff', 14, () => {
+    ctx.fillStyle = '#ff00ff';
+    for (const o of state.obs) ctx.fillRect(o.x, o.y, o.w, o.h);
+  });
 }
 
 function frame() {
