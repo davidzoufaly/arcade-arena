@@ -38,7 +38,7 @@ export class SustainTracker {
   reset() { this.startedAt = null; }
 }
 
-export async function createAudioInput({ smoothing = 0.4, sustainThreshold = 0.25, sustainMs = 1000 } = {}) {
+export async function createAudioInput({ smoothing = 0.4, sustainThreshold = 0.12, sustainMs = 1000 } = {}) {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const ctx = new AudioContext();
   const src = ctx.createMediaStreamSource(stream);
@@ -63,6 +63,7 @@ export async function createAudioInput({ smoothing = 0.4, sustainThreshold = 0.2
   return {
     amplitude() { return sm.value(); },
     isSustained() { return sus.isSustained(); },
+    setSustainThreshold(v) { sus.threshold = v; },
     stop() { cancelAnimationFrame(raf); stream.getTracks().forEach(t => t.stop()); ctx.close(); }
   };
 }

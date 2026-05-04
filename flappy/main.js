@@ -14,6 +14,7 @@ resize();
 window.addEventListener('resize', resize);
 
 const PIPE_W = 80;
+const METER_MAX = 0.30; // amp value mapped to 100% on the meter
 const shake = new ScreenShake();
 
 function showLoadFailure(what) {
@@ -49,7 +50,8 @@ const state = {
   pipes: [],
   spawnTimer: 0,
   speed: 4,
-  gap: 220
+  gap: 220,
+  triggerThreshold: 0.03
 };
 
 const STAGE_CFG = [
@@ -134,16 +136,33 @@ async function start() {
     }
     return;
   }
-  // calibrate: wait for first sound > 0.05
-  bannerEl.textContent = 'SAY SOMETHING TO START...';
+  // Calibrate: measure ambient noise floor for ~1.5s while showing prompt
+  bannerEl.textContent = 'CALIBRATING... STAY QUIET';
+  let samples = [];
+  const calibrateStart = performance.now();
   const calibrate = () => {
-    if (state.audio.amplitude() > 0.05) {
-      bannerEl.textContent = '';
-      reset();
-      state.running = true;
-    } else {
+    const elapsed = performance.now() - calibrateStart;
+    if (elapsed < 1500) {
+      samples.push(state.audio.amplitude());
       requestAnimationFrame(calibrate);
+      return;
     }
+    // Compute noise floor (median is robust to spikes)
+    samples.sort((a, b) => a - b);
+    const floor = samples[Math.floor(samples.length / 2)] || 0;
+    state.triggerThreshold = Math.max(0.025, floor + 0.02);
+    state.audio.setSustainThreshold(Math.max(0.10, floor + 0.08));
+    bannerEl.textContent = 'YELL TO START!';
+    const wait = () => {
+      if (state.audio.amplitude() > state.triggerThreshold * 1.5) {
+        bannerEl.textContent = '';
+        reset();
+        state.running = true;
+      } else {
+        requestAnimationFrame(wait);
+      }
+    };
+    wait();
   };
   calibrate();
 }
@@ -165,9 +184,15 @@ function spawnPipe() {
 function step() {
   const amp = state.audio.amplitude();
   if (noiseFill) {
-    // amplitude is normally 0–0.5, scale to 0-100% with a gentle curve so quiet voice still shows
-    const pct = Math.min(100, Math.sqrt(amp * 2) * 100);
+    // Linear: 0..METER_MAX → 0..100%
+    const pct = Math.max(0, Math.min(100, (amp / METER_MAX) * 100));
     noiseFill.style.height = `${pct}%`;
+    // peak-hold cap with decay
+    const peakEl = document.getElementById('noise-peak');
+    if (peakEl) {
+      state._noisePeak = Math.max(pct, (state._noisePeak ?? 0) - 0.5);
+      peakEl.style.bottom = `${state._noisePeak}%`;
+    }
   }
   if (amp > 0.05) lastSoundAt = performance.now();
   if (performance.now() - lastSoundAt > 10000) {
@@ -176,7 +201,7 @@ function step() {
   }
   let thrust = 0;
   if (state.mode === 'discrete') {
-    thrust = amp > 0.04 ? 4.5 : 0;
+    thrust = amp > state.triggerThreshold ? 4.5 : 0;
   } else if (state.mode === 'continuous') {
     thrust = amp * 14;
   } else if (state.mode === 'sustain') {
