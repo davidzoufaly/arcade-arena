@@ -269,7 +269,10 @@ function draw() {
   ctx.save();
   shake.apply(ctx);
   fadeOverlay(ctx, 0.2);
+  drawSky();
   drawGridFloor(ctx, state.scroll, '#ff00ff');
+  drawGround();
+  drawDunes();
   drawKnight();
   drawObstacles();
   ctx.restore();
@@ -306,6 +309,73 @@ function drawObstacles() {
     ctx.fillStyle = '#ff00ff';
     for (const o of state.obs) ctx.fillRect(o.x, o.y, o.w, o.h);
   });
+}
+
+function drawSky() {
+  // Magenta sun + glow
+  const cx = canvas.width * 0.78;
+  const cy = canvas.height * 0.32;
+  const r = Math.min(canvas.width, canvas.height) * 0.13;
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, '#ff00ff');
+  grad.addColorStop(0.6, '#aa0066');
+  grad.addColorStop(1, 'rgba(170,0,102,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Distant stars
+  ctx.fillStyle = '#ffff00';
+  ctx.globalAlpha = 0.6;
+  for (let i = 0; i < 30; i++) {
+    const x = ((i * 137.5) % canvas.width);
+    const y = (i * 41.3) % (canvas.height * 0.45);
+    ctx.fillRect(x, y, 2, 2);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawGround() {
+  const gy = groundY();
+  // Solid ground band beneath horizon
+  ctx.fillStyle = 'rgba(20, 8, 40, 0.85)';
+  ctx.fillRect(0, gy, canvas.width, canvas.height - gy);
+  // Bright horizon line
+  ctx.strokeStyle = '#ff5a3c';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#ff5a3c';
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(0, gy);
+  ctx.lineTo(canvas.width, gy);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+function drawDunes() {
+  // Two dune silhouettes parallax-scrolling
+  const baseY = groundY();
+  ctx.fillStyle = 'rgba(80, 0, 80, 0.4)';
+  ctx.beginPath();
+  const offset = (state.scroll * 30) % canvas.width;
+  ctx.moveTo(-offset, baseY);
+  for (let x = 0; x <= canvas.width + 100; x += 60) {
+    const h = 24 + Math.sin((x + offset) * 0.012) * 18;
+    ctx.lineTo(x - offset, baseY - h);
+  }
+  ctx.lineTo(canvas.width, baseY);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(140, 0, 110, 0.3)';
+  ctx.beginPath();
+  const offset2 = (state.scroll * 60) % canvas.width;
+  ctx.moveTo(-offset2, baseY);
+  for (let x = 0; x <= canvas.width + 100; x += 40) {
+    const h = 14 + Math.sin((x + offset2) * 0.02 + 1.5) * 10;
+    ctx.lineTo(x - offset2, baseY - h);
+  }
+  ctx.lineTo(canvas.width, baseY);
+  ctx.closePath();
+  ctx.fill();
 }
 
 function frame() {
