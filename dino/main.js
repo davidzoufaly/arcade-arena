@@ -17,6 +17,14 @@ window.addEventListener('resize', resize);
 const GROUND_Y_RATIO = 0.78;
 const shake = new ScreenShake();
 
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
 const state = {
   knight: { x: 240, y: 0, vy: 0, h: 60, w: 30, ducking: false },
   scroll: 0,
@@ -195,6 +203,19 @@ function step() {
     state.score = newScore;
     hudEl.textContent = `SCORE ${state.score}`;
     stageMgr.update(state.score);
+  }
+
+  if (state.mode === 'body') {
+    const pose = state.pose ? state.pose.latest().pose : null;
+    if (!pose) {
+      if (!state._noPoseAt) state._noPoseAt = performance.now();
+      if (performance.now() - state._noPoseAt > 5000) {
+        showToast('STAND BACK / CHECK LIGHT');
+        state._noPoseAt = performance.now();
+      }
+    } else {
+      state._noPoseAt = null;
+    }
   }
 }
 

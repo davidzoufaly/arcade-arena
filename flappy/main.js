@@ -16,6 +16,16 @@ window.addEventListener('resize', resize);
 const PIPE_W = 80;
 const shake = new ScreenShake();
 
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+let lastSoundAt = performance.now();
+
 const state = {
   scroll: 0,
   orb: { x: 200, y: 0, vy: 0, r: 18 },
@@ -110,6 +120,11 @@ function spawnPipe() {
 
 function step() {
   const amp = state.audio.amplitude();
+  if (state.audio.amplitude() > 0.05) lastSoundAt = performance.now();
+  if (performance.now() - lastSoundAt > 10000) {
+    showToast('CHECK MIC?');
+    lastSoundAt = performance.now();
+  }
   let thrust = 0;
   if (state.mode === 'discrete') {
     thrust = amp > 0.08 ? 4.5 : 0;
