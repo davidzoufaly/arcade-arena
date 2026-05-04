@@ -1,4 +1,4 @@
-import { drawGridFloor, fadeOverlay, withGlow, ScreenShake } from '../shared/neon-fx.js';
+import { fadeOverlay, withGlow, ScreenShake } from '../shared/neon-fx.js';
 import { createAudioInput } from '../shared/audio.js';
 import { showDenialModal } from '../shared/perms.js';
 import { createStageManager } from '../shared/stages.js';
@@ -40,6 +40,8 @@ function showToast(msg) {
 
 let lastSoundAt = performance.now();
 
+const TRAIL_MAX = 250;
+
 const state = {
   scroll: 0,
   orb: { x: 200, y: 0, vy: 0, r: 18 },
@@ -51,7 +53,9 @@ const state = {
   spawnTimer: 0,
   speed: 4,
   gap: 220,
-  triggerThreshold: 0.03
+  triggerThreshold: 0.03,
+  trail: [],
+  pulseT: 0
 };
 
 const STAGE_CFG = [
@@ -117,6 +121,8 @@ function reset() {
   state.speed = 4;
   state.gap = 220;
   state.dead = false;
+  state.trail = [];
+  state.pulseT = 0;
   stageMgr.reset();
   setStage(1);
   hudEl.textContent = 'SCORE 0';
@@ -217,6 +223,10 @@ function step() {
   state.orb.y += state.orb.vy;
   if (state.orb.y < state.orb.r || state.orb.y > canvas.height - state.orb.r) die();
 
+  state.trail.push({ x: state.orb.x, y: state.orb.y });
+  if (state.trail.length > TRAIL_MAX) state.trail.shift();
+  state.pulseT += 0.06;
+
   state.spawnTimer -= 1;
   if (state.spawnTimer <= 0) {
     spawnPipe();
@@ -275,26 +285,161 @@ function showEndScreen() {
   window.addEventListener('keydown', onKey);
 }
 
+function drawDashboardGrid() {
+  const w = canvas.width, h = canvas.height;
+  // horizontal grid
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0, 255, 255, 0.10)';
+  ctx.lineWidth = 1;
+  const rows = 5;
+  for (let i = 1; i < rows; i++) {
+    const y = (i / rows) * h;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  // scrolling vertical grid
+  ctx.strokeStyle = 'rgba(0, 255, 255, 0.06)';
+  const colSpacing = 80;
+  const offset = (state.scroll * 50) % colSpacing;
+  for (let x = -offset; x < w; x += colSpacing) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+  // Y-axis ticks/labels on right edge
+  ctx.fillStyle = 'rgba(0, 255, 255, 0.5)';
+  ctx.font = "10px 'Courier New', monospace";
+  ctx.textAlign = 'right';
+  const labels = ['100', '75', '50', '25', '0'];
+  for (let i = 0; i < labels.length; i++) {
+    const y = (i / (labels.length - 1)) * h;
+    ctx.fillText(labels[i], w - 8, Math.max(12, Math.min(h - 4, y + 4)));
+  }
+  ctx.restore();
+}
+
+function drawTrail() {
+  if (state.trail.length < 2) return;
+  ctx.save();
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  // Single gradient pass: stroke segment-by-segment with interpolated color
+  const n = state.trail.length;
+  for (let i = 1; i < n; i++) {
+    const t = i / (n - 1); // 0..1, newer = larger
+    const a = state.trail[i - 1];
+    const b = state.trail[i];
+    // color transitions orange → yellow → cyan from oldest to newest
+    let r, g, bl;
+    if (t < 0.5) {
+      const k = t / 0.5;
+      r = 255; g = 90 + (255 - 90) * k; bl = 60 - 60 * k; // ff5a3c → ffff00
+    } else {
+      const k = (t - 0.5) / 0.5;
+      r = 255 - 255 * k; g = 255; bl = 255 * k; // ffff00 → 00ffff
+    }
+    const alpha = 0.15 + 0.65 * t; // older = fainter
+    ctx.strokeStyle = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(bl)}, ${alpha})`;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawDataPoint() {
+  const x = state.orb.x;
+  const y = state.orb.y;
+  const r = state.orb.r;
+  // pulsing outer ring
+  const pulse = 1 + Math.sin(state.pulseT) * 0.18;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255, 255, 0, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 1.7 * pulse, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255, 255, 0, 0.25)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 2.4 * pulse, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+  // Solid filled point on top
+  withGlow(ctx, '#ffff00', 14, () => {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  // Inner dot
+  ctx.save();
+  ctx.fillStyle = '#0a0a1a';
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// Stable per-pipe seed so the bars don't flicker every frame
+function p_for_band_seed(x) {
+  // Use the pipe x rounded down to an integer, then into [0..1)
+  const v = Math.abs(Math.floor(x * 1000)) % 10000;
+  return v / 10000;
+}
+
+function drawBand(x, y, w, h, side) {
+  // Gradient: faint at far edge, opaque toward the gap edge
+  ctx.save();
+  const grad = side === 'top'
+    ? ctx.createLinearGradient(0, y, 0, y + h)
+    : ctx.createLinearGradient(0, y + h, 0, y);
+  grad.addColorStop(0, 'rgba(255, 0, 255, 0.15)');
+  grad.addColorStop(1, 'rgba(255, 0, 255, 0.85)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, y, w, h);
+
+  // 2px bright edge along the gap side
+  ctx.fillStyle = '#ff00ff';
+  if (side === 'top') ctx.fillRect(x, y + h - 2, w, 2);
+  else ctx.fillRect(x, y, w, 2);
+
+  // Mini bar-chart bars inside the band — 3 vertical bars hinting at "data anomaly"
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+  const barCount = 3;
+  const barW = 6;
+  const barSpace = (w - barCount * barW) / (barCount + 1);
+  for (let i = 0; i < barCount; i++) {
+    const bx = x + barSpace + i * (barW + barSpace);
+    const seed = (Math.floor((p_for_band_seed(x) + i * 31) * 7919) % 100) / 100;
+    const bh = Math.max(8, Math.min(h - 8, 12 + seed * (h * 0.4)));
+    let by;
+    if (side === 'top') by = y + h - bh - 4; else by = y + 4;
+    ctx.fillRect(bx, by, barW, bh);
+  }
+  ctx.restore();
+}
+
+function drawAnomalyBands() {
+  // For each pipe, draw the top band + bottom band as gradient anomaly zones
+  for (const p of state.pipes) {
+    drawBand(p.x, 0, PIPE_W, p.topH, 'top');
+    drawBand(p.x, p.topH + state.gap, PIPE_W, canvas.height - p.topH - state.gap, 'bottom');
+  }
+}
+
 function draw() {
   ctx.save();
   shake.apply(ctx);
   fadeOverlay(ctx, 0.95);
-  drawGridFloor(ctx, state.scroll);
-  // pipes
-  withGlow(ctx, '#ff00ff', 16, () => {
-    ctx.fillStyle = '#ff00ff';
-    for (const p of state.pipes) {
-      ctx.fillRect(p.x, 0, PIPE_W, p.topH);
-      ctx.fillRect(p.x, p.topH + state.gap, PIPE_W, canvas.height - p.topH - state.gap);
-    }
-  });
-  // orb
-  withGlow(ctx, '#ffff00', 24, () => {
-    ctx.fillStyle = '#ffff00';
-    ctx.beginPath();
-    ctx.arc(state.orb.x, state.orb.y, state.orb.r, 0, Math.PI * 2);
-    ctx.fill();
-  });
+  drawDashboardGrid();
+  drawAnomalyBands();
+  drawTrail();
+  drawDataPoint();
   ctx.restore();
 }
 
