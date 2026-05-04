@@ -1,5 +1,5 @@
 import { drawGridFloor, fadeOverlay, withGlow, ScreenShake } from '../shared/neon-fx.js';
-import { createCamStream, createHandTracker, createPoseTracker, isFingerUp, isPalmOpen, isFist, isArmOverhead, isJumpingPose, isCrouchingPose } from '../shared/vision.js';
+import { createCamStream, createHandTracker, createPoseTracker, isFingerUp, isPalmOpen, isFist, isArmOverhead, isJumpingPose, isCrouchingPose, countFingersUp } from '../shared/vision.js';
 import { createStageManager } from '../shared/stages.js';
 import { showDenialModal } from '../shared/perms.js';
 import { generateCode, renderEndScreen, saveRun, showDebugIfRequested } from '../shared/score-panel.js';
@@ -163,7 +163,10 @@ function readInput() {
   let jump = false, duck = false;
 
   if (state.mode === 'finger') {
-    for (const h of hands) if (isFingerUp(h)) jump = true;
+    let totalFingers = 0;
+    for (const h of hands) totalFingers += countFingersUp(h);
+    state._fingers = totalFingers;
+    if (totalFingers > 0) jump = true;
   } else if (state.mode === 'hand') {
     for (const h of hands) {
       if (isPalmOpen(h)) jump = true;
@@ -192,7 +195,8 @@ function readInput() {
     const tipY = hand0?.[8]?.y?.toFixed(2) ?? '--';
     const pipY = hand0?.[6]?.y?.toFixed(2) ?? '--';
     const wristY = hand0?.[0]?.y?.toFixed(2) ?? '--';
-    debugEl.innerHTML = `mode: ${state.mode}<br>hands: ${hands.length}<br>tip Y: ${tipY}<br>pip Y: ${pipY}<br>wrist Y: ${wristY}<br>jump: ${jump ? 'YES' : 'no'}<br>duck: ${duck ? 'YES' : 'no'}`;
+    const fingers = state._fingers ?? 0;
+    debugEl.innerHTML = `mode: ${state.mode}<br>hands: ${hands.length}<br>fingers: ${fingers}<br>tip Y: ${tipY}<br>pip Y: ${pipY}<br>wrist Y: ${wristY}<br>jump: ${jump ? 'YES' : 'no'}<br>duck: ${duck ? 'YES' : 'no'}`;
   }
   return { jump, duck };
 }
@@ -200,7 +204,11 @@ function readInput() {
 function step() {
   const { jump, duck } = readInput();
   const onGround = state.knight.y + state.knight.h >= groundY() - 0.5;
-  if (jump && onGround) state.knight.vy = -14;
+  if (jump && onGround) {
+    const fingers = state.mode === 'finger' ? (state._fingers || 1) : 5;
+    const strength = Math.min(20, 8 + fingers * 1.5);
+    state.knight.vy = -strength;
+  }
   state.knight.ducking = duck && onGround;
   state.knight.vy += 0.8;
   state.knight.y += state.knight.vy;

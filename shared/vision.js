@@ -123,3 +123,22 @@ export function isCrouchingPose(pose, baselineHipY) {
   const hipY = (pose[23].y + pose[24].y) / 2;
   return hipY > baselineHipY + 0.06;
 }
+
+export function countFingersUp(hand) {
+  if (!hand) return 0;
+  let n = 0;
+  // four fingers: index, middle, ring, pinky — tip Y above PIP Y means raised
+  const tips = [8, 12, 16, 20];
+  const pips = [6, 10, 14, 18];
+  for (let i = 0; i < tips.length; i++) {
+    if (hand[tips[i]] && hand[pips[i]] && hand[tips[i]].y < hand[pips[i]].y - 0.015) n++;
+  }
+  // thumb: extended when tip is significantly farther from wrist than the knuckle
+  const t4 = hand[4], t2 = hand[2], t0 = hand[0];
+  if (t4 && t2 && t0) {
+    const dTip = Math.hypot(t4.x - t0.x, t4.y - t0.y);
+    const dKnuckle = Math.hypot(t2.x - t0.x, t2.y - t0.y);
+    if (dTip > dKnuckle * 1.2) n++;
+  }
+  return n;
+}

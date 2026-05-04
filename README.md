@@ -41,7 +41,7 @@ Each game is reachable at `<host>/flappy/` and `<host>/dino/`.
 
 - [ ] SPACE on title → cam prompt → cam preview top-right
 - [ ] "WAVE A HAND" calibration banner → wave → game starts
-- [ ] S1: index finger up → knight jumps over low obstacles
+- [ ] S1: raise fingers → knight jumps; more fingers = higher jump (1 finger small hop, palm open = big jump, two palms = max jump)
 - [ ] Score 8 → "STAGE 2: HAND", palm = jump, fist = duck, high obstacles
 - [ ] Score 16 → "STAGE 3: ARM", arm overhead = jump
 - [ ] Score 23 → "STAGE 4: BODY", "JUMPER TO CENTER" banner; jumper steps back, real jump/squat works
