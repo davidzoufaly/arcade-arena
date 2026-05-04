@@ -53,10 +53,10 @@ const state = {
 };
 
 const STAGE_CFG = [
-  { gap: 280, speed: 2.4, spawn: 130, mode: 'discrete' }, // S1 Whisper - easier
-  { gap: 220, speed: 3.4, spawn: 100, mode: 'continuous' }, // S2 Loudness
-  { gap: 180, speed: 4.2, spawn: 85,  mode: 'sustain' }, // S3 Sustain
-  { gap: 150, speed: 5.0, spawn: 75,  mode: 'chant' }, // S4 Chant
+  { gap: 340, speed: 2.4, spawn: 130, mode: 'discrete' }, // S1 Whisper
+  { gap: 280, speed: 3.4, spawn: 100, mode: 'continuous' }, // S2 Loudness
+  { gap: 230, speed: 4.2, spawn: 85,  mode: 'sustain' }, // S3 Sustain
+  { gap: 190, speed: 5.0, spawn: 75,  mode: 'chant' }, // S4 Chant
 ];
 
 const bannerEl = document.getElementById('banner');
