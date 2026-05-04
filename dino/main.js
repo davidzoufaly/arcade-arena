@@ -67,6 +67,41 @@ const STAGE_CFG = [
 const bannerEl = document.getElementById('banner');
 const debugEl = document.getElementById('debug');
 const stageDots = document.querySelectorAll('#stages .dot');
+const fingerDotsEl = document.getElementById('finger-dots');
+const jumpFillEl = document.getElementById('jump-fill');
+const jumpLabelEl = document.getElementById('jump-label');
+
+// Pre-populate 10 finger pips (max two open hands)
+if (fingerDotsEl) {
+  for (let i = 0; i < 10; i++) {
+    const d = document.createElement('div');
+    d.className = 'finger-pip';
+    d.style.cssText = 'width:10px;height:14px;border:1px solid rgba(255,255,0,0.3);border-radius:3px;background:rgba(255,255,0,0.05);transition:background 0.05s';
+    fingerDotsEl.appendChild(d);
+  }
+}
+
+function updateFingerHud(fingers) {
+  if (!fingerDotsEl) return;
+  const pips = fingerDotsEl.children;
+  for (let i = 0; i < pips.length; i++) {
+    pips[i].style.background = i < fingers
+      ? (i < 5 ? '#ffff00' : '#ff5a3c')
+      : 'rgba(255,255,0,0.05)';
+    pips[i].style.boxShadow = i < fingers ? '0 0 6px currentColor' : 'none';
+  }
+  if (jumpFillEl) {
+    const strength = Math.min(20, 8 + fingers * 1.5);
+    const pct = ((strength - 8) / (20 - 8)) * 100; // 0% at base, 100% at max
+    jumpFillEl.style.width = `${Math.max(2, pct)}%`;
+  }
+  if (jumpLabelEl) {
+    if (fingers === 0) jumpLabelEl.textContent = 'SHOW FINGERS = JUMP';
+    else if (fingers <= 2) jumpLabelEl.textContent = 'SMALL HOP';
+    else if (fingers <= 5) jumpLabelEl.textContent = 'BIG JUMP';
+    else jumpLabelEl.textContent = 'MAX HEIGHT';
+  }
+}
 let fpsLast = performance.now();
 let fpsFrames = 0;
 let fpsValue = 0;
@@ -162,6 +197,9 @@ window.addEventListener('keydown', (e) => {
 });
 
 function readInput() {
+  const meterEl = document.getElementById('finger-meter');
+  if (meterEl) meterEl.style.display = state.mode === 'finger' ? 'block' : 'none';
+
   const hands = state.hand.latest().hands;
   let jump = false, duck = false;
 
@@ -169,6 +207,7 @@ function readInput() {
     let totalFingers = 0;
     for (const h of hands) totalFingers += countFingersUp(h);
     state._fingers = totalFingers;
+    updateFingerHud(totalFingers);
     if (totalFingers > 0) jump = true;
   } else if (state.mode === 'hand') {
     for (const h of hands) {
