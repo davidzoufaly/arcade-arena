@@ -62,6 +62,9 @@ const STAGE_CFG = [
 const bannerEl = document.getElementById('banner');
 const stageDots = document.querySelectorAll('#stages .dot');
 const stageProgressEl = document.getElementById('stage-progress');
+const stageNameEl = document.getElementById('stage-name');
+const stageCountEl = document.getElementById('stage-count');
+const FLAPPY_LABELS = ['WHISPER', 'LOUDER', 'SUSTAIN', 'CHANT'];
 const FLAPPY_THRESHOLDS = [0, 5, 13, 23, 31];
 const debugEl = document.getElementById('debug');
 const noiseFill = document.getElementById('noise-fill');
@@ -74,8 +77,12 @@ function updateStageProgress() {
   const stage = state.currentStage || 1;
   const lo = FLAPPY_THRESHOLDS[stage - 1];
   const hi = FLAPPY_THRESHOLDS[stage];
-  const pct = Math.max(0, Math.min(100, ((state.score - lo) / (hi - lo)) * 100));
+  const within = state.score - lo;
+  const range = hi - lo;
+  const pct = Math.max(0, Math.min(100, (within / range) * 100));
   stageProgressEl.style.width = `${pct}%`;
+  if (stageNameEl) stageNameEl.textContent = FLAPPY_LABELS[stage - 1];
+  if (stageCountEl) stageCountEl.textContent = `${Math.max(0, within)}/${range}`;
 }
 
 function setStage(n) {
@@ -85,6 +92,8 @@ function setStage(n) {
   state.spawnEvery = cfg.spawn;
   state.mode = cfg.mode;
   bannerEl.textContent = `STAGE ${n}: ${['WHISPER', 'LOUDER', 'SUSTAIN', 'CHANT'][n - 1]}`;
+  const stageEls = document.querySelectorAll('#stages .stage');
+  stageEls.forEach((s, i) => s.classList.toggle('active', i < n));
   stageDots.forEach((d, i) => d.classList.toggle('active', i < n));
   setTimeout(() => { if (state.currentStage === n) bannerEl.textContent = ''; }, 2200);
   state.currentStage = n;

@@ -68,6 +68,9 @@ const bannerEl = document.getElementById('banner');
 const debugEl = document.getElementById('debug');
 const stageDots = document.querySelectorAll('#stages .dot');
 const stageProgressEl = document.getElementById('stage-progress');
+const stageNameEl = document.getElementById('stage-name');
+const stageCountEl = document.getElementById('stage-count');
+const DINO_LABELS = ['FINGER', 'HAND', 'ARM', 'BODY'];
 const DINO_THRESHOLDS = [0, 8, 16, 23, 31];
 const fingerDotsEl = document.getElementById('finger-dots');
 const jumpFillEl = document.getElementById('jump-fill');
@@ -116,8 +119,12 @@ function updateStageProgress() {
   const stage = state.currentStage || 1;
   const lo = DINO_THRESHOLDS[stage - 1];
   const hi = DINO_THRESHOLDS[stage];
-  const pct = Math.max(0, Math.min(100, ((state.score - lo) / (hi - lo)) * 100));
+  const within = state.score - lo;
+  const range = hi - lo;
+  const pct = Math.max(0, Math.min(100, (within / range) * 100));
   stageProgressEl.style.width = `${pct}%`;
+  if (stageNameEl) stageNameEl.textContent = DINO_LABELS[stage - 1];
+  if (stageCountEl) stageCountEl.textContent = `${Math.max(0, within)}/${range}`;
 }
 
 async function setStage(n) {
@@ -127,6 +134,8 @@ async function setStage(n) {
   state.spawnEvery = cfg.spawnEvery;
   state.allowHigh = cfg.allowHigh;
   bannerEl.textContent = `STAGE ${n}: ${cfg.label}`;
+  const stageEls = document.querySelectorAll('#stages .stage');
+  stageEls.forEach((s, i) => s.classList.toggle('active', i < n));
   stageDots.forEach((d, i) => d.classList.toggle('active', i < n));
   if (n < 4) {
     setTimeout(() => { if (state.currentStage === n) bannerEl.textContent = ''; }, 2200);

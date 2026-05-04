@@ -50,8 +50,15 @@ canvas { display: block; width: 100vw; height: 100vh; }
   position: fixed;
   bottom: 16px; left: 50%;
   transform: translateX(-50%);
-  display: flex; gap: 12px;
+  display: flex;
+  gap: 28px;
   z-index: 10;
+}
+.stage-track .stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 .stage-track .dot {
   width: 12px; height: 12px;
@@ -59,6 +66,17 @@ canvas { display: block; width: 100vw; height: 100vh; }
   background: rgba(255, 255, 255, 0.2);
 }
 .stage-track .dot.active { background: var(--brand); box-shadow: 0 0 6px var(--brand); }
+.stage-track .stage-label {
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+}
+.stage-track .stage.active .stage-label {
+  color: var(--brand);
+  text-shadow: 0 0 4px var(--brand);
+}
 
 .title-overlay, .end-overlay, .denial-overlay {
   position: fixed; inset: 0;
@@ -113,17 +131,24 @@ canvas { display: block; width: 100vw; height: 100vh; }
   z-index: 20;
 }
 
-.stage-progress {
+.stage-progress-wrap {
   position: fixed;
-  bottom: 44px; left: 50%;
+  bottom: 56px; left: 50%;
   transform: translateX(-50%);
-  width: 220px;
+  width: 320px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+  pointer-events: none;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+}
+.stage-progress {
+  flex: 1;
   height: 4px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
   overflow: hidden;
-  z-index: 10;
-  pointer-events: none;
 }
 .stage-progress-fill {
   height: 100%;
@@ -131,4 +156,20 @@ canvas { display: block; width: 100vw; height: 100vh; }
   background: linear-gradient(90deg, var(--brand), var(--score));
   transition: width 0.2s ease-out;
   box-shadow: 0 0 4px var(--brand);
+}
+.stage-progress-name {
+  font-size: 9px;
+  color: var(--brand);
+  text-shadow: 0 0 4px var(--brand);
+  letter-spacing: 0.08em;
+  min-width: 64px;
+  text-align: right;
+}
+.stage-progress-count {
+  font-size: 9px;
+  color: var(--score);
+  text-shadow: 0 0 4px var(--score);
+  letter-spacing: 0.08em;
+  min-width: 36px;
+  text-align: left;
 }
