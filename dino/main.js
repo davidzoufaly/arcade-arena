@@ -1,5 +1,6 @@
 import { drawGridFloor, fadeOverlay, withGlow, ScreenShake } from '../shared/neon-fx.js';
-import { createCamStream, createHandTracker, isFingerUp, isPalmOpen, isFist } from '../shared/vision.js';
+import { createCamStream, createHandTracker, createPoseTracker, isFingerUp, isPalmOpen, isFist, isArmOverhead, isJumpingPose, isCrouchingPose } from '../shared/vision.js';
+import { createStageManager } from '../shared/stages.js';
 import { showDenialModal } from '../shared/perms.js';
 import { generateCode, renderEndScreen } from '../shared/score-panel.js';
 
@@ -34,6 +35,41 @@ const state = {
 };
 
 function groundY() { return canvas.height * GROUND_Y_RATIO; }
+
+const STAGE_CFG = [
+  { mode: 'finger',  speed: 5.0, spawnEvery: 110, allowHigh: false, label: 'FINGER' },
+  { mode: 'hand',    speed: 6.0, spawnEvery: 95,  allowHigh: true,  label: 'HAND' },
+  { mode: 'arm',     speed: 6.8, spawnEvery: 85,  allowHigh: true,  label: 'ARM' },
+  { mode: 'body',    speed: 7.4, spawnEvery: 75,  allowHigh: true,  label: 'BODY' },
+];
+
+const bannerEl = document.getElementById('banner');
+const stageDots = document.querySelectorAll('#stages .dot');
+
+state.pose = null;
+state.poseBaseline = null;
+
+async function setStage(n) {
+  const cfg = STAGE_CFG[n - 1];
+  state.mode = cfg.mode;
+  state.speed = cfg.speed;
+  state.spawnEvery = cfg.spawnEvery;
+  state.allowHigh = cfg.allowHigh;
+  bannerEl.textContent = `STAGE ${n}: ${cfg.label}`;
+  stageDots.forEach((d, i) => d.classList.toggle('active', i < n));
+  setTimeout(() => { if (state.currentStage === n) bannerEl.textContent = ''; }, 2200);
+  state.currentStage = n;
+
+  if (n === 4 && !state.pose) {
+    state.pose = await createPoseTracker(camEl);
+    bannerEl.textContent = 'JUMPER TO CENTER · CROUCH + JUMP';
+  }
+}
+
+state.currentStage = 1;
+const stageMgr = createStageManager([8, 16, 23], setStage);
+setStage(1);
+
 function reset() {
   state.knight.y = groundY() - state.knight.h;
   state.knight.vy = 0;
@@ -45,6 +81,8 @@ function reset() {
   state.obs = [];
   state.spawnTimer = 0;
   hudEl.textContent = 'SCORE 0';
+  stageMgr.reset();
+  setStage(1);
 }
 reset();
 
@@ -85,11 +123,30 @@ window.addEventListener('keydown', (e) => {
 function readInput() {
   const hands = state.hand.latest().hands;
   let jump = false, duck = false;
-  for (const h of hands) {
-    if (state.mode === 'finger' && isFingerUp(h)) jump = true;
-    if (state.mode === 'hand') {
+
+  if (state.mode === 'finger') {
+    for (const h of hands) if (isFingerUp(h)) jump = true;
+  } else if (state.mode === 'hand') {
+    for (const h of hands) {
       if (isPalmOpen(h)) jump = true;
       if (isFist(h)) duck = true;
+    }
+  } else if (state.mode === 'arm') {
+    for (const h of hands) {
+      if (isArmOverhead(h)) jump = true;
+      if (isPalmOpen(h) && h[0].y > 0.6) duck = true;
+    }
+  } else if (state.mode === 'body') {
+    const pose = state.pose ? state.pose.latest().pose : null;
+    if (pose) {
+      if (!state.poseBaseline) {
+        state.poseBaseline = {
+          shoulderY: (pose[11].y + pose[12].y) / 2,
+          hipY: (pose[23].y + pose[24].y) / 2
+        };
+      }
+      if (isJumpingPose(pose, state.poseBaseline.shoulderY)) jump = true;
+      if (isCrouchingPose(pose, state.poseBaseline.hipY)) duck = true;
     }
   }
   return { jump, duck };
@@ -128,6 +185,7 @@ function step() {
   if (newScore !== state.score) {
     state.score = newScore;
     hudEl.textContent = `SCORE ${state.score}`;
+    stageMgr.update(state.score);
   }
 }
 
