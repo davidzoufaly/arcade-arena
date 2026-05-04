@@ -53,14 +53,15 @@ const state = {
 };
 
 const STAGE_CFG = [
-  { gap: 240, speed: 3.0, spawn: 110, mode: 'discrete' }, // S1 Whisper
-  { gap: 200, speed: 4.0, spawn: 90, mode: 'continuous' }, // S2 Loudness
-  { gap: 170, speed: 4.6, spawn: 80, mode: 'sustain' }, // S3 Sustain
-  { gap: 140, speed: 5.2, spawn: 70, mode: 'chant' }, // S4 Chant
+  { gap: 280, speed: 2.4, spawn: 130, mode: 'discrete' }, // S1 Whisper - easier
+  { gap: 220, speed: 3.4, spawn: 100, mode: 'continuous' }, // S2 Loudness
+  { gap: 180, speed: 4.2, spawn: 85,  mode: 'sustain' }, // S3 Sustain
+  { gap: 150, speed: 5.0, spawn: 75,  mode: 'chant' }, // S4 Chant
 ];
 
 const bannerEl = document.getElementById('banner');
 const stageDots = document.querySelectorAll('#stages .dot');
+const debugEl = document.getElementById('debug');
 
 function setStage(n) {
   const cfg = STAGE_CFG[n - 1];
@@ -145,7 +146,7 @@ function step() {
   }
   let thrust = 0;
   if (state.mode === 'discrete') {
-    thrust = amp > 0.08 ? 4.5 : 0;
+    thrust = amp > 0.04 ? 4.5 : 0;
   } else if (state.mode === 'continuous') {
     thrust = amp * 14;
   } else if (state.mode === 'sustain') {
@@ -155,9 +156,9 @@ function step() {
     thrust = amp * 12 + (state.audio.isSustained() ? 6 : 0);
     if (!state.audio.isSustained()) state.orb.vy += 0.6;
   }
-  state.orb.vy += 0.4;
+  state.orb.vy += 0.3;
   state.orb.vy -= thrust;
-  state.orb.vy = Math.max(-8, Math.min(10, state.orb.vy));
+  state.orb.vy = Math.max(-9, Math.min(9, state.orb.vy));
   state.orb.y += state.orb.vy;
   if (state.orb.y < state.orb.r || state.orb.y > canvas.height - state.orb.r) die();
 
@@ -180,6 +181,9 @@ function step() {
       const inGap = state.orb.y - state.orb.r > p.topH && state.orb.y + state.orb.r < p.topH + state.gap;
       if (!inGap) die();
     }
+  }
+  if (debugEl) {
+    debugEl.innerHTML = `mode: ${state.mode}<br>amp: ${state.audio.amplitude().toFixed(3)}<br>sustained: ${state.audio.isSustained() ? 'YES' : 'no'}<br>vy: ${state.orb.vy.toFixed(2)}`;
   }
   state.pipes = state.pipes.filter(p => p.x + PIPE_W > 0);
 }
