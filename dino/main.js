@@ -17,6 +17,19 @@ window.addEventListener('resize', resize);
 const GROUND_Y_RATIO = 0.78;
 const shake = new ScreenShake();
 
+function showLoadFailure(what) {
+  const overlay = document.createElement('div');
+  overlay.className = 'denial-overlay';
+  overlay.innerHTML = `
+    <div class="denial-box">
+      <h1>COULD NOT LOAD ${what.toUpperCase()}</h1>
+      <p>Network or asset load failed. Check your connection and reload.</p>
+      <button onclick="location.reload()">RELOAD</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
 function showToast(msg) {
   const t = document.createElement('div');
   t.className = 'toast';
@@ -116,8 +129,12 @@ async function start() {
     const { video, stream } = await createCamStream();
     camEl.srcObject = stream;
     state.hand = await createHandTracker(video);
-  } catch {
-    showDenialModal('camera');
+  } catch (e) {
+    if (e && (e.name === 'NotAllowedError' || e.name === 'NotFoundError' || e.name === 'NotReadableError')) {
+      showDenialModal('camera');
+    } else {
+      showLoadFailure('camera or vision models');
+    }
     return;
   }
   bannerEl.textContent = 'WAVE A HAND TO START...';

@@ -16,6 +16,19 @@ window.addEventListener('resize', resize);
 const PIPE_W = 80;
 const shake = new ScreenShake();
 
+function showLoadFailure(what) {
+  const overlay = document.createElement('div');
+  overlay.className = 'denial-overlay';
+  overlay.innerHTML = `
+    <div class="denial-box">
+      <h1>COULD NOT LOAD ${what.toUpperCase()}</h1>
+      <p>Network or asset load failed. Check your connection and reload.</p>
+      <button onclick="location.reload()">RELOAD</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
 function showToast(msg) {
   const t = document.createElement('div');
   t.className = 'toast';
@@ -87,8 +100,12 @@ async function start() {
   titleEl.style.display = 'none';
   try {
     state.audio = await createAudioInput();
-  } catch {
-    showDenialModal('microphone');
+  } catch (e) {
+    if (e && (e.name === 'NotAllowedError' || e.name === 'NotFoundError' || e.name === 'NotReadableError')) {
+      showDenialModal('microphone');
+    } else {
+      showLoadFailure('microphone');
+    }
     return;
   }
   // calibrate: wait for first sound > 0.05
