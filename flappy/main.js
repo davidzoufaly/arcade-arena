@@ -79,6 +79,7 @@ function reset() {
   stageMgr.reset();
   setStage(1);
   hudEl.textContent = 'SCORE 0';
+  lastSoundAt = performance.now();
 }
 reset();
 
@@ -120,7 +121,7 @@ function spawnPipe() {
 
 function step() {
   const amp = state.audio.amplitude();
-  if (state.audio.amplitude() > 0.05) lastSoundAt = performance.now();
+  if (amp > 0.05) lastSoundAt = performance.now();
   if (performance.now() - lastSoundAt > 10000) {
     showToast('CHECK MIC?');
     lastSoundAt = performance.now();
