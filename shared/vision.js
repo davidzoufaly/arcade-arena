@@ -39,9 +39,11 @@ export async function createHandTracker(video) {
 
   let latest = { hands: [] };
   let raf;
+  let lastTs = 0;
   function loop() {
     const ts = performance.now();
-    if (video.readyState >= 2) {
+    if (video.readyState >= 2 && ts - lastTs > 33) {
+      lastTs = ts;
       const result = tracker.detectForVideo(video, ts);
       latest = { hands: result.landmarks ?? [] };
     }

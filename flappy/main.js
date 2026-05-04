@@ -62,6 +62,9 @@ const STAGE_CFG = [
 const bannerEl = document.getElementById('banner');
 const stageDots = document.querySelectorAll('#stages .dot');
 const debugEl = document.getElementById('debug');
+let fpsLast = performance.now();
+let fpsFrames = 0;
+let fpsValue = 0;
 
 function setStage(n) {
   const cfg = STAGE_CFG[n - 1];
@@ -183,7 +186,7 @@ function step() {
     }
   }
   if (debugEl) {
-    debugEl.innerHTML = `mode: ${state.mode}<br>amp: ${state.audio.amplitude().toFixed(3)}<br>sustained: ${state.audio.isSustained() ? 'YES' : 'no'}<br>vy: ${state.orb.vy.toFixed(2)}`;
+    debugEl.innerHTML = `fps: ${fpsValue}<br>mode: ${state.mode}<br>amp: ${state.audio.amplitude().toFixed(3)}<br>sustained: ${state.audio.isSustained() ? 'YES' : 'no'}<br>vy: ${state.orb.vy.toFixed(2)}`;
   }
   state.pipes = state.pipes.filter(p => p.x + PIPE_W > 0);
 }
@@ -243,6 +246,13 @@ function draw() {
 }
 
 function frame() {
+  fpsFrames++;
+  const fpsNow = performance.now();
+  if (fpsNow - fpsLast > 500) {
+    fpsValue = Math.round((fpsFrames * 1000) / (fpsNow - fpsLast));
+    fpsFrames = 0;
+    fpsLast = fpsNow;
+  }
   if (state.running) step();
   draw();
   state.scroll += state.running ? 0.04 : 0.01;

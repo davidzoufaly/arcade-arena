@@ -67,6 +67,9 @@ const STAGE_CFG = [
 const bannerEl = document.getElementById('banner');
 const debugEl = document.getElementById('debug');
 const stageDots = document.querySelectorAll('#stages .dot');
+let fpsLast = performance.now();
+let fpsFrames = 0;
+let fpsValue = 0;
 
 state.pose = null;
 state.poseBaseline = null;
@@ -196,7 +199,7 @@ function readInput() {
     const pipY = hand0?.[6]?.y?.toFixed(2) ?? '--';
     const wristY = hand0?.[0]?.y?.toFixed(2) ?? '--';
     const fingers = state._fingers ?? 0;
-    debugEl.innerHTML = `mode: ${state.mode}<br>hands: ${hands.length}<br>fingers: ${fingers}<br>tip Y: ${tipY}<br>pip Y: ${pipY}<br>wrist Y: ${wristY}<br>jump: ${jump ? 'YES' : 'no'}<br>duck: ${duck ? 'YES' : 'no'}`;
+    debugEl.innerHTML = `fps: ${fpsValue}<br>mode: ${state.mode}<br>hands: ${hands.length}<br>fingers: ${fingers}<br>tip Y: ${tipY}<br>pip Y: ${pipY}<br>wrist Y: ${wristY}<br>jump: ${jump ? 'YES' : 'no'}<br>duck: ${duck ? 'YES' : 'no'}`;
   }
   return { jump, duck };
 }
@@ -349,13 +352,18 @@ function drawGround() {
   // Bright horizon line
   ctx.strokeStyle = '#ff5a3c';
   ctx.lineWidth = 2;
-  ctx.shadowColor = '#ff5a3c';
-  ctx.shadowBlur = 8;
   ctx.beginPath();
   ctx.moveTo(0, gy);
   ctx.lineTo(canvas.width, gy);
   ctx.stroke();
-  ctx.shadowBlur = 0;
+  // halo
+  ctx.strokeStyle = 'rgba(255, 90, 60, 0.4)';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(0, gy);
+  ctx.lineTo(canvas.width, gy);
+  ctx.stroke();
+  ctx.lineWidth = 2;
 }
 
 function drawDunes() {
@@ -387,6 +395,13 @@ function drawDunes() {
 }
 
 function frame() {
+  fpsFrames++;
+  const fpsNow = performance.now();
+  if (fpsNow - fpsLast > 500) {
+    fpsValue = Math.round((fpsFrames * 1000) / (fpsNow - fpsLast));
+    fpsFrames = 0;
+    fpsLast = fpsNow;
+  }
   if (state.running) step();
   draw();
   state.scroll += state.running ? 0.06 : 0.02;
