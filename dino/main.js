@@ -225,8 +225,8 @@ function step() {
     stageMgr.update(state.score);
   }
 
-  if (state.mode === 'body') {
-    const pose = state.pose ? state.pose.latest().pose : null;
+  if (state.mode === 'body' && state.pose) {
+    const pose = state.pose.latest().pose;
     if (!pose) {
       if (!state._noPoseAt) state._noPoseAt = performance.now();
       if (performance.now() - state._noPoseAt > 5000) {
