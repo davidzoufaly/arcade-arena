@@ -137,3 +137,50 @@ describe('POSE_POOL', () => {
     expect(tiers).toEqual({ easy: 2, medium: 4, hard: 6 });
   });
 });
+
+import { samplePoses } from '../ps-offsite-2026/shared/pantomime-logic.js';
+
+describe('samplePoses', () => {
+  it('default mix returns 7 poses (2 easy + 3 medium + 2 hard)', () => {
+    const sample = samplePoses(POSE_POOL);
+    expect(sample).toHaveLength(7);
+    const tiers = sample.reduce((acc, p) => {
+      acc[p.difficulty] = (acc[p.difficulty] || 0) + 1;
+      return acc;
+    }, {});
+    expect(tiers).toEqual({ easy: 2, medium: 3, hard: 2 });
+  });
+
+  it('custom mix returns matching counts', () => {
+    const sample = samplePoses(POSE_POOL, { easy: 1, medium: 2, hard: 1 });
+    expect(sample).toHaveLength(4);
+  });
+
+  it('no duplicates within a tier', () => {
+    const sample = samplePoses(POSE_POOL);
+    const ids = sample.map(p => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('every sampled pose comes from the pool', () => {
+    const sample = samplePoses(POSE_POOL);
+    const poolIds = new Set(POSE_POOL.map(p => p.id));
+    for (const p of sample) {
+      expect(poolIds.has(p.id)).toBe(true);
+    }
+  });
+
+  it('different medium selections across calls (probabilistic — 20 runs)', () => {
+    const firstMedium = samplePoses(POSE_POOL).filter(p => p.difficulty === 'medium').map(p => p.id).sort().join(',');
+    let sawDifferent = false;
+    for (let i = 0; i < 20; i++) {
+      const m = samplePoses(POSE_POOL).filter(p => p.difficulty === 'medium').map(p => p.id).sort().join(',');
+      if (m !== firstMedium) { sawDifferent = true; break; }
+    }
+    expect(sawDifferent).toBe(true);
+  });
+
+  it('throws if tier under-resourced', () => {
+    expect(() => samplePoses(POSE_POOL, { easy: 5, medium: 1, hard: 1 })).toThrow(/not enough easy poses/);
+  });
+});

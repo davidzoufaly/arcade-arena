@@ -590,3 +590,26 @@ export const POSE_POOL = [
     ],
   },
 ];
+
+function shuffle(arr) {
+  const copy = arr.slice();
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+export function samplePoses(pool, mix = { easy: 2, medium: 3, hard: 2 }) {
+  const byTier = { easy: [], medium: [], hard: [] };
+  for (const p of pool) byTier[p.difficulty].push(p);
+  const out = [];
+  for (const tier of ['easy', 'medium', 'hard']) {
+    const n = mix[tier] || 0;
+    if (byTier[tier].length < n) {
+      throw new Error(`not enough ${tier} poses: have ${byTier[tier].length}, need ${n}`);
+    }
+    out.push(...shuffle(byTier[tier]).slice(0, n));
+  }
+  return out;
+}
