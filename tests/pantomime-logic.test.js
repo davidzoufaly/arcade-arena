@@ -81,3 +81,59 @@ describe('smoothScore', () => {
     expect(smoothScore(11.5, 10, 1)).toBeCloseTo(0.5, 2);
   });
 });
+
+import { POSE_POOL } from '../ps-offsite-2026/shared/pantomime-logic.js';
+
+describe('POSE_POOL', () => {
+  it('has 12 poses', () => {
+    expect(POSE_POOL).toHaveLength(12);
+  });
+
+  it('each pose has required fields', () => {
+    for (const p of POSE_POOL) {
+      expect(p).toHaveProperty('id');
+      expect(p).toHaveProperty('name');
+      expect(p).toHaveProperty('emoji');
+      expect(p).toHaveProperty('difficulty');
+      expect(p).toHaveProperty('timeout');
+      expect(p).toHaveProperty('desc');
+      expect(p).toHaveProperty('ref');
+      expect(Array.isArray(p.checks)).toBe(true);
+      expect(p.checks.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('every difficulty is easy/medium/hard', () => {
+    for (const p of POSE_POOL) {
+      expect(['easy', 'medium', 'hard']).toContain(p.difficulty);
+    }
+  });
+
+  it('each check has name + fn', () => {
+    for (const p of POSE_POOL) {
+      for (const c of p.checks) {
+        expect(typeof c.name).toBe('string');
+        expect(typeof c.fn).toBe('function');
+      }
+    }
+  });
+
+  it('ref has all skeleton joints', () => {
+    const required = ['nose', 'lSh', 'rSh', 'lEl', 'rEl', 'lWr', 'rWr', 'lHip', 'rHip', 'lKnee', 'rKnee', 'lAnkle', 'rAnkle'];
+    for (const p of POSE_POOL) {
+      for (const j of required) {
+        expect(p.ref).toHaveProperty(j);
+        expect(typeof p.ref[j].x).toBe('number');
+        expect(typeof p.ref[j].y).toBe('number');
+      }
+    }
+  });
+
+  it('pool tier counts: 2 easy, 4 medium, 6 hard', () => {
+    const tiers = POSE_POOL.reduce((acc, p) => {
+      acc[p.difficulty] = (acc[p.difficulty] || 0) + 1;
+      return acc;
+    }, {});
+    expect(tiers).toEqual({ easy: 2, medium: 4, hard: 6 });
+  });
+});
