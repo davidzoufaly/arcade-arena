@@ -644,6 +644,16 @@ phaseEnter.final = () => {
   };
 };
 
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    hiddenAt = performance.now();
+  } else if (hiddenAt && state.recallStartMs) {
+    state.recallStartMs += performance.now() - hiddenAt;
+    hiddenAt = 0;
+  }
+});
+
 // Bootstrap
 goto('setup');
 </script>
