@@ -179,3 +179,52 @@ describe('createLobbyApi.createLobby', () => {
     await expect(api.createLobby(21)).rejects.toThrow(/team count/i);
   });
 });
+
+describe('createLobbyApi.loadLobbyTeams', () => {
+  it('returns id+name list, no passwords', async () => {
+    const a = fakeAdapter();
+    const api = createLobbyApi(a);
+    const { lobbyId } = await api.createLobby(3);
+    const teams = await api.loadLobbyTeams(lobbyId);
+    expect(teams).toEqual([
+      { id: 1, name: 'Team 1' },
+      { id: 2, name: 'Team 2' },
+      { id: 3, name: 'Team 3' },
+    ]);
+    for (const t of teams) expect(t).not.toHaveProperty('pwd');
+  });
+
+  it('throws NOT_FOUND when lobby missing', async () => {
+    const api = createLobbyApi(fakeAdapter());
+    await expect(api.loadLobbyTeams('PS-AAAA')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+});
+
+describe('createLobbyApi.verifyTeamPwd', () => {
+  it('returns true on match', async () => {
+    const a = fakeAdapter();
+    const api = createLobbyApi(a);
+    const { lobbyId, teams } = await api.createLobby(2);
+    const t1 = teams[0];
+    expect(await api.verifyTeamPwd(lobbyId, t1.id, t1.pwd)).toBe(true);
+  });
+
+  it('returns false on wrong pwd', async () => {
+    const a = fakeAdapter();
+    const api = createLobbyApi(a);
+    const { lobbyId } = await api.createLobby(2);
+    expect(await api.verifyTeamPwd(lobbyId, 1, 'WRONG1')).toBe(false);
+  });
+
+  it('returns false when team missing', async () => {
+    const a = fakeAdapter();
+    const api = createLobbyApi(a);
+    const { lobbyId } = await api.createLobby(2);
+    expect(await api.verifyTeamPwd(lobbyId, 99, 'X')).toBe(false);
+  });
+
+  it('returns false when lobby missing', async () => {
+    const api = createLobbyApi(fakeAdapter());
+    expect(await api.verifyTeamPwd('PS-AAAA', 1, 'X')).toBe(false);
+  });
+});

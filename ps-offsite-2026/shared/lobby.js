@@ -88,5 +88,23 @@ export function createLobbyApi({ get, set }) {
     return { lobbyId, adminPwd, teams };
   }
 
-  return { createLobby };
+  async function loadLobbyTeams(lobbyId) {
+    const teamsObj = await get(`lobbies/${lobbyId}/teams`);
+    if (!teamsObj) {
+      const err = new Error('lobby not found');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+    return Object.values(teamsObj)
+      .filter(Boolean)
+      .map(t => ({ id: t.id, name: t.name }))
+      .sort((a, b) => a.id - b.id);
+  }
+
+  async function verifyTeamPwd(lobbyId, teamId, pwd) {
+    const stored = await get(`lobbies/${lobbyId}/teams/${teamId}/pwd`);
+    return typeof stored === 'string' && stored === pwd;
+  }
+
+  return { createLobby, loadLobbyTeams, verifyTeamPwd };
 }
