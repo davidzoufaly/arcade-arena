@@ -394,7 +394,10 @@ for (let i = 1; i <= 10; i++) {
 teamSelect.addEventListener('change', () => {
   document.getElementById('startBtn').disabled = !teamSelect.value;
 });
-document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('startBtn').addEventListener('click', () => {
+  teamId = parseInt(teamSelect.value, 10);
+  goto('loading');
+});
 document.getElementById('ghostToggle').addEventListener('click', () => {
   showGhost = !showGhost;
   const el = document.getElementById('ghostToggle');
@@ -419,35 +422,48 @@ async function loadModel() {
   });
 }
 
-async function startGame() {
-  teamId = parseInt(teamSelect.value, 10);
-  document.getElementById('phase-setup').classList.add('hidden');
-  document.getElementById('phase-playing').classList.remove('hidden');
-
+phaseEnter.loading = async () => {
   if (!landmarker) {
+    document.getElementById('startBtn').textContent = 'Loading AI…';
     try { await loadModel(); }
-    catch (e) { alert('Failed to load AI model. Check internet and refresh.'); return; }
+    catch (e) { alert('Failed to load AI model. Check internet and refresh.'); goto('setup'); return; }
   }
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 1280, height: 720 } });
-  } catch (e) { alert('Camera access required.'); return; }
+  } catch (e) { alert('Camera access required.'); goto('setup'); return; }
 
   const video = document.getElementById('video');
   video.srcObject = stream;
   await video.play();
-
   const canvas = document.getElementById('overlay');
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   video.style.transform = 'scaleX(-1)';
   canvas.style.transform = 'scaleX(-1)';
 
+  goto('countdown');
+};
+
+phaseEnter.countdown = () => {
+  let n = 3;
+  const el = document.getElementById('countdownNum');
+  el.textContent = n;
+  const timer = setInterval(() => {
+    n--;
+    if (n <= 0) { clearInterval(timer); goto('playing'); }
+    else el.textContent = n;
+  }, 1000);
+  activeCleanup = () => clearInterval(timer);
+};
+
+phaseEnter.playing = () => {
   scores = [];
   stepIndex = 0;
   running = true;
   startStep();
   loop();
-}
+  activeCleanup = () => { running = false; if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle); };
+};
 
 function startStep() {
   holdStart = 0;
@@ -615,12 +631,13 @@ window.skipCurrent = function() {
 function finish() {
   running = false;
   if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
-  stream && stream.getTracks().forEach(t => t.stop());
-  const total = scores.reduce((a, b) => a + b, 0);
-  const final = Math.round(total / POSES.length);
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  goto('final');
+}
+
+phaseEnter.final = () => {
+  const final = finalScore(scores);
   const code = `${STATION_CODE}-${teamId}-${final}`;
-  document.getElementById('phase-playing').classList.add('hidden');
-  document.getElementById('phase-final').classList.remove('hidden');
   document.getElementById('resTeam').textContent = teamId;
   document.getElementById('resScore').textContent = final;
   document.getElementById('resCode').textContent = code;
@@ -631,19 +648,15 @@ function finish() {
       <span class="pose-score">${s === 0 ? '— skipped' : s + ' / 100'}</span>
     </div>`;
   }).join('');
-}
+};
 
 window.resetGame = function() {
   running = false;
   if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
-  stream && stream.getTracks().forEach(t => t.stop());
-  document.getElementById('phase-playing').classList.add('hidden');
-  document.getElementById('phase-final').classList.add('hidden');
-  document.getElementById('phase-setup').classList.remove('hidden');
-  document.getElementById('startBtn').textContent = 'Start camera';
-  document.getElementById('startBtn').disabled = !teamSelect.value;
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
   scores = []; stepIndex = 0;
-  renderPoseList();
+  POSES = [];
+  goto('setup');
 };
 
 goto('setup');
