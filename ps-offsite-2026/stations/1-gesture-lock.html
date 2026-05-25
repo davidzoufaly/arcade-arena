@@ -409,7 +409,41 @@ phaseEnter.intro = () => {
 };
 
 // ----- placeholders (filled in later tasks) -----
-phaseEnter.memorize = () => { /* Task 6 */ };
+phaseEnter.memorize = () => {
+  state.sequence = pickSequenceWithRepeats(GESTURE_POOL, SEQUENCE_LEN);
+  state.stepIdx = 0;
+
+  const dotsEl = $('memorizeDots');
+  dotsEl.innerHTML = state.sequence.map(() => `<div class="dot"></div>`).join('');
+  const dots = [...dotsEl.children];
+
+  let i = 0;
+  let timer = null;
+  let cancelled = false;
+
+  function tick() {
+    if (cancelled) return;
+    if (i >= state.sequence.length) {
+      // Brief pause then advance
+      timer = setTimeout(() => { if (!cancelled) goto('countdown'); }, 400);
+      return;
+    }
+    const g = state.sequence[i];
+    $('flashEmoji').textContent = g.emoji;
+    $('flashName').textContent = g.name;
+    dots.forEach(d => d.classList.remove('flashing'));
+    dots[i].classList.add('flashing');
+    i++;
+    timer = setTimeout(tick, MEMORIZE_FLASH_MS);
+  }
+
+  tick();
+
+  activeCleanup = () => {
+    cancelled = true;
+    if (timer) clearTimeout(timer);
+  };
+};
 phaseEnter.countdown = () => { /* Task 7 */ };
 phaseEnter.recall = () => { /* Task 8 */ };
 phaseEnter['attempt-end'] = () => { /* Task 9 */ };
