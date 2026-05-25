@@ -488,6 +488,7 @@ phaseEnter.recall = () => {
   }
 
   function endAttempt(result) {
+    if (cancelled) return;
     cancelled = true;
     if (rafId) cancelAnimationFrame(rafId);
     const timeSec = (performance.now() - state.recallStartMs) / 1000;
