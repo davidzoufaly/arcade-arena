@@ -224,7 +224,7 @@
     <strong>12 poses, escalating difficulty, tight clock.</strong> Easy: 25 s timeout. Medium: 35 s. Hard: 45 s. Run out of time = pose is skipped (zero points). Move fast. One person poses, the rest direct.
   </div>
 
-  <div class="card" id="setupCard">
+  <div class="card" id="phase-setup">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup">
       <label>Team number:
@@ -237,7 +237,20 @@
     </div>
   </div>
 
-  <div id="gameCard" class="hidden">
+  <div id="phase-loading" class="card hidden">
+    <div class="briefing" style="text-align:center; padding:40px;">Loading AI model and camera…</div>
+  </div>
+
+  <div id="phase-countdown" class="card hidden">
+    <div style="text-align:center; padding:60px 24px;">
+      <div style="font-size:180px; font-weight:900; line-height:1;
+                  background:linear-gradient(135deg, var(--accent), var(--gold));
+                  -webkit-background-clip:text; background-clip:text; color:transparent;"
+           id="countdownNum">3</div>
+    </div>
+  </div>
+
+  <div id="phase-playing" class="hidden">
     <div class="game">
       <div>
         <div class="video-wrap">
@@ -279,7 +292,7 @@
     </div>
   </div>
 
-  <div id="resultCard" class="card result hidden">
+  <div id="phase-final" class="card result hidden">
     <h2>🎭 Pantomime complete</h2>
     <p style="color:var(--muted)">Team <strong id="resTeam"></strong></p>
     <div class="score" id="resScore">0</div>
@@ -300,6 +313,20 @@ import {
   scorePose,
   finalScore,
 } from '../shared/pantomime-logic.js';
+
+const PHASES = ['setup', 'loading', 'countdown', 'playing', 'final'];
+let activeCleanup = null;
+const phaseEnter = {};
+
+function $(id) { return document.getElementById(id); }
+
+function goto(phase) {
+  if (activeCleanup) { try { activeCleanup(); } catch {} activeCleanup = null; }
+  for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+  $(`phase-${phase}`).classList.remove('hidden');
+  const entry = phaseEnter[phase];
+  if (entry) entry();
+}
 
 const STATION_CODE = 'PM';
 
@@ -394,8 +421,8 @@ async function loadModel() {
 
 async function startGame() {
   teamId = parseInt(teamSelect.value, 10);
-  document.getElementById('setupCard').classList.add('hidden');
-  document.getElementById('gameCard').classList.remove('hidden');
+  document.getElementById('phase-setup').classList.add('hidden');
+  document.getElementById('phase-playing').classList.remove('hidden');
 
   if (!landmarker) {
     try { await loadModel(); }
@@ -592,8 +619,8 @@ function finish() {
   const total = scores.reduce((a, b) => a + b, 0);
   const final = Math.round(total / POSES.length);
   const code = `${STATION_CODE}-${teamId}-${final}`;
-  document.getElementById('gameCard').classList.add('hidden');
-  document.getElementById('resultCard').classList.remove('hidden');
+  document.getElementById('phase-playing').classList.add('hidden');
+  document.getElementById('phase-final').classList.remove('hidden');
   document.getElementById('resTeam').textContent = teamId;
   document.getElementById('resScore').textContent = final;
   document.getElementById('resCode').textContent = code;
@@ -610,14 +637,16 @@ window.resetGame = function() {
   running = false;
   if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
   stream && stream.getTracks().forEach(t => t.stop());
-  document.getElementById('gameCard').classList.add('hidden');
-  document.getElementById('resultCard').classList.add('hidden');
-  document.getElementById('setupCard').classList.remove('hidden');
+  document.getElementById('phase-playing').classList.add('hidden');
+  document.getElementById('phase-final').classList.add('hidden');
+  document.getElementById('phase-setup').classList.remove('hidden');
   document.getElementById('startBtn').textContent = 'Start camera';
   document.getElementById('startBtn').disabled = !teamSelect.value;
   scores = []; stepIndex = 0;
   renderPoseList();
 };
+
+goto('setup');
 </script>
 </body>
 </html>
