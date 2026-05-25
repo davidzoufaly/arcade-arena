@@ -93,6 +93,13 @@
     padding: 10px 16px; border-radius: 10px;
     font-size: 14px; font-family: ui-monospace, monospace;
   }
+  .step-badge {
+    position: absolute; top: 16px; left: 16px;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    padding: 8px 14px; border-radius: 999px;
+    font-size: 14px; font-weight: 800; letter-spacing: 0.5px;
+    color: var(--accent);
+  }
   .ghost-toggle {
     position: absolute; top: 16px; right: 16px;
     background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
@@ -286,6 +293,7 @@
         <div class="video-wrap" id="videoWrap">
           <video id="video" playsinline autoplay muted></video>
           <canvas id="overlay" class="skel-overlay-canvas"></canvas>
+          <div class="step-badge" id="stepBadge">1 / 7</div>
           <div class="video-overlay" id="hint">Stand in front of the camera</div>
           <div class="ghost-toggle active" id="ghostToggle">👻 Ghost ON</div>
         </div>
@@ -515,6 +523,7 @@ function startStep() {
   recentLandmarks = [];
   stepStartTs = performance.now();
   const pose = POSES[stepIndex];
+  document.getElementById('stepBadge').textContent = `${stepIndex + 1} / ${POSES.length}`;
   document.getElementById('poseName').textContent = `${pose.emoji} ${pose.name}`;
   document.getElementById('poseDesc').textContent = pose.desc;
   document.getElementById('poseIdx').textContent = `${stepIndex + 1}/${POSES.length}`;
