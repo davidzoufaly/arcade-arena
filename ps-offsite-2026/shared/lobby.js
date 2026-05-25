@@ -108,3 +108,18 @@ export function createLobbyApi({ get, set }) {
 
   return { createLobby, loadLobbyTeams, verifyTeamPwd };
 }
+
+export function resolveSession() {
+  const params = new URLSearchParams(location.search);
+  const urlLobby = params.get('lobby');
+  const urlTeam = params.get('team');
+  if (urlLobby && urlTeam && isValidLobbyId(urlLobby)) {
+    const teamId = parseInt(urlTeam, 10);
+    if (Number.isInteger(teamId) && teamId > 0) {
+      return { lobbyId: urlLobby, teamId };
+    }
+  }
+  const s = getSession();
+  if (s) return { lobbyId: s.lobbyId, teamId: s.teamId };
+  return null;
+}
