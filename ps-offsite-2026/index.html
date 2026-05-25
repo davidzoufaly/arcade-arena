@@ -257,6 +257,9 @@ function showErr(id, msg) {
   el.hidden = false;
 }
 function hideErr(id) { $(id).hidden = true; }
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 // ---------- create flow ----------
 $('createBtn').addEventListener('click', async () => {
@@ -285,8 +288,8 @@ function renderCredentials({ lobbyId, adminPwd, teams }) {
   tbody.innerHTML = teams.map(t => `
     <tr>
       <td>${t.id}</td>
-      <td>${t.name}</td>
-      <td><span class="code" id="cred-team-${t.id}">${t.pwd}</span></td>
+      <td>${esc(t.name)}</td>
+      <td><span class="code" id="cred-team-${t.id}">${esc(t.pwd)}</span></td>
       <td><button class="copy-btn" data-copy="cred-team-${t.id}">Copy</button></td>
     </tr>
   `).join('');
@@ -295,11 +298,11 @@ function renderCredentials({ lobbyId, adminPwd, teams }) {
     show('view-create-join');
     revealTeamPicker(lobbyId);
   };
-  document.querySelectorAll('.copy-btn').forEach(btn => {
+  document.querySelectorAll('#view-credentials .copy-btn').forEach(btn => {
     btn.onclick = () => {
       const id = btn.dataset.copy;
       const text = document.getElementById(id).textContent;
-      navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(text).catch(() => {});
       const orig = btn.textContent;
       btn.textContent = '✓';
       setTimeout(() => { btn.textContent = orig; }, 1200);
@@ -330,7 +333,7 @@ async function revealTeamPicker(lobbyId) {
     list.innerHTML = teams.map((t, i) => `
       <label class="team-option">
         <input type="radio" name="teamPick" value="${t.id}" ${i === 0 ? 'checked' : ''}>
-        <span>${t.name}</span>
+        <span>${esc(t.name)}</span>
       </label>
     `).join('');
     $('teamPicker').hidden = false;
