@@ -144,7 +144,7 @@ Full revamp (matrix view, admin actions) is a later spec.
 
 ### Automated (vitest)
 
-`tests/lobby.spec.js` — pure-logic tests for `lobby.js`:
+`tests/lobby.test.js` — pure-logic tests for `lobby.js`:
 
 - `generateLobbyId()` always matches `/^PS-[A-Z2-9]{4}$/`, no ambiguous chars.
 - `generatePwd(6)` length 6, alphabet matches.
