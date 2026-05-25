@@ -58,3 +58,36 @@ export function setSession(s) {
 export function clearSession() {
   try { localStorage.removeItem(SESSION_KEY); } catch {}
 }
+
+const MAX_CREATE_RETRIES = 5;
+
+export function createLobbyApi({ get, set }) {
+  async function createLobby(teamCount) {
+    if (!Number.isInteger(teamCount) || teamCount < 2 || teamCount > 20) {
+      throw new Error('team count must be 2..20');
+    }
+    let lobbyId = null;
+    for (let attempt = 0; attempt < MAX_CREATE_RETRIES; attempt++) {
+      const candidate = generateLobbyId();
+      const existing = await get(`lobbies/${candidate}`);
+      if (!existing) { lobbyId = candidate; break; }
+    }
+    if (!lobbyId) throw new Error('lobby id collision after 5 attempts');
+
+    const adminPwd = generatePwd(6);
+    const teams = [];
+    const teamsObj = {};
+    for (let i = 1; i <= teamCount; i++) {
+      const pwd = generatePwd(6);
+      teams.push({ id: i, name: `Team ${i}`, pwd });
+      teamsObj[i] = { id: i, name: `Team ${i}`, pwd };
+    }
+    await set(`lobbies/${lobbyId}`, {
+      meta: { createdAt: Date.now(), teamCount, adminPwd },
+      teams: teamsObj,
+    });
+    return { lobbyId, adminPwd, teams };
+  }
+
+  return { createLobby };
+}

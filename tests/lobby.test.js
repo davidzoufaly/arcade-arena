@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   generateLobbyId, generatePwd, isValidLobbyId, ALPHABET,
   getSession, setSession, clearSession, SESSION_KEY, LEGACY_TEAM_KEY,
+  createLobbyApi,
 } from '../ps-offsite-2026/shared/lobby.js';
 
 describe('ALPHABET', () => {
@@ -97,5 +98,87 @@ describe('session helpers', () => {
     vi.resetModules();
     await import('../ps-offsite-2026/shared/lobby.js');
     expect(globalThis.localStorage.getItem(LEGACY_TEAM_KEY)).toBeNull();
+  });
+});
+
+function fakeAdapter(initialData = {}) {
+  let data = JSON.parse(JSON.stringify(initialData));
+  const writes = [];
+  return {
+    data: () => data,
+    writes: () => writes,
+    get: async (path) => {
+      const parts = path.split('/').filter(Boolean);
+      let cur = data;
+      for (const p of parts) {
+        if (cur == null) return null;
+        cur = cur[p];
+      }
+      return cur ?? null;
+    },
+    set: async (path, value) => {
+      writes.push({ path, value });
+      const parts = path.split('/').filter(Boolean);
+      if (parts.length === 0) { data = value; return; }
+      let cur = data;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (cur[parts[i]] == null) cur[parts[i]] = {};
+        cur = cur[parts[i]];
+      }
+      cur[parts[parts.length - 1]] = value;
+    },
+  };
+}
+
+describe('createLobbyApi.createLobby', () => {
+  it('writes a fresh lobby with teamCount teams', async () => {
+    const a = fakeAdapter();
+    const api = createLobbyApi(a);
+    const result = await api.createLobby(4);
+
+    expect(result.lobbyId).toMatch(/^PS-[A-HJ-NP-Z2-9]{4}$/);
+    expect(result.adminPwd).toHaveLength(6);
+    expect(result.teams).toHaveLength(4);
+    expect(result.teams.map(t => t.id)).toEqual([1, 2, 3, 4]);
+    for (const t of result.teams) {
+      expect(t.name).toBe(`Team ${t.id}`);
+      expect(t.pwd).toHaveLength(6);
+    }
+
+    const stored = a.data().lobbies[result.lobbyId];
+    expect(stored.meta.teamCount).toBe(4);
+    expect(stored.meta.adminPwd).toBe(result.adminPwd);
+    expect(stored.teams[1].pwd).toBe(result.teams[0].pwd);
+  });
+
+  it('retries on collision up to 5 times', async () => {
+    const a = fakeAdapter();
+    // Pre-seed 4 collisions; 5th attempt should succeed.
+    let calls = 0;
+    const origGet = a.get;
+    a.get = async (path) => {
+      if (path.startsWith('lobbies/PS-') && calls < 4) {
+        calls++;
+        return { meta: { teamCount: 1, adminPwd: 'X', createdAt: 0 } };
+      }
+      return origGet(path);
+    };
+    const api = createLobbyApi(a);
+    const result = await api.createLobby(2);
+    expect(result.lobbyId).toBeTruthy();
+    expect(calls).toBe(4);
+  });
+
+  it('throws after 5 collisions', async () => {
+    const a = fakeAdapter();
+    a.get = async () => ({ meta: { teamCount: 1, adminPwd: 'X', createdAt: 0 } });
+    const api = createLobbyApi(a);
+    await expect(api.createLobby(2)).rejects.toThrow(/collision/i);
+  });
+
+  it('rejects teamCount out of range', async () => {
+    const api = createLobbyApi(fakeAdapter());
+    await expect(api.createLobby(1)).rejects.toThrow(/team count/i);
+    await expect(api.createLobby(21)).rejects.toThrow(/team count/i);
   });
 });
