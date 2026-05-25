@@ -90,6 +90,20 @@
   .ghost-toggle.active { background: rgba(255,0,170,0.3); border-color: var(--accent); }
 
   .panel { display: flex; flex-direction: column; gap: 16px; }
+  .player-banner {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 18px;
+    text-align: center;
+    border: 2px solid var(--accent);
+  }
+  .player-banner .label {
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .player-banner .name {
+    font-size: 28px; font-weight: 900; margin-top: 4px;
+  }
   .pose-card {
     background: var(--card); border-radius: 20px; padding: 20px;
     border: 2px solid rgba(255,255,255,0.06); text-align: center;
@@ -230,6 +244,9 @@
       <label>Team number:
         <select id="teamSelect"><option value="">—</option></select>
       </label>
+      <label>Team size:
+        <select id="teamSize"></select>
+      </label>
       <button id="startBtn" disabled>Start camera</button>
     </div>
     <div class="briefing" style="margin-top: 12px; font-size: 13px;">
@@ -261,6 +278,10 @@
         </div>
       </div>
       <div class="panel">
+        <div class="player-banner" id="playerBanner">
+          <div class="label">Now posing</div>
+          <div class="name" id="playerName">Player 1</div>
+        </div>
         <div class="pose-card" id="poseCard">
           <div class="label">Match this pose <span id="diffBadge"></span></div>
           <div class="name" id="poseName">—</div>
@@ -377,6 +398,7 @@ let stream = null;
 let running = false;
 let stepIndex = 0;
 let teamId = null;
+let teamSize = 4;
 let scores = [];
 let holdStart = 0;
 let lastVideoTime = -1;
@@ -394,8 +416,16 @@ for (let i = 1; i <= 10; i++) {
 teamSelect.addEventListener('change', () => {
   document.getElementById('startBtn').disabled = !teamSelect.value;
 });
+const teamSizeSel = document.getElementById('teamSize');
+for (let i = 2; i <= 8; i++) {
+  const o = document.createElement('option');
+  o.value = i; o.textContent = `${i} players`;
+  if (i === 4) o.selected = true;
+  teamSizeSel.appendChild(o);
+}
 document.getElementById('startBtn').addEventListener('click', () => {
   teamId = parseInt(teamSelect.value, 10);
+  teamSize = parseInt(teamSizeSel.value, 10);
   goto('loading');
 });
 document.getElementById('ghostToggle').addEventListener('click', () => {
@@ -477,6 +507,7 @@ function startStep() {
   document.getElementById('poseIdx').textContent = `${stepIndex + 1}/${POSES.length}`;
   document.getElementById('totalScore').textContent = scores.reduce((a, b) => a + b, 0);
   document.getElementById('diffBadge').innerHTML = `<span class="difficulty ${pose.difficulty}">${pose.difficulty}</span>`;
+  document.getElementById('playerName').textContent = `Player ${(stepIndex % teamSize) + 1}`;
   renderRefSvg(pose.ref);
   renderPoseList();
 
