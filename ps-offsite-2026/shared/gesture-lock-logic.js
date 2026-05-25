@@ -22,3 +22,10 @@ export function scoreAttempt({ result, completed, timeSec }) {
   }
   return Math.floor((completed / 8) * 35);
 }
+
+export function finalScore(attempts) {
+  if (!attempts.length) return 0;
+  const successes = attempts.filter(a => a.result === 'success');
+  const pool = successes.length ? successes : attempts;
+  return Math.max(0, ...pool.map(a => a.score));
+}

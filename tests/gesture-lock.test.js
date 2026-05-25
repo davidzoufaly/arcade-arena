@@ -3,6 +3,7 @@ import {
   GESTURE_POOL,
   pickSequenceWithRepeats,
   scoreAttempt,
+  finalScore,
 } from '../ps-offsite-2026/shared/gesture-lock-logic.js';
 
 describe('GESTURE_POOL', () => {
@@ -95,5 +96,46 @@ describe('scoreAttempt', () => {
 
   it('partial never reaches success floor — 8/8 fail (impossible state) still caps at 35', () => {
     expect(scoreAttempt({ result: 'fail', completed: 8, timeSec: 30 })).toBe(35);
+  });
+});
+
+describe('finalScore', () => {
+  it('returns 0 for empty attempts', () => {
+    expect(finalScore([])).toBe(0);
+  });
+
+  it('returns the only success score when one success + two fails', () => {
+    const attempts = [
+      { result: 'fail', completed: 3, score: 13 },
+      { result: 'success', completed: 8, score: 60 },
+      { result: 'fail', completed: 5, score: 21 },
+    ];
+    expect(finalScore(attempts)).toBe(60);
+  });
+
+  it('picks max across multiple successes', () => {
+    const attempts = [
+      { result: 'success', completed: 8, score: 50 },
+      { result: 'success', completed: 8, score: 80 },
+      { result: 'fail', completed: 6, score: 26 },
+    ];
+    expect(finalScore(attempts)).toBe(80);
+  });
+
+  it('picks max partial when no successes', () => {
+    const attempts = [
+      { result: 'fail', completed: 2, score: 8 },
+      { result: 'timeout', completed: 5, score: 21 },
+      { result: 'fail', completed: 4, score: 17 },
+    ];
+    expect(finalScore(attempts)).toBe(21);
+  });
+
+  it('any success beats any partial', () => {
+    const attempts = [
+      { result: 'fail', completed: 7, score: 30 },
+      { result: 'success', completed: 8, score: 40 },
+    ];
+    expect(finalScore(attempts)).toBe(40);
   });
 });
