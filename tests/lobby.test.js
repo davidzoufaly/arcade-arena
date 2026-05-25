@@ -11,7 +11,7 @@ describe('ALPHABET', () => {
 });
 
 describe('generateLobbyId', () => {
-  it('matches /^PS-[A-Z2-9]{4}$/ with no ambiguous chars', () => {
+  it('uses the safe alphabet (no 0/O/1/I)', () => {
     for (let i = 0; i < 200; i++) {
       const id = generateLobbyId();
       expect(id).toMatch(/^PS-[A-HJ-NP-Z2-9]{4}$/);
@@ -25,8 +25,10 @@ describe('generatePwd', () => {
     expect(pwd).toHaveLength(6);
     for (const c of pwd) expect(ALPHABET).toContain(c);
   });
-  it('honors explicit length', () => {
-    expect(generatePwd(10)).toHaveLength(10);
+  it('honors explicit length and stays within ALPHABET', () => {
+    const pwd = generatePwd(10);
+    expect(pwd).toHaveLength(10);
+    for (const c of pwd) expect(ALPHABET).toContain(c);
   });
 });
 
