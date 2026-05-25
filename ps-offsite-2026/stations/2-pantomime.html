@@ -322,7 +322,7 @@
         <div class="pose-list" id="poseList"></div>
 
         <div class="stats">
-          <div class="stat"><div class="value" id="poseIdx">0/12</div><div class="label">Pose</div></div>
+          <div class="stat"><div class="value" id="poseIdx">—</div><div class="label">Pose</div></div>
           <div class="stat"><div class="value" id="poseTimer">90</div><div class="label">Timeout</div></div>
           <div class="stat"><div class="value" id="totalScore">0</div><div class="label">Points</div></div>
         </div>
@@ -454,8 +454,6 @@ document.getElementById('ghostToggle').addEventListener('click', () => {
   el.classList.toggle('active', showGhost);
   el.textContent = showGhost ? '👻 Ghost ON' : '👻 Ghost OFF';
 });
-
-renderPoseList();
 
 async function loadModel() {
   document.getElementById('startBtn').textContent = 'Loading AI…';
@@ -656,7 +654,7 @@ function handlePose(result) {
     document.getElementById('holdFill').style.width = holdPct + '%';
     document.getElementById('poseCard').classList.add('match');
     if (held >= holdMs) {
-      const stepScore = Math.round(Math.min(100, sim * 100));
+      const stepScore = scorePose({ sim, locked: true });
       scores.push(stepScore);
       pulseVideo('match-pulse');
       advance();
