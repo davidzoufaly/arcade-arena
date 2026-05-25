@@ -2,11 +2,15 @@ import { drawGridFloor, fadeOverlay, withGlow, ScreenShake } from '../shared/neo
 import { createCamStream, createHandTracker, createPoseTracker, isFingerUp, isPalmOpen, isFist, isArmOverhead, isJumpingPose, isCrouchingPose, countFingersUp } from '../shared/vision.js';
 import { createStageManager } from '../shared/stages.js';
 import { showDenialModal } from '../shared/perms.js';
-import { generateCode, renderEndScreen, saveRun, showDebugIfRequested, getTeamFromURL } from '../shared/score-panel.js';
+import { generateCode, renderEndScreen, saveRun, showDebugIfRequested } from '../shared/score-panel.js';
+import { resolveSession } from '../shared/lobby.js';
+import { mountTopbar } from '../shared/topbar.js';
+
+mountTopbar({ activePage: 'dashboard' });
 
 const STATION = 'DN';
 const MAX_SCORE = 16;
-const TEAM = getTeamFromURL();
+const TEAM = (resolveSession() ?? { teamId: 0 }).teamId;
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
