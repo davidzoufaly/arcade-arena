@@ -460,7 +460,143 @@ phaseEnter.countdown = () => {
   }, 1000);
   activeCleanup = () => { if (timer) clearInterval(timer); };
 };
-phaseEnter.recall = () => { /* Task 8 */ };
+phaseEnter.recall = () => {
+  state.stepIdx = 0;
+  state.recallStartMs = performance.now();
+
+  // Render empty dots
+  const dotsEl = $('recallDots');
+  dotsEl.innerHTML = state.sequence.map(() => `<div class="dot"></div>`).join('');
+  const dots = [...dotsEl.children];
+
+  $('attemptLabel').textContent = `${state.attemptIdx + 1} / ${MAX_ATTEMPTS}`;
+  $('progressFill').style.width = '0%';
+  $('currentGesture').textContent = '—';
+  updatePlayerBanner();
+
+  let rafId = null;
+  let cancelled = false;
+  let lastVideoTime = -1;
+  let holdStart = 0;
+  let lastGesture = null;
+  let lastMatchMs = 0;
+  let wrongStart = 0;
+  let wrongName = null;
+
+  function updatePlayerBanner() {
+    $('playerName').textContent = `Player ${(state.stepIdx % state.teamSize) + 1}`;
+  }
+
+  function endAttempt(result) {
+    cancelled = true;
+    if (rafId) cancelAnimationFrame(rafId);
+    const timeSec = (performance.now() - state.recallStartMs) / 1000;
+    const completed = state.stepIdx;
+    const score = scoreAttempt({ result, completed, timeSec });
+    state.attempts.push({ result, completed, timeSec, score });
+    goto('attempt-end');
+  }
+
+  function drawLandmarks(result) {
+    const canvas = $('overlay');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!result.landmarks) return;
+    const du = new DrawingUtils(ctx);
+    for (const lm of result.landmarks) {
+      du.drawConnectors(lm, GestureRecognizer.HAND_CONNECTIONS, { color: '#00d4ff', lineWidth: 3 });
+      du.drawLandmarks(lm, { color: '#ff00aa', lineWidth: 1, radius: 3 });
+    }
+  }
+
+  function handleGesture(result) {
+    const g = (result.gestures && result.gestures[0] && result.gestures[0][0]) || null;
+    const name = g ? g.categoryName : 'None';
+    const conf = g ? g.score : 0;
+    $('currentGesture').textContent = name === 'None' ? '—' : `${name} (${(conf*100).toFixed(0)}%)`;
+
+    if (state.stepIdx >= state.sequence.length) return;
+    const now = performance.now();
+
+    // Settle window after a correct match
+    if (now - lastMatchMs < POST_MATCH_SETTLE_MS) {
+      $('progressFill').style.width = '0%';
+      return;
+    }
+
+    const target = state.sequence[state.stepIdx].id;
+
+    if (name === target && conf > MATCH_CONFIDENCE) {
+      if (lastGesture !== target) holdStart = now;
+      lastGesture = target;
+      const held = now - holdStart;
+      $('progressFill').style.width = Math.min(100, (held / HOLD_MS) * 100) + '%';
+      if (held >= HOLD_MS) {
+        // Advance
+        dots[state.stepIdx].classList.add('done');
+        state.stepIdx++;
+        lastMatchMs = now;
+        holdStart = 0;
+        lastGesture = null;
+        wrongStart = 0;
+        wrongName = null;
+        $('progressFill').style.width = '0%';
+        if (state.stepIdx >= state.sequence.length) {
+          endAttempt('success');
+          return;
+        }
+        updatePlayerBanner();
+      }
+    } else {
+      $('progressFill').style.width = '0%';
+      // Wrong-gesture detection
+      if (name !== 'None' && name !== target && conf > WRONG_CONFIDENCE) {
+        if (wrongName !== name) {
+          wrongName = name;
+          wrongStart = now;
+        } else if (now - wrongStart >= WRONG_CONFIRM_MS) {
+          endAttempt('fail');
+          return;
+        }
+      } else {
+        wrongStart = 0;
+        wrongName = null;
+      }
+      lastGesture = name;
+    }
+  }
+
+  function loop() {
+    if (cancelled) return;
+    const elapsed = (performance.now() - state.recallStartMs) / 1000;
+    const t = $('timer');
+    t.textContent = elapsed.toFixed(1);
+    t.style.color = elapsed > RECALL_CAP_S * 0.8 ? '#ffd84d' : '';
+
+    if (elapsed > RECALL_CAP_S) {
+      endAttempt('timeout');
+      return;
+    }
+
+    const video = $('video');
+    if (video.currentTime !== lastVideoTime) {
+      lastVideoTime = video.currentTime;
+      const result = state.recognizer.recognizeForVideo(video, performance.now());
+      drawLandmarks(result);
+      handleGesture(result);
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+
+  $('recallAbort').onclick = () => endAttempt('fail');
+
+  rafId = requestAnimationFrame(loop);
+
+  activeCleanup = () => {
+    cancelled = true;
+    if (rafId) cancelAnimationFrame(rafId);
+  };
+};
 phaseEnter['attempt-end'] = () => { /* Task 9 */ };
 phaseEnter.final = () => { /* Task 9 */ };
 
