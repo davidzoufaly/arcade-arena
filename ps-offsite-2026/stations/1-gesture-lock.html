@@ -598,8 +598,51 @@ phaseEnter.recall = () => {
     if (rafId) cancelAnimationFrame(rafId);
   };
 };
-phaseEnter['attempt-end'] = () => { /* Task 9 */ };
-phaseEnter.final = () => { /* Task 9 */ };
+phaseEnter['attempt-end'] = () => {
+  const last = state.attempts[state.attempts.length - 1];
+  const titles = {
+    success: '🔓 Sequence cleared!',
+    fail: '❌ Wrong gesture',
+    timeout: '⏱ Out of time',
+  };
+  $('attemptResultTitle').textContent = titles[last.result] || 'Attempt complete';
+  $('attemptCompleted').textContent = last.completed;
+  $('attemptTime').textContent = last.timeSec.toFixed(1);
+  $('attemptScoreVal').textContent = last.score;
+
+  const attemptsLeft = MAX_ATTEMPTS - state.attempts.length;
+  const tryAgain = $('attemptTryAgain');
+  const finish = $('attemptFinish');
+
+  tryAgain.classList.toggle('hidden', attemptsLeft <= 0);
+  tryAgain.onclick = () => {
+    state.attemptIdx++;
+    goto('intro');
+  };
+  finish.onclick = () => goto('final');
+};
+
+phaseEnter.final = () => {
+  // Tear down camera + recognizer
+  if (state.stream) {
+    state.stream.getTracks().forEach(t => t.stop());
+    state.stream = null;
+  }
+  // Note: keep recognizer (cheap to keep, expensive to re-create) — only stream needs stopping
+  const score = finalScore(state.attempts);
+  const anySuccess = state.attempts.some(a => a.result === 'success');
+  $('finalTitle').textContent = anySuccess ? '🔓 Vault unlocked!' : '🔒 Vault still locked';
+  $('resTeam').textContent = state.teamId;
+  $('resScore').textContent = score;
+  $('resCode').textContent = `${STATION_CODE}-${state.teamId}-${score}`;
+  $('finalPlayAgain').onclick = () => {
+    state.attempts = [];
+    state.attemptIdx = 0;
+    state.sequence = [];
+    state.stepIdx = 0;
+    goto('setup');
+  };
+};
 
 // Bootstrap
 goto('setup');
