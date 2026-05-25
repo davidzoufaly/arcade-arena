@@ -72,16 +72,15 @@ export function createLobbyApi({ get, set }) {
       const existing = await get(`lobbies/${candidate}`);
       if (!existing) { lobbyId = candidate; break; }
     }
-    if (!lobbyId) throw new Error('lobby id collision after 5 attempts');
+    if (!lobbyId) throw new Error(`lobby id collision after ${MAX_CREATE_RETRIES} attempts`);
 
-    const adminPwd = generatePwd(6);
-    const teams = [];
-    const teamsObj = {};
-    for (let i = 1; i <= teamCount; i++) {
-      const pwd = generatePwd(6);
-      teams.push({ id: i, name: `Team ${i}`, pwd });
-      teamsObj[i] = { id: i, name: `Team ${i}`, pwd };
-    }
+    const adminPwd = generatePwd();
+    const teams = Array.from({ length: teamCount }, (_, i) => ({
+      id: i + 1,
+      name: `Team ${i + 1}`,
+      pwd: generatePwd(),
+    }));
+    const teamsObj = Object.fromEntries(teams.map(t => [t.id, t]));
     await set(`lobbies/${lobbyId}`, {
       meta: { createdAt: Date.now(), teamCount, adminPwd },
       teams: teamsObj,

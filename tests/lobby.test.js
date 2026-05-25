@@ -103,10 +103,8 @@ describe('session helpers', () => {
 
 function fakeAdapter(initialData = {}) {
   let data = JSON.parse(JSON.stringify(initialData));
-  const writes = [];
   return {
     data: () => data,
-    writes: () => writes,
     get: async (path) => {
       const parts = path.split('/').filter(Boolean);
       let cur = data;
@@ -117,7 +115,6 @@ function fakeAdapter(initialData = {}) {
       return cur ?? null;
     },
     set: async (path, value) => {
-      writes.push({ path, value });
       const parts = path.split('/').filter(Boolean);
       if (parts.length === 0) { data = value; return; }
       let cur = data;
