@@ -457,9 +457,11 @@ phaseEnter.countdown = () => {
 };
 
 phaseEnter.playing = () => {
+  POSES = samplePoses(POSE_POOL);
   scores = [];
   stepIndex = 0;
   running = true;
+  renderPoseList();
   startStep();
   loop();
   activeCleanup = () => { running = false; if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle); };
