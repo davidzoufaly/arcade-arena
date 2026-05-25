@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { generateCode, getTeamFromURL } from '../ps-offsite-2026/shared/score-panel.js';
+import { describe, it, expect } from 'vitest';
+import { generateCode } from '../ps-offsite-2026/shared/score-panel.js';
 
 describe('generateCode', () => {
   it('formats as STATION-TEAM-SCORE with score normalized to 0..100', () => {
@@ -21,27 +21,3 @@ describe('generateCode', () => {
   });
 });
 
-describe('getTeamFromURL', () => {
-  beforeEach(() => {
-    vi.stubGlobal('location', { search: '' });
-  });
-
-  it('returns 0 when ?team missing', () => {
-    vi.stubGlobal('location', { search: '' });
-    expect(getTeamFromURL()).toBe(0);
-  });
-
-  it('parses valid team in 1..99', () => {
-    vi.stubGlobal('location', { search: '?team=7' });
-    expect(getTeamFromURL()).toBe(7);
-  });
-
-  it('rejects out-of-range and non-numeric', () => {
-    vi.stubGlobal('location', { search: '?team=0' });
-    expect(getTeamFromURL()).toBe(0);
-    vi.stubGlobal('location', { search: '?team=100' });
-    expect(getTeamFromURL()).toBe(0);
-    vi.stubGlobal('location', { search: '?team=abc' });
-    expect(getTeamFromURL()).toBe(0);
-  });
-});

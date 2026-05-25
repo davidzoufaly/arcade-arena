@@ -1,10 +1,3 @@
-// Team comes from `?team=N` URL param. Hub sets it on tile links.
-export function getTeamFromURL() {
-  const raw = new URLSearchParams(location.search).get('team');
-  const n = parseInt(raw ?? '', 10);
-  return Number.isFinite(n) && n >= 1 && n <= 99 ? n : 0;
-}
-
 // Scoreboard format: STATION-TEAM-SCORE (e.g. DN-7-85). Score normalized 0..100.
 export function generateCode({ station, team, score, max }) {
   const pts = Math.max(0, Math.min(100, Math.round((score / max) * 100)));
