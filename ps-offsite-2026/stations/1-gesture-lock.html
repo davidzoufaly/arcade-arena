@@ -295,6 +295,7 @@
 </main>
 
 <script type="module">
+import { GestureRecognizer, FilesetResolver, DrawingUtils } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
 import {
   GESTURE_POOL,
   pickSequenceWithRepeats,
@@ -302,23 +303,120 @@ import {
   finalScore,
 } from '../shared/gesture-lock-logic.js';
 
-// Stub: populate selectors, enable Start when team chosen. Logic lands in later tasks.
-const teamSelect = document.getElementById('teamSelect');
+const STATION_CODE = 'GZ';
+const SEQUENCE_LEN = 8;
+const MAX_ATTEMPTS = 3;
+const MEMORIZE_FLASH_MS = 800;
+const COUNTDOWN_MS = 3000;
+const HOLD_MS = 400;
+const WRONG_CONFIRM_MS = 500;
+const POST_MATCH_SETTLE_MS = 600;
+const WRONG_CONFIDENCE = 0.7;
+const MATCH_CONFIDENCE = 0.6;
+const RECALL_CAP_S = 45;
+
+const PHASES = ['setup', 'loading', 'intro', 'memorize', 'countdown', 'recall', 'attempt-end', 'final'];
+let activeCleanup = null;
+
+const state = {
+  teamId: null,
+  teamSize: 4,
+  recognizer: null,
+  stream: null,
+  attemptIdx: 0,
+  sequence: [],
+  stepIdx: 0,
+  recallStartMs: 0,
+  attempts: [],
+};
+
+function $(id) { return document.getElementById(id); }
+
+function goto(phase) {
+  if (activeCleanup) { try { activeCleanup(); } catch {} activeCleanup = null; }
+  for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+  $(`phase-${phase}`).classList.remove('hidden');
+  const entry = phaseEnter[phase];
+  if (entry) entry();
+}
+
+const phaseEnter = {};
+
+// ----- SETUP -----
+const teamSelect = $('teamSelect');
 for (let i = 1; i <= 10; i++) {
   const o = document.createElement('option');
   o.value = i; o.textContent = `Team ${i}`;
   teamSelect.appendChild(o);
 }
-const teamSize = document.getElementById('teamSize');
+const teamSizeSel = $('teamSize');
 for (let i = 2; i <= 8; i++) {
   const o = document.createElement('option');
   o.value = i; o.textContent = `${i} players`;
   if (i === 4) o.selected = true;
-  teamSize.appendChild(o);
+  teamSizeSel.appendChild(o);
 }
-const startBtn = document.getElementById('startBtn');
+const startBtn = $('startBtn');
 teamSelect.addEventListener('change', () => { startBtn.disabled = !teamSelect.value; });
-startBtn.addEventListener('click', () => { console.log('start clicked — implementation pending'); });
+startBtn.addEventListener('click', () => {
+  state.teamId = parseInt(teamSelect.value, 10);
+  state.teamSize = parseInt(teamSizeSel.value, 10);
+  state.attempts = [];
+  state.attemptIdx = 0;
+  goto('loading');
+});
+
+// ----- LOADING -----
+phaseEnter.loading = async () => {
+  try {
+    if (!state.recognizer) {
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+      );
+      state.recognizer = await GestureRecognizer.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task',
+          delegate: 'GPU',
+        },
+        runningMode: 'VIDEO',
+        numHands: 1,
+      });
+    }
+    if (!state.stream) {
+      state.stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: 640, height: 480 },
+      });
+      const video = $('video');
+      video.srcObject = state.stream;
+      await video.play();
+      video.style.transform = 'scaleX(-1)';
+      $('overlay').style.transform = 'scaleX(-1)';
+      $('overlay').width = video.videoWidth;
+      $('overlay').height = video.videoHeight;
+    }
+  } catch (e) {
+    alert('Failed to start AI/camera: ' + (e.message || e));
+    goto('setup');
+    return;
+  }
+  goto('intro');
+};
+
+// ----- ATTEMPT_INTRO -----
+phaseEnter.intro = () => {
+  $('introNum').textContent = state.attemptIdx + 1;
+  $('introStartBtn').onclick = () => goto('memorize');
+};
+
+// ----- placeholders (filled in later tasks) -----
+phaseEnter.memorize = () => { /* Task 6 */ };
+phaseEnter.countdown = () => { /* Task 7 */ };
+phaseEnter.recall = () => { /* Task 8 */ };
+phaseEnter['attempt-end'] = () => { /* Task 9 */ };
+phaseEnter.final = () => { /* Task 9 */ };
+
+// Bootstrap
+goto('setup');
 </script>
 </body>
 </html>
