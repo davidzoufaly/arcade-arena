@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { generateLobbyId, generatePwd, isValidLobbyId, ALPHABET } from '../ps-offsite-2026/shared/lobby.js';
 
 describe('ALPHABET', () => {
@@ -51,5 +51,50 @@ describe('isValidLobbyId', () => {
   });
   it('rejects missing prefix', () => {
     expect(isValidLobbyId('7K2X')).toBe(false);
+  });
+});
+
+import { getSession, setSession, clearSession, SESSION_KEY, LEGACY_TEAM_KEY } from '../ps-offsite-2026/shared/lobby.js';
+
+function mockLocalStorage() {
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: k => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: k => store.delete(k),
+    clear: () => store.clear(),
+    _store: store,
+  };
+}
+
+describe('session helpers', () => {
+  it('round-trips a session', () => {
+    mockLocalStorage();
+    setSession({ lobbyId: 'PS-7K2X', teamId: 3, teamPwd: 'ABCDEF' });
+    expect(getSession()).toEqual({ lobbyId: 'PS-7K2X', teamId: 3, teamPwd: 'ABCDEF' });
+  });
+  it('returns null when nothing stored', () => {
+    mockLocalStorage();
+    expect(getSession()).toBeNull();
+  });
+  it('returns null and clears on corrupt JSON', () => {
+    mockLocalStorage();
+    globalThis.localStorage.setItem(SESSION_KEY, '{not json');
+    expect(getSession()).toBeNull();
+    expect(globalThis.localStorage.getItem(SESSION_KEY)).toBeNull();
+  });
+  it('clearSession removes the key', () => {
+    mockLocalStorage();
+    setSession({ lobbyId: 'PS-7K2X', teamId: 1, teamPwd: 'X' });
+    clearSession();
+    expect(getSession()).toBeNull();
+  });
+  it('drops legacy team key on first import side-effect', async () => {
+    mockLocalStorage();
+    globalThis.localStorage.setItem(LEGACY_TEAM_KEY, '7');
+    // Reset module cache so the side-effect re-runs on next import
+    vi.resetModules();
+    await import('../ps-offsite-2026/shared/lobby.js');
+    expect(globalThis.localStorage.getItem(LEGACY_TEAM_KEY)).toBeNull();
   });
 });
