@@ -244,11 +244,11 @@
   .breakdown-row.failed { opacity: 0.5; }
   .breakdown-row .pose-score { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 </style>
+<link rel="stylesheet" href="../shared/topbar.css">
 </head>
 <body>
 <header>
   <h1><span class="station-badge">PM</span>CV Pantomime</h1>
-  <a href="../scoreboard.html" style="color:var(--muted); text-decoration:none; font-size:13px">← Scoreboard</a>
 </header>
 
 <main>
@@ -261,13 +261,10 @@
   <div class="card" id="phase-setup">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup">
-      <label>Team number:
-        <select id="teamSelect"><option value="">—</option></select>
-      </label>
       <label>Team size:
         <select id="teamSize"></select>
       </label>
-      <button id="startBtn" disabled>Start camera</button>
+      <button id="startBtn">Start camera</button>
     </div>
     <div class="briefing" style="margin-top: 12px; font-size: 13px;">
       Place the laptop at least 2 m from the person — full body must fit in frame (head to ankles). Plain background helps a lot.
@@ -355,6 +352,11 @@ import {
   scorePose,
   finalScore,
 } from '../shared/pantomime-logic.js';
+import { mountTopbar } from '../shared/topbar.js';
+import { resolveSession } from '../shared/lobby.js';
+
+mountTopbar({ activePage: 'dashboard' });
+const _session = resolveSession();
 
 const PHASES = ['setup', 'loading', 'countdown', 'playing', 'final'];
 let activeCleanup = null;
@@ -427,15 +429,6 @@ let stepStartTs = 0;
 let recentLandmarks = []; // for stability check
 let showGhost = true;
 
-const teamSelect = document.getElementById('teamSelect');
-for (let i = 1; i <= 10; i++) {
-  const opt = document.createElement('option');
-  opt.value = i; opt.textContent = `Team ${i}`;
-  teamSelect.appendChild(opt);
-}
-teamSelect.addEventListener('change', () => {
-  document.getElementById('startBtn').disabled = !teamSelect.value;
-});
 const teamSizeSel = document.getElementById('teamSize');
 for (let i = 2; i <= 8; i++) {
   const o = document.createElement('option');
@@ -444,7 +437,7 @@ for (let i = 2; i <= 8; i++) {
   teamSizeSel.appendChild(o);
 }
 document.getElementById('startBtn').addEventListener('click', () => {
-  teamId = parseInt(teamSelect.value, 10);
+  teamId = _session?.teamId ?? 0;
   teamSize = parseInt(teamSizeSel.value, 10);
   goto('loading');
 });
