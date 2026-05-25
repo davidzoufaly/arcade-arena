@@ -424,7 +424,6 @@ let scores = [];
 let holdStart = 0;
 let lastVideoTime = -1;
 let stepStartTs = 0;
-let stepTimeoutHandle = null;
 let recentLandmarks = []; // for stability check
 let showGhost = true;
 
@@ -515,7 +514,7 @@ phaseEnter.playing = () => {
   renderPoseList();
   startStep();
   loop();
-  activeCleanup = () => { running = false; if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle); };
+  activeCleanup = () => { running = false; };
 };
 
 function startStep() {
@@ -533,11 +532,6 @@ function startStep() {
   renderRefSvg(pose.ref);
   renderPoseList();
 
-  if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
-  const idxAtStart = stepIndex;
-  stepTimeoutHandle = setTimeout(() => {
-    if (running && stepIndex === idxAtStart) timeoutStep();
-  }, pose.timeout * 1000);
 }
 
 function pulseVideo(cls) {
@@ -576,6 +570,7 @@ function loop() {
     const remaining = Math.max(0, pose.timeout - elapsed);
     document.getElementById('poseTimer').textContent = Math.ceil(remaining);
     document.getElementById('timerFill').style.width = (remaining / pose.timeout * 100) + '%';
+    if (elapsed >= pose.timeout) { timeoutStep(); return; }
   }
   requestAnimationFrame(loop);
 }
@@ -663,7 +658,6 @@ function handlePose(result) {
     if (held >= holdMs) {
       const stepScore = Math.round(Math.min(100, sim * 100));
       scores.push(stepScore);
-      if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
       pulseVideo('match-pulse');
       advance();
     }
@@ -688,14 +682,12 @@ function renderPoseList() {
 window.skipCurrent = function() {
   if (!running || stepIndex >= POSES.length) return;
   scores.push(0);
-  if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
   pulseVideo('miss-flash');
   advance();
 };
 
 function finish() {
   running = false;
-  if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
   goto('final');
 }
@@ -717,12 +709,21 @@ phaseEnter.final = () => {
 
 window.resetGame = function() {
   running = false;
-  if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
   scores = []; stepIndex = 0;
   POSES = [];
   goto('setup');
 };
+
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    hiddenAt = performance.now();
+  } else if (hiddenAt && stepStartTs) {
+    stepStartTs += performance.now() - hiddenAt;
+    hiddenAt = 0;
+  }
+});
 
 goto('setup');
 </script>
