@@ -14,3 +14,11 @@ export function pickSequenceWithRepeats(pool, len) {
   }
   return out;
 }
+
+export function scoreAttempt({ result, completed, timeSec }) {
+  if (result === 'success') {
+    const raw = 100 - Math.max(0, timeSec - 10) * 2;
+    return Math.max(40, Math.min(100, Math.round(raw)));
+  }
+  return Math.floor((completed / 8) * 35);
+}

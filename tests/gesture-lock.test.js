@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   GESTURE_POOL,
   pickSequenceWithRepeats,
+  scoreAttempt,
 } from '../ps-offsite-2026/shared/gesture-lock-logic.js';
 
 describe('GESTURE_POOL', () => {
@@ -52,5 +53,47 @@ describe('pickSequenceWithRepeats', () => {
 
   it('handles length 0', () => {
     expect(pickSequenceWithRepeats(GESTURE_POOL, 0)).toEqual([]);
+  });
+});
+
+describe('scoreAttempt', () => {
+  it('success at 10s grace edge → 100', () => {
+    expect(scoreAttempt({ result: 'success', completed: 8, timeSec: 10 })).toBe(100);
+  });
+
+  it('success under grace (5s) → 100', () => {
+    expect(scoreAttempt({ result: 'success', completed: 8, timeSec: 5 })).toBe(100);
+  });
+
+  it('success at 20s → 80', () => {
+    expect(scoreAttempt({ result: 'success', completed: 8, timeSec: 20 })).toBe(80);
+  });
+
+  it('success at 30s → 60', () => {
+    expect(scoreAttempt({ result: 'success', completed: 8, timeSec: 30 })).toBe(60);
+  });
+
+  it('success at 45s → clamped to floor 40', () => {
+    expect(scoreAttempt({ result: 'success', completed: 8, timeSec: 45 })).toBe(40);
+  });
+
+  it('success never exceeds 100', () => {
+    expect(scoreAttempt({ result: 'success', completed: 8, timeSec: 0 })).toBe(100);
+  });
+
+  it('fail with 0 completed → 0', () => {
+    expect(scoreAttempt({ result: 'fail', completed: 0, timeSec: 10 })).toBe(0);
+  });
+
+  it('fail with 4 completed → 17 (floor of 4/8*35)', () => {
+    expect(scoreAttempt({ result: 'fail', completed: 4, timeSec: 12 })).toBe(17);
+  });
+
+  it('timeout with 7 completed → 30 (floor of 7/8*35)', () => {
+    expect(scoreAttempt({ result: 'timeout', completed: 7, timeSec: 45 })).toBe(30);
+  });
+
+  it('partial never reaches success floor — 8/8 fail (impossible state) still caps at 35', () => {
+    expect(scoreAttempt({ result: 'fail', completed: 8, timeSec: 30 })).toBe(35);
   });
 });
