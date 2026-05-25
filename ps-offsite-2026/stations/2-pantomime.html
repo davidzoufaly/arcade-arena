@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Station 2 — CV Pantomime</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-2: #131a2e;
+    --card: #1b2540;
+    --text: #f5f7fb;
+    --muted: #8b95b5;
+    --accent: #ff00aa;
+    --accent-2: #00d4ff;
+    --good: #00e676;
+    --bad: #ff4d6d;
+    --gold: #ffd84d;
+    --easy: #00e676;
+    --medium: #ffd84d;
+    --hard: #ff4d6d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 80% 0%, #2a1a3a 0%, var(--bg) 60%);
+    color: var(--text); min-height: 100vh;
+  }
+  header {
+    padding: 20px 32px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  header h1 { font-size: 22px; font-weight: 800; }
+  .station-badge {
+    background: var(--accent); color: #fff;
+    padding: 4px 10px; border-radius: 6px;
+    font-size: 12px; font-weight: 800; letter-spacing: 0.5px; margin-right: 12px;
+  }
+  main { max-width: 1280px; margin: 0 auto; padding: 32px; }
+  .card {
+    background: var(--card); border-radius: 20px; padding: 28px;
+    border: 1px solid rgba(255,255,255,0.06); margin-bottom: 20px;
+  }
+  .briefing { font-size: 15px; line-height: 1.6; color: var(--muted); }
+  .briefing strong { color: var(--text); }
+
+  .setup { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  input, select {
+    background: var(--bg-2); border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text); padding: 12px 16px; border-radius: 10px;
+    font-size: 16px; font-family: inherit;
+  }
+  button {
+    background: linear-gradient(135deg, var(--accent), #cc0099);
+    border: none; color: #fff;
+    padding: 12px 24px; border-radius: 10px;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: transform 0.15s;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary {
+    background: var(--card); border: 1px solid rgba(255,255,255,0.1); color: var(--text);
+  }
+
+  .game { display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
+  @media (max-width: 980px) { .game { grid-template-columns: 1fr; } }
+  .video-wrap {
+    position: relative; background: #000; border-radius: 20px;
+    overflow: hidden; aspect-ratio: 4/3;
+  }
+  video, .skel-overlay-canvas {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .skel-overlay-canvas { position: absolute; inset: 0; pointer-events: none; }
+  .video-overlay {
+    position: absolute; bottom: 16px; left: 16px;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 14px; font-family: ui-monospace, monospace;
+  }
+  .ghost-toggle {
+    position: absolute; top: 16px; right: 16px;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    padding: 8px 14px; border-radius: 10px;
+    font-size: 13px; cursor: pointer; user-select: none;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .ghost-toggle.active { background: rgba(255,0,170,0.3); border-color: var(--accent); }
+
+  .panel { display: flex; flex-direction: column; gap: 16px; }
+  .pose-card {
+    background: var(--card); border-radius: 20px; padding: 20px;
+    border: 2px solid rgba(255,255,255,0.06); text-align: center;
+    transition: all 0.3s;
+  }
+  .pose-card.match { border-color: var(--good); background: rgba(0,230,118,0.08); }
+  .pose-card .label {
+    font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 4px;
+  }
+  .difficulty {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 10px; font-weight: 800; letter-spacing: 1px;
+    text-transform: uppercase; margin-left: 8px;
+  }
+  .difficulty.easy { background: rgba(0,230,118,0.15); color: var(--easy); }
+  .difficulty.medium { background: rgba(255,216,77,0.15); color: var(--medium); }
+  .difficulty.hard { background: rgba(255,77,109,0.15); color: var(--hard); }
+
+  .pose-card .name { font-size: 24px; font-weight: 800; margin: 6px 0; }
+  .pose-card .desc { font-size: 13px; color: var(--muted); margin: 8px 0 16px; line-height: 1.4; }
+
+  .pose-ref {
+    background: var(--bg-2); border-radius: 12px; padding: 12px;
+    margin-bottom: 12px;
+  }
+  .pose-ref svg { width: 100%; height: 180px; display: block; }
+
+  .similarity-meter {
+    height: 36px; background: var(--bg-2); border-radius: 12px;
+    overflow: hidden; position: relative;
+  }
+  .similarity-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--bad), var(--gold), var(--good));
+    transition: width 0.2s;
+  }
+  .similarity-text {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums;
+  }
+
+  .checks {
+    text-align: left; margin-top: 10px;
+    background: var(--bg-2); border-radius: 12px; padding: 10px;
+    max-height: 130px; overflow-y: auto;
+  }
+  .check {
+    font-size: 12px; padding: 4px 0;
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--muted);
+  }
+  .check.pass { color: var(--good); }
+  .check.partial { color: var(--gold); }
+
+  .hold-bar {
+    margin-top: 10px; height: 8px; background: rgba(255,255,255,0.08);
+    border-radius: 999px; overflow: hidden;
+  }
+  .hold-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent-2), var(--good));
+    transition: width 0.1s linear;
+  }
+  .timer-bar {
+    margin-top: 8px; height: 4px; background: rgba(255,255,255,0.08);
+    border-radius: 999px; overflow: hidden;
+  }
+  .timer-fill {
+    height: 100%; width: 100%;
+    background: var(--accent);
+    transition: width 0.1s linear;
+  }
+
+  .pose-list {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(85px, 1fr)); gap: 6px;
+  }
+  .pose-pill {
+    padding: 6px 8px; border-radius: 8px; text-align: center;
+    font-size: 11px; background: var(--bg-2);
+    border: 1px solid rgba(255,255,255,0.08); color: var(--muted);
+  }
+  .pose-pill.done { color: var(--good); border-color: var(--good); }
+  .pose-pill.failed { color: var(--bad); border-color: var(--bad); opacity: 0.7; }
+  .pose-pill.current { color: var(--accent); border-color: var(--accent); }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .stat { background: var(--bg-2); padding: 12px; border-radius: 10px; text-align: center; }
+  .stat .value { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  .result { text-align: center; padding: 32px; }
+  .result h2 { font-size: 32px; margin-bottom: 8px; }
+  .result .score {
+    font-size: 72px; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--gold));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin: 16px 0;
+  }
+  .submit-code {
+    background: var(--bg-2); padding: 16px 24px; border-radius: 12px;
+    font-family: ui-monospace, monospace; font-size: 28px; font-weight: 800;
+    letter-spacing: 4px; display: inline-block; margin: 20px 0;
+    border: 2px dashed var(--accent); color: var(--accent);
+  }
+  .hidden { display: none !important; }
+  .breakdown {
+    display: flex; flex-direction: column; gap: 6px;
+    max-width: 400px; margin: 20px auto;
+    background: var(--bg-2); border-radius: 12px; padding: 16px;
+    text-align: left;
+  }
+  .breakdown-row {
+    display: flex; justify-content: space-between; font-size: 13px;
+    color: var(--muted);
+  }
+  .breakdown-row.failed { opacity: 0.5; }
+  .breakdown-row .pose-score { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="station-badge">PM</span>CV Pantomime</h1>
+  <a href="../scoreboard.html" style="color:var(--muted); text-decoration:none; font-size:13px">← Scoreboard</a>
+</header>
+
+<main>
+  <div class="card briefing">
+    <strong>Goal:</strong> Match each target pose with your body. The system overlays a <strong>ghost skeleton</strong> on the video so you can see what to aim for. Each pose has multiple checks — get every check above 85 %, then <strong>hold the pose still</strong> for the required time (1.2 s easy, 1.5 s medium, 2 s hard). Wobbling resets the hold timer.
+    <br><br>
+    <strong>12 poses, escalating difficulty, tight clock.</strong> Easy: 25 s timeout. Medium: 35 s. Hard: 45 s. Run out of time = pose is skipped (zero points). Move fast. One person poses, the rest direct.
+  </div>
+
+  <div class="card" id="setupCard">
+    <h3 style="margin-bottom: 12px">Get ready</h3>
+    <div class="setup">
+      <label>Team number:
+        <select id="teamSelect"><option value="">—</option></select>
+      </label>
+      <button id="startBtn" disabled>Start camera</button>
+    </div>
+    <div class="briefing" style="margin-top: 12px; font-size: 13px;">
+      Place the laptop at least 2 m from the person — full body must fit in frame (head to ankles). Plain background helps a lot.
+    </div>
+  </div>
+
+  <div id="gameCard" class="hidden">
+    <div class="game">
+      <div>
+        <div class="video-wrap">
+          <video id="video" playsinline autoplay muted></video>
+          <canvas id="overlay" class="skel-overlay-canvas"></canvas>
+          <div class="video-overlay" id="hint">Stand in front of the camera</div>
+          <div class="ghost-toggle active" id="ghostToggle">👻 Ghost ON</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="pose-card" id="poseCard">
+          <div class="label">Match this pose <span id="diffBadge"></span></div>
+          <div class="name" id="poseName">—</div>
+          <div class="desc" id="poseDesc">—</div>
+          <div class="pose-ref">
+            <svg id="poseRefSvg" viewBox="0 0 200 200"></svg>
+          </div>
+          <div class="similarity-meter">
+            <div class="similarity-fill" id="simFill"></div>
+            <div class="similarity-text" id="simText">0%</div>
+          </div>
+          <div class="hold-bar"><div class="hold-fill" id="holdFill"></div></div>
+          <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+          <div class="checks" id="checks"></div>
+        </div>
+
+        <div class="pose-list" id="poseList"></div>
+
+        <div class="stats">
+          <div class="stat"><div class="value" id="poseIdx">0/12</div><div class="label">Pose</div></div>
+          <div class="stat"><div class="value" id="poseTimer">90</div><div class="label">Timeout</div></div>
+          <div class="stat"><div class="value" id="totalScore">0</div><div class="label">Points</div></div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="secondary" style="flex:1" onclick="skipCurrent()">Skip pose</button>
+          <button class="secondary" style="flex:1" onclick="resetGame()">Restart</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="resultCard" class="card result hidden">
+    <h2>🎭 Pantomime complete</h2>
+    <p style="color:var(--muted)">Team <strong id="resTeam"></strong></p>
+    <div class="score" id="resScore">0</div>
+    <div class="breakdown" id="resBreakdown"></div>
+    <p style="color:var(--muted); font-size: 14px;">Enter this code at the central scoreboard:</p>
+    <div class="submit-code" id="resCode">PM-?-?</div>
+    <div><button onclick="resetGame()">Play again</button></div>
+  </div>
+</main>
+
+<script type="module">
+import { PoseLandmarker, FilesetResolver, DrawingUtils } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
+import {
+  LM,
+  SKEL_LINES,
+  dist,
+  angle,
+  smoothScore,
+  POSE_POOL,
+  samplePoses,
+  scorePose,
+  finalScore,
+} from '../shared/pantomime-logic.js';
+
+const STATION_CODE = 'PM';
+
+let POSES = [];
+
+function renderRefSvg(ref) {
+  const W = 200, H = 200;
+  const svg = document.getElementById('poseRefSvg');
+  const linesHtml = SKEL_LINES.map(([a, b]) => {
+    const pa = ref[a], pb = ref[b];
+    return `<line x1="${pa.x * W}" y1="${pa.y * H}" x2="${pb.x * W}" y2="${pb.y * H}" stroke="#ff00aa" stroke-width="3" stroke-linecap="round" />`;
+  }).join('');
+  const pointsHtml = Object.values(ref).map(p =>
+    `<circle cx="${p.x * W}" cy="${p.y * H}" r="3.5" fill="#00d4ff" />`
+  ).join('');
+  const head = ref.nose;
+  const headCircle = `<circle cx="${head.x * W}" cy="${head.y * H - 6}" r="10" fill="none" stroke="#ff00aa" stroke-width="3" />`;
+  svg.innerHTML = headCircle + linesHtml + pointsHtml;
+}
+
+function drawGhostOverlay(ref) {
+  const canvas = document.getElementById('overlay');
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255, 0, 170, 0.7)';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  for (const [a, b] of SKEL_LINES) {
+    const pa = ref[a], pb = ref[b];
+    ctx.beginPath();
+    ctx.moveTo(pa.x * canvas.width, pa.y * canvas.height);
+    ctx.lineTo(pb.x * canvas.width, pb.y * canvas.height);
+    ctx.stroke();
+  }
+  const head = ref.nose;
+  ctx.beginPath();
+  ctx.arc(head.x * canvas.width, head.y * canvas.height - 14, 18, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+const HOLD_MS_BY_DIFFICULTY = { easy: 1200, medium: 1500, hard: 2000 };
+const SIM_THRESHOLD = 0.85; // tighter than before
+const STABILITY_MAX_DRIFT = 0.025; // max landmark drift over recent window — anything more = wobble
+const STABILITY_WINDOW = 8; // recent frames to track for stability
+let landmarker = null;
+let stream = null;
+let running = false;
+let stepIndex = 0;
+let teamId = null;
+let scores = [];
+let holdStart = 0;
+let lastVideoTime = -1;
+let stepStartTs = 0;
+let stepTimeoutHandle = null;
+let recentLandmarks = []; // for stability check
+let showGhost = true;
+
+const teamSelect = document.getElementById('teamSelect');
+for (let i = 1; i <= 10; i++) {
+  const opt = document.createElement('option');
+  opt.value = i; opt.textContent = `Team ${i}`;
+  teamSelect.appendChild(opt);
+}
+teamSelect.addEventListener('change', () => {
+  document.getElementById('startBtn').disabled = !teamSelect.value;
+});
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('ghostToggle').addEventListener('click', () => {
+  showGhost = !showGhost;
+  const el = document.getElementById('ghostToggle');
+  el.classList.toggle('active', showGhost);
+  el.textContent = showGhost ? '👻 Ghost ON' : '👻 Ghost OFF';
+});
+
+renderPoseList();
+
+async function loadModel() {
+  document.getElementById('startBtn').textContent = 'Loading AI…';
+  const vision = await FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+  );
+  landmarker = await PoseLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+      delegate: 'GPU',
+    },
+    runningMode: 'VIDEO',
+    numPoses: 1,
+  });
+}
+
+async function startGame() {
+  teamId = parseInt(teamSelect.value, 10);
+  document.getElementById('setupCard').classList.add('hidden');
+  document.getElementById('gameCard').classList.remove('hidden');
+
+  if (!landmarker) {
+    try { await loadModel(); }
+    catch (e) { alert('Failed to load AI model. Check internet and refresh.'); return; }
+  }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 1280, height: 720 } });
+  } catch (e) { alert('Camera access required.'); return; }
+
+  const video = document.getElementById('video');
+  video.srcObject = stream;
+  await video.play();
+
+  const canvas = document.getElementById('overlay');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  video.style.transform = 'scaleX(-1)';
+  canvas.style.transform = 'scaleX(-1)';
+
+  scores = [];
+  stepIndex = 0;
+  running = true;
+  startStep();
+  loop();
+}
+
+function startStep() {
+  holdStart = 0;
+  recentLandmarks = [];
+  stepStartTs = performance.now();
+  const pose = POSES[stepIndex];
+  document.getElementById('poseName').textContent = `${pose.emoji} ${pose.name}`;
+  document.getElementById('poseDesc').textContent = pose.desc;
+  document.getElementById('poseIdx').textContent = `${stepIndex + 1}/${POSES.length}`;
+  document.getElementById('totalScore').textContent = scores.reduce((a, b) => a + b, 0);
+  document.getElementById('diffBadge').innerHTML = `<span class="difficulty ${pose.difficulty}">${pose.difficulty}</span>`;
+  renderRefSvg(pose.ref);
+  renderPoseList();
+
+  if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
+  const idxAtStart = stepIndex;
+  stepTimeoutHandle = setTimeout(() => {
+    if (running && stepIndex === idxAtStart) timeoutStep();
+  }, pose.timeout * 1000);
+}
+
+function timeoutStep() {
+  scores.push(0);
+  advance();
+}
+
+function advance() {
+  stepIndex++;
+  document.getElementById('poseCard').classList.remove('match');
+  document.getElementById('holdFill').style.width = '0%';
+  if (stepIndex >= POSES.length) finish();
+  else startStep();
+}
+
+function loop() {
+  if (!running) return;
+  const video = document.getElementById('video');
+  if (video.currentTime !== lastVideoTime) {
+    lastVideoTime = video.currentTime;
+    const result = landmarker.detectForVideo(video, performance.now());
+    drawSkeleton(result);
+    handlePose(result);
+  }
+  const pose = POSES[stepIndex];
+  if (pose) {
+    const elapsed = (performance.now() - stepStartTs) / 1000;
+    const remaining = Math.max(0, pose.timeout - elapsed);
+    document.getElementById('poseTimer').textContent = Math.ceil(remaining);
+    document.getElementById('timerFill').style.width = (remaining / pose.timeout * 100) + '%';
+  }
+  requestAnimationFrame(loop);
+}
+
+function drawSkeleton(result) {
+  const canvas = document.getElementById('overlay');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (showGhost && stepIndex < POSES.length) {
+    drawGhostOverlay(POSES[stepIndex].ref);
+  }
+
+  if (!result.landmarks || !result.landmarks[0]) return;
+  const drawingUtils = new DrawingUtils(ctx);
+  for (const landmarks of result.landmarks) {
+    drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, { color: '#00d4ff', lineWidth: 4 });
+    drawingUtils.drawLandmarks(landmarks, { color: '#00e676', lineWidth: 1, radius: 4 });
+  }
+}
+
+function handlePose(result) {
+  const lm = result.landmarks && result.landmarks[0];
+  if (!lm || lm.length < 33) {
+    document.getElementById('hint').textContent = 'Stand in front of the camera, full body visible';
+    document.getElementById('simFill').style.width = '0%';
+    document.getElementById('simText').textContent = '—';
+    holdStart = 0;
+    return;
+  }
+
+  const required = [LM.L_SHOULDER, LM.R_SHOULDER, LM.L_HIP, LM.R_HIP, LM.L_KNEE, LM.R_KNEE, LM.L_ANKLE, LM.R_ANKLE];
+  const visible = required.every(i => (lm[i].visibility ?? 1) > 0.4);
+  if (!visible) {
+    document.getElementById('hint').textContent = 'Move so your full body is visible';
+    return;
+  }
+  document.getElementById('hint').textContent = '✓ Full body detected';
+
+  const pose = POSES[stepIndex];
+  const checkResults = pose.checks.map(c => ({ name: c.name, val: c.fn(lm) }));
+  const sim = checkResults.reduce((s, c) => s + c.val, 0) / checkResults.length;
+  const pct = Math.round(sim * 100);
+
+  // Track recent landmarks for stability check
+  recentLandmarks.push(lm.map(p => ({ x: p.x, y: p.y })));
+  if (recentLandmarks.length > STABILITY_WINDOW) recentLandmarks.shift();
+
+  // Stability: max per-landmark drift (max - min) across recent window — main joints only
+  let stabilityDrift = 0;
+  if (recentLandmarks.length >= STABILITY_WINDOW) {
+    const joints = [LM.L_WRIST, LM.R_WRIST, LM.L_ANKLE, LM.R_ANKLE, LM.L_KNEE, LM.R_KNEE];
+    for (const j of joints) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const frame of recentLandmarks) {
+        const p = frame[j];
+        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+      }
+      stabilityDrift = Math.max(stabilityDrift, maxX - minX, maxY - minY);
+    }
+  } else {
+    stabilityDrift = 0; // not enough data yet, optimistic
+  }
+  const stable = stabilityDrift <= STABILITY_MAX_DRIFT;
+
+  document.getElementById('simFill').style.width = pct + '%';
+  document.getElementById('simText').textContent = pct + '%';
+  document.getElementById('checks').innerHTML = checkResults.map(c => {
+    const cls = c.val > 0.85 ? 'pass' : c.val > 0.5 ? 'partial' : '';
+    const icon = c.val > 0.85 ? '✓' : c.val > 0.5 ? '◐' : '·';
+    return `<div class="check ${cls}"><span>${c.name}</span><span>${icon} ${(c.val * 100).toFixed(0)}%</span></div>`;
+  }).join('');
+  // Append stability indicator
+  document.getElementById('checks').innerHTML += `<div class="check ${stable ? 'pass' : ''}"><span>Hold steady (no wobble)</span><span>${stable ? '✓' : '◌'} ${(stabilityDrift * 100).toFixed(1)}%</span></div>`;
+
+  const holdMs = HOLD_MS_BY_DIFFICULTY[pose.difficulty] || 2500;
+
+  if (sim > SIM_THRESHOLD && stable) {
+    if (holdStart === 0) holdStart = performance.now();
+    const held = performance.now() - holdStart;
+    const holdPct = Math.min(100, (held / holdMs) * 100);
+    document.getElementById('holdFill').style.width = holdPct + '%';
+    document.getElementById('poseCard').classList.add('match');
+    if (held >= holdMs) {
+      const stepScore = Math.round(Math.min(100, sim * 100));
+      scores.push(stepScore);
+      if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
+      advance();
+    }
+  } else {
+    holdStart = 0;
+    document.getElementById('holdFill').style.width = '0%';
+    document.getElementById('poseCard').classList.remove('match');
+  }
+}
+
+function renderPoseList() {
+  const wrap = document.getElementById('poseList');
+  wrap.innerHTML = POSES.map((p, i) => {
+    let cls = '';
+    if (i < stepIndex) cls = scores[i] > 0 ? 'done' : 'failed';
+    else if (i === stepIndex) cls = 'current';
+    const scoreSuffix = i < stepIndex ? (scores[i] > 0 ? ` ${scores[i]}` : ' ✗') : '';
+    return `<div class="pose-pill ${cls}">${p.emoji} ${p.name}${scoreSuffix}</div>`;
+  }).join('');
+}
+
+window.skipCurrent = function() {
+  if (!running || stepIndex >= POSES.length) return;
+  scores.push(0);
+  if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
+  advance();
+};
+
+function finish() {
+  running = false;
+  if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
+  stream && stream.getTracks().forEach(t => t.stop());
+  const total = scores.reduce((a, b) => a + b, 0);
+  const final = Math.round(total / POSES.length);
+  const code = `${STATION_CODE}-${teamId}-${final}`;
+  document.getElementById('gameCard').classList.add('hidden');
+  document.getElementById('resultCard').classList.remove('hidden');
+  document.getElementById('resTeam').textContent = teamId;
+  document.getElementById('resScore').textContent = final;
+  document.getElementById('resCode').textContent = code;
+  document.getElementById('resBreakdown').innerHTML = POSES.map((p, i) => {
+    const s = scores[i] ?? 0;
+    return `<div class="breakdown-row ${s === 0 ? 'failed' : ''}">
+      <span>${p.emoji} ${p.name} <span class="difficulty ${p.difficulty}">${p.difficulty}</span></span>
+      <span class="pose-score">${s === 0 ? '— skipped' : s + ' / 100'}</span>
+    </div>`;
+  }).join('');
+}
+
+window.resetGame = function() {
+  running = false;
+  if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
+  stream && stream.getTracks().forEach(t => t.stop());
+  document.getElementById('gameCard').classList.add('hidden');
+  document.getElementById('resultCard').classList.add('hidden');
+  document.getElementById('setupCard').classList.remove('hidden');
+  document.getElementById('startBtn').textContent = 'Start camera';
+  document.getElementById('startBtn').disabled = !teamSelect.value;
+  scores = []; stepIndex = 0;
+  renderPoseList();
+};
+</script>
+</body>
+</html>
