@@ -2,11 +2,15 @@ import { fadeOverlay, withGlow, ScreenShake } from '../shared/neon-fx.js';
 import { createAudioInput } from '../shared/audio.js';
 import { showDenialModal } from '../shared/perms.js';
 import { createStageManager } from '../shared/stages.js';
-import { generateCode, renderEndScreen, saveRun, showDebugIfRequested, getTeamFromURL } from '../shared/score-panel.js';
+import { generateCode, renderEndScreen, saveRun, showDebugIfRequested } from '../shared/score-panel.js';
+import { resolveSession } from '../shared/lobby.js';
+import { mountTopbar } from '../shared/topbar.js';
+
+mountTopbar({ activePage: 'dashboard' });
 
 const STATION = 'FL';
 const MAX_SCORE = 31;
-const TEAM = getTeamFromURL();
+const TEAM = (resolveSession() ?? { teamId: 0 }).teamId;
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
