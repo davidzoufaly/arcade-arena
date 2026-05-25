@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Station 1 — Gesture Lock</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-2: #131a2e;
+    --card: #1b2540;
+    --text: #f5f7fb;
+    --muted: #8b95b5;
+    --accent: #00d4ff;
+    --good: #00e676;
+    --bad: #ff4d6d;
+    --gold: #ffd84d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 20% 0%, #1f2a4a 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  header {
+    padding: 20px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  header h1 { font-size: 22px; font-weight: 800; }
+  header .station-badge {
+    background: var(--accent); color: #001;
+    padding: 4px 10px; border-radius: 6px;
+    font-size: 12px; font-weight: 800; letter-spacing: 0.5px; margin-right: 12px;
+  }
+  main { max-width: 1200px; margin: 0 auto; padding: 32px; }
+  .card {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 28px;
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 20px;
+  }
+  .briefing { font-size: 15px; line-height: 1.6; color: var(--muted); }
+  .briefing strong { color: var(--text); }
+  .setup { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  input, select {
+    background: var(--bg-2);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-family: inherit;
+  }
+  button {
+    background: linear-gradient(135deg, var(--accent), #0099cc);
+    border: none; color: #001;
+    padding: 12px 24px; border-radius: 10px;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+  }
+
+  .video-wrap {
+    position: relative; background: #000;
+    border-radius: 20px; overflow: hidden; aspect-ratio: 4/3;
+  }
+  video, canvas {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
+  canvas { position: absolute; inset: 0; pointer-events: none; }
+  .video-overlay {
+    position: absolute; bottom: 16px; left: 16px;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+    padding: 8px 14px; border-radius: 10px;
+    font-size: 14px; font-family: ui-monospace, monospace;
+  }
+  .game { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
+  @media (max-width: 900px) { .game { grid-template-columns: 1fr; } }
+
+  .panel { display: flex; flex-direction: column; gap: 16px; }
+
+  .player-banner {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 24px;
+    text-align: center;
+    border: 2px solid var(--accent);
+  }
+  .player-banner .label {
+    font-size: 12px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .player-banner .name {
+    font-size: 36px; font-weight: 900; margin-top: 4px;
+  }
+
+  .progress-dots {
+    display: flex; gap: 8px; justify-content: center; margin-top: 8px;
+  }
+  .dot {
+    flex: 1; aspect-ratio: 1;
+    background: var(--bg-2);
+    border: 2px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    transition: all 0.2s;
+  }
+  .dot.done {
+    background: rgba(0,230,118,0.18);
+    border-color: var(--good);
+  }
+  .dot.flashing {
+    border-color: var(--accent);
+    box-shadow: 0 0 24px rgba(0,212,255,0.5);
+  }
+
+  .progress-bar {
+    height: 6px; background: rgba(255,255,255,0.08);
+    border-radius: 999px; overflow: hidden; margin-top: 16px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--good));
+    width: 0%; transition: width 0.1s linear;
+  }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat {
+    background: var(--bg-2); padding: 16px;
+    border-radius: 12px; text-align: center;
+  }
+  .stat .value { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+  .big-flash {
+    text-align: center;
+    padding: 40px 24px;
+  }
+  .big-flash .emoji { font-size: 160px; line-height: 1; }
+  .big-flash .name { font-size: 22px; color: var(--muted); margin-top: 12px; }
+
+  .countdown {
+    text-align: center;
+    padding: 60px 24px;
+  }
+  .countdown .num {
+    font-size: 180px; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--gold));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    line-height: 1;
+  }
+
+  .result { text-align: center; padding: 32px; }
+  .result h2 { font-size: 32px; margin-bottom: 8px; }
+  .result .score {
+    font-size: 72px; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--gold));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin: 16px 0;
+  }
+  .submit-code {
+    background: var(--bg-2); padding: 16px 24px;
+    border-radius: 12px; font-family: ui-monospace, monospace;
+    font-size: 28px; font-weight: 800; letter-spacing: 4px;
+    display: inline-block; margin: 20px 0;
+    border: 2px dashed var(--accent); color: var(--accent);
+  }
+  .result-row {
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+  }
+  .hidden { display: none !important; }
+  .loading { text-align: center; color: var(--muted); padding: 40px; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="station-badge">GZ</span>Gesture Lock</h1>
+  <a href="../scoreboard.html" style="color:var(--muted); text-decoration:none; font-size:13px">← Scoreboard</a>
+</header>
+
+<main>
+  <div class="card briefing">
+    <strong>Goal:</strong> Watch the 8-gesture sequence flash, then unlock the vault from memory — one player per gesture, take turns. <strong>3 attempts</strong>. Best successful attempt counts; if none succeed, best partial counts. Faster = more points.
+  </div>
+
+  <!-- SETUP -->
+  <div id="phase-setup" class="card">
+    <h3 style="margin-bottom: 12px">Get ready</h3>
+    <div class="setup">
+      <label>Team #:
+        <select id="teamSelect"><option value="">—</option></select>
+      </label>
+      <label>Team size:
+        <select id="teamSize"></select>
+      </label>
+      <button id="startBtn" disabled>Start camera</button>
+    </div>
+    <div class="briefing" style="margin-top: 12px; font-size: 13px;">
+      Allow camera access when prompted.
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div id="phase-loading" class="card loading hidden">
+    Loading AI model and camera…
+  </div>
+
+  <!-- ATTEMPT_INTRO -->
+  <div id="phase-intro" class="card hidden">
+    <h2 style="font-size: 28px; margin-bottom: 8px;">Attempt <span id="introNum">1</span> of 3</h2>
+    <p class="briefing">Memorize the sequence — it flashes one at a time, no replay.</p>
+    <button id="introStartBtn" style="margin-top: 16px;">Show sequence</button>
+  </div>
+
+  <!-- MEMORIZE -->
+  <div id="phase-memorize" class="card hidden">
+    <div class="big-flash">
+      <div class="emoji" id="flashEmoji">✋</div>
+      <div class="name" id="flashName">Open Palm</div>
+    </div>
+    <div class="progress-dots" id="memorizeDots"></div>
+  </div>
+
+  <!-- COUNTDOWN -->
+  <div id="phase-countdown" class="card hidden">
+    <div class="countdown"><div class="num" id="countdownNum">3</div></div>
+  </div>
+
+  <!-- RECALL -->
+  <div id="phase-recall" class="hidden">
+    <div class="game">
+      <div class="video-wrap">
+        <video id="video" playsinline autoplay muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="video-overlay">
+          Detected: <span id="currentGesture">—</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="player-banner">
+          <div class="label">Now showing</div>
+          <div class="name" id="playerName">Player 1</div>
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center">Progress</div>
+          <div class="progress-dots" id="recallDots"></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="value" id="timer">00.0</div><div class="label">Time (s)</div></div>
+          <div class="stat"><div class="value" id="attemptLabel">1 / 3</div><div class="label">Attempt</div></div>
+        </div>
+        <button class="secondary" id="recallAbort">Abort attempt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ATTEMPT_END -->
+  <div id="phase-attempt-end" class="card hidden">
+    <h2 id="attemptResultTitle" style="font-size: 28px; margin-bottom: 12px;">Attempt complete</h2>
+    <p class="briefing">
+      Completed <strong id="attemptCompleted">0</strong> / 8 ·
+      time <strong id="attemptTime">0</strong> s ·
+      attempt score <strong id="attemptScoreVal">0</strong>
+    </p>
+    <div class="result-row" style="margin-top: 20px;">
+      <button id="attemptTryAgain">Try again</button>
+      <button class="secondary" id="attemptFinish">Finish</button>
+    </div>
+  </div>
+
+  <!-- FINAL_RESULT -->
+  <div id="phase-final" class="card result hidden">
+    <h2 id="finalTitle">🔓 Vault unlocked!</h2>
+    <p style="color:var(--muted)">Team <strong id="resTeam"></strong></p>
+    <div class="score" id="resScore">0</div>
+    <p style="color:var(--muted); font-size: 14px;">Enter this code at the central scoreboard:</p>
+    <div class="submit-code" id="resCode">GZ-?-?</div>
+    <div><button id="finalPlayAgain">Play again</button></div>
+  </div>
+</main>
+
+<script type="module">
+import {
+  GESTURE_POOL,
+  pickSequenceWithRepeats,
+  scoreAttempt,
+  finalScore,
+} from '../shared/gesture-lock-logic.js';
+
+// Stub: populate selectors, enable Start when team chosen. Logic lands in later tasks.
+const teamSelect = document.getElementById('teamSelect');
+for (let i = 1; i <= 10; i++) {
+  const o = document.createElement('option');
+  o.value = i; o.textContent = `Team ${i}`;
+  teamSelect.appendChild(o);
+}
+const teamSize = document.getElementById('teamSize');
+for (let i = 2; i <= 8; i++) {
+  const o = document.createElement('option');
+  o.value = i; o.textContent = `${i} players`;
+  if (i === 4) o.selected = true;
+  teamSize.appendChild(o);
+}
+const startBtn = document.getElementById('startBtn');
+teamSelect.addEventListener('change', () => { startBtn.disabled = !teamSelect.value; });
+startBtn.addEventListener('click', () => { console.log('start clicked — implementation pending'); });
+</script>
+</body>
+</html>
