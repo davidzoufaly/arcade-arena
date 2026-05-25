@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { generateLobbyId, generatePwd, isValidLobbyId, ALPHABET } from '../ps-offsite-2026/shared/lobby.js';
+import {
+  generateLobbyId, generatePwd, isValidLobbyId, ALPHABET,
+  getSession, setSession, clearSession, SESSION_KEY, LEGACY_TEAM_KEY,
+} from '../ps-offsite-2026/shared/lobby.js';
 
 describe('ALPHABET', () => {
   it('excludes ambiguous chars 0 O 1 I', () => {
@@ -53,8 +56,6 @@ describe('isValidLobbyId', () => {
     expect(isValidLobbyId('7K2X')).toBe(false);
   });
 });
-
-import { getSession, setSession, clearSession, SESSION_KEY, LEGACY_TEAM_KEY } from '../ps-offsite-2026/shared/lobby.js';
 
 function mockLocalStorage() {
   const store = new Map();

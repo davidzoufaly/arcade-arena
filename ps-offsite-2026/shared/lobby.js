@@ -52,9 +52,9 @@ export function getSession() {
 }
 
 export function setSession(s) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch {}
 }
 
 export function clearSession() {
-  localStorage.removeItem(SESSION_KEY);
+  try { localStorage.removeItem(SESSION_KEY); } catch {}
 }
