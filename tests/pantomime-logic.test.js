@@ -184,3 +184,39 @@ describe('samplePoses', () => {
     expect(() => samplePoses(POSE_POOL, { easy: 5, medium: 1, hard: 1 })).toThrow(/not enough easy poses/);
   });
 });
+
+import { scorePose, finalScore } from '../ps-offsite-2026/shared/pantomime-logic.js';
+
+describe('scorePose', () => {
+  it('returns 0 when not locked', () => {
+    expect(scorePose({ sim: 0.95, locked: false })).toBe(0);
+  });
+
+  it('returns rounded sim*100 when locked', () => {
+    expect(scorePose({ sim: 0.876, locked: true })).toBe(88);
+    expect(scorePose({ sim: 0.85, locked: true })).toBe(85);
+  });
+
+  it('clamps to 0..100 when locked', () => {
+    expect(scorePose({ sim: 1.5, locked: true })).toBe(100);
+    expect(scorePose({ sim: -0.2, locked: true })).toBe(0);
+  });
+});
+
+describe('finalScore', () => {
+  it('returns 0 for empty array', () => {
+    expect(finalScore([])).toBe(0);
+  });
+
+  it('rounds the average', () => {
+    expect(finalScore([80, 90, 100, 70, 60, 50, 40])).toBe(70);
+  });
+
+  it('handles all zeros', () => {
+    expect(finalScore([0, 0, 0, 0, 0, 0, 0])).toBe(0);
+  });
+
+  it('handles partial run (skipped poses included as 0)', () => {
+    expect(finalScore([100, 100, 0, 0, 0, 0, 0])).toBe(29);
+  });
+});

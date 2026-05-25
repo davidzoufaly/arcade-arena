@@ -613,3 +613,14 @@ export function samplePoses(pool, mix = { easy: 2, medium: 3, hard: 2 }) {
   }
   return out;
 }
+
+export function scorePose({ sim, locked }) {
+  if (!locked) return 0;
+  return Math.round(Math.max(0, Math.min(100, sim * 100)));
+}
+
+export function finalScore(perPoseScores) {
+  if (!perPoseScores.length) return 0;
+  const sum = perPoseScores.reduce((a, b) => a + b, 0);
+  return Math.round(sum / perPoseScores.length);
+}
