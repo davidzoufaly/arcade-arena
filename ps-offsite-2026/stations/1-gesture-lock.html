@@ -444,7 +444,22 @@ phaseEnter.memorize = () => {
     if (timer) clearTimeout(timer);
   };
 };
-phaseEnter.countdown = () => { /* Task 7 */ };
+phaseEnter.countdown = () => {
+  let n = 3;
+  const el = $('countdownNum');
+  el.textContent = n;
+  let timer = setInterval(() => {
+    n--;
+    if (n <= 0) {
+      clearInterval(timer);
+      timer = null;
+      goto('recall');
+    } else {
+      el.textContent = n;
+    }
+  }, 1000);
+  activeCleanup = () => { if (timer) clearInterval(timer); };
+};
 phaseEnter.recall = () => { /* Task 8 */ };
 phaseEnter['attempt-end'] = () => { /* Task 9 */ };
 phaseEnter.final = () => { /* Task 9 */ };
