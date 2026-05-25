@@ -209,6 +209,7 @@
   .hidden { display: none !important; }
   .loading { text-align: center; color: var(--muted); padding: 40px; }
 </style>
+<link rel="stylesheet" href="../shared/topbar.css">
 </head>
 <body>
 <header>
@@ -225,13 +226,10 @@
   <div id="phase-setup" class="card">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup">
-      <label>Team #:
-        <select id="teamSelect"><option value="">—</option></select>
-      </label>
       <label>Team size:
         <select id="teamSize"></select>
       </label>
-      <button id="startBtn" disabled>Start camera</button>
+      <button id="startBtn">Start camera</button>
     </div>
     <div class="briefing" style="margin-top: 12px; font-size: 13px;">
       Allow camera access when prompted.
@@ -327,6 +325,11 @@ import {
   scoreAttempt,
   finalScore,
 } from '../shared/gesture-lock-logic.js';
+import { mountTopbar } from '../shared/topbar.js';
+import { resolveSession } from '../shared/lobby.js';
+
+mountTopbar({ activePage: 'dashboard' });
+const _session = resolveSession();
 
 const STATION_CODE = 'GZ';
 const SEQUENCE_LEN = 8;
@@ -368,12 +371,6 @@ function goto(phase) {
 const phaseEnter = {};
 
 // ----- SETUP -----
-const teamSelect = $('teamSelect');
-for (let i = 1; i <= 10; i++) {
-  const o = document.createElement('option');
-  o.value = i; o.textContent = `Team ${i}`;
-  teamSelect.appendChild(o);
-}
 const teamSizeSel = $('teamSize');
 for (let i = 2; i <= 8; i++) {
   const o = document.createElement('option');
@@ -382,9 +379,8 @@ for (let i = 2; i <= 8; i++) {
   teamSizeSel.appendChild(o);
 }
 const startBtn = $('startBtn');
-teamSelect.addEventListener('change', () => { startBtn.disabled = !teamSelect.value; });
 startBtn.addEventListener('click', () => {
-  state.teamId = parseInt(teamSelect.value, 10);
+  state.teamId = _session?.teamId ?? 0;
   state.teamSize = parseInt(teamSizeSel.value, 10);
   state.attempts = [];
   state.attemptIdx = 0;
