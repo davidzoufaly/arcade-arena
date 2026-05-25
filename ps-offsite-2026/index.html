@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PS Offsite 2026 — Hub</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-2: #131a2e;
+    --card: #1b2540;
+    --text: #f5f7fb;
+    --muted: #8b95b5;
+    --accent: #00d4ff;
+    --accent-2: #ff00aa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #1f2a4a 0%, var(--bg) 60%);
+    color: var(--text); min-height: 100vh; padding: 40px;
+  }
+  main { max-width: 1100px; margin: 0 auto; }
+  h1 {
+    font-size: 42px; font-weight: 900; letter-spacing: -1px; margin-bottom: 8px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .subtitle { color: var(--muted); font-size: 16px; margin-bottom: 40px; }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .tile {
+    background: var(--card); border-radius: 16px; padding: 24px;
+    border: 1px solid rgba(255,255,255,0.06);
+    text-decoration: none; color: var(--text);
+    display: flex; flex-direction: column; gap: 8px;
+    transition: all 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .tile:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 12px 40px rgba(0,212,255,0.15);
+  }
+  .tile.scoreboard {
+    background: linear-gradient(135deg, #1b2540 0%, #2a1a3a 100%);
+    grid-column: 1 / -1;
+    flex-direction: row; align-items: center;
+  }
+  .tile.scoreboard h3 { font-size: 28px; }
+  .tile-num {
+    font-size: 12px; color: var(--muted); font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .tile-emoji { font-size: 40px; }
+  .tile h3 { font-size: 20px; font-weight: 800; }
+  .tile p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .tile-tag {
+    background: rgba(0,212,255,0.1); color: var(--accent);
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    align-self: flex-start; margin-top: 8px;
+  }
+  .qr-section {
+    margin-top: 40px; padding-top: 32px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .qr-section h2 { font-size: 20px; margin-bottom: 12px; }
+  .qr-section p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+  .qr-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+  }
+  .qr-tile {
+    background: var(--card); border-radius: 12px; padding: 16px; text-align: center;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .qr-tile img {
+    width: 100%; max-width: 160px; height: auto;
+    background: white; border-radius: 8px; padding: 8px;
+  }
+  .qr-tile .label { font-size: 13px; font-weight: 700; margin-top: 8px; }
+  .qr-tile .url { font-size: 11px; color: var(--muted); word-break: break-all; margin-top: 4px; }
+  input.base-url {
+    background: var(--bg-2); border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text); padding: 12px 16px; border-radius: 10px;
+    font-size: 14px; font-family: ui-monospace, monospace; width: 100%;
+    margin-bottom: 20px;
+  }
+  .team-row {
+    display: flex; align-items: center; gap: 16px;
+    background: var(--card); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;
+  }
+  .team-row label { font-size: 13px; font-weight: 700; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; }
+  .team-row select {
+    background: var(--bg-2); border: 1px solid rgba(255,255,255,0.15);
+    color: var(--text); padding: 10px 14px; border-radius: 8px;
+    font-size: 16px; font-weight: 700; font-family: inherit;
+    min-width: 140px;
+  }
+  .team-row select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,0.15); }
+  .team-row .team-note { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .tile.disabled { opacity: 0.45; pointer-events: none; }
+  .tile-game { background: linear-gradient(135deg, #1b2540 0%, #1a2a3a 100%); }
+</style>
+</head>
+<body>
+<main>
+  <h1>PS Offsite 2026</h1>
+  <div class="subtitle">10 teams × 4 people · 4 stations · one winner</div>
+
+  <div class="team-row">
+    <label for="teamSelect">Your team</label>
+    <select id="teamSelect">
+      <option value="">— pick team —</option>
+    </select>
+    <span class="team-note">Pick team first; game tiles activate after.</span>
+  </div>
+
+  <div class="grid">
+    <a class="tile scoreboard" href="scoreboard.html">
+      <div class="tile-emoji">🏆</div>
+      <div>
+        <div class="tile-num">CENTRAL</div>
+        <h3>Scoreboard</h3>
+        <p>Open this on the host laptop (projector / TV). Teams report submit codes here.</p>
+      </div>
+    </a>
+    <a class="tile" href="stations/1-gesture-lock.html">
+      <div class="tile-emoji">✋</div>
+      <div class="tile-num">Station 1 · GZ</div>
+      <h3>Gesture Lock</h3>
+      <p>Unlock the vault with a 4-gesture sequence. MediaPipe Hands.</p>
+      <span class="tile-tag">Gestures</span>
+    </a>
+    <a class="tile" href="stations/2-pantomime.html">
+      <div class="tile-emoji">🎭</div>
+      <div class="tile-num">Station 2 · PM</div>
+      <h3>CV Pantomime</h3>
+      <p>Match 12 increasingly hard poses to a ghost skeleton overlay. Stability check, tight clock. MediaPipe Pose.</p>
+      <span class="tile-tag">Body pose</span>
+    </a>
+    <a class="tile tile-game disabled" data-game="dino" href="dino/index.html">
+      <div class="tile-emoji">🛡️</div>
+      <div class="tile-num">Station 3 · DN</div>
+      <h3>Pipeline Dash</h3>
+      <p>Run the ETL Knight past anomalies. Wave fingers to jump, fist to duck. 4 stages, score / 16.</p>
+      <span class="tile-tag">Hand vision</span>
+    </a>
+    <a class="tile tile-game disabled" data-game="flappy" href="flappy/index.html">
+      <div class="tile-emoji">📊</div>
+      <div class="tile-num">Station 4 · FL</div>
+      <h3>Insight Monitor</h3>
+      <p>Yell to fly the insight orb past data anomalies. Whisper → chant across 4 stages, score / 31.</p>
+      <span class="tile-tag">Voice</span>
+    </a>
+  </div>
+
+  <div class="qr-section">
+    <h2>QR codes for stations</h2>
+    <p>
+      Paste the URL where you uploaded this folder (e.g. Netlify Drop URL or local IP) and QR codes will be generated for each station.
+      Print and place them on the station tables. If you're testing locally with <code>file://</code>, the QR codes won't be useful — direct links still work.
+    </p>
+    <input class="base-url" id="baseUrl" type="url" placeholder="https://ps-offsite-2026.netlify.app/" oninput="renderQRs()">
+    <div class="qr-grid" id="qrGrid"></div>
+  </div>
+</main>
+
+<script>
+const STATIONS = [
+  { name: 'Scoreboard', file: 'scoreboard.html' },
+  { name: '1 · Gesture Lock', file: 'stations/1-gesture-lock.html' },
+  { name: '2 · CV Pantomime', file: 'stations/2-pantomime.html' },
+  { name: '3 · Pipeline Dash', file: 'dino/index.html', needsTeam: true },
+  { name: '4 · Insight Monitor', file: 'flappy/index.html', needsTeam: true },
+];
+
+const TEAM_KEY = 'psOffsite2026.team';
+const teamSelect = document.getElementById('teamSelect');
+for (let i = 1; i <= 10; i++) {
+  const o = document.createElement('option');
+  o.value = String(i);
+  o.textContent = `Team ${i}`;
+  teamSelect.appendChild(o);
+}
+teamSelect.value = localStorage.getItem(TEAM_KEY) ?? '';
+
+function currentTeam() {
+  const v = parseInt(teamSelect.value, 10);
+  return Number.isFinite(v) && v >= 1 && v <= 99 ? v : 0;
+}
+
+function applyTeamToTiles() {
+  const team = currentTeam();
+  document.querySelectorAll('.tile-game').forEach(el => {
+    const base = el.dataset.game === 'dino' ? 'dino/index.html' : 'flappy/index.html';
+    if (team > 0) {
+      el.href = `${base}?team=${team}`;
+      el.classList.remove('disabled');
+    } else {
+      el.href = base;
+      el.classList.add('disabled');
+    }
+  });
+}
+
+teamSelect.addEventListener('change', () => {
+  if (teamSelect.value) localStorage.setItem(TEAM_KEY, teamSelect.value);
+  else localStorage.removeItem(TEAM_KEY);
+  applyTeamToTiles();
+  renderQRs();
+});
+applyTeamToTiles();
+
+function renderQRs() {
+  let base = document.getElementById('baseUrl').value.trim();
+  if (base && !base.endsWith('/')) base += '/';
+  const grid = document.getElementById('qrGrid');
+  if (!base) {
+    grid.innerHTML = '<div style="color:var(--muted); font-size:13px;">↑ Enter a URL to generate QR codes.</div>';
+    return;
+  }
+  const team = currentTeam();
+  grid.innerHTML = STATIONS.map(s => {
+    let url = base + s.file;
+    if (s.needsTeam && team > 0) url += `?team=${team}`;
+    const teamHint = s.needsTeam ? (team > 0 ? ` · team ${team}` : ' · (pick team)') : '';
+    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+    return `<div class="qr-tile">
+      <img src="${qr}" alt="QR ${s.name}" />
+      <div class="label">${s.name}${teamHint}</div>
+      <div class="url">${url}</div>
+    </div>`;
+  }).join('');
+}
+renderQRs();
+</script>
+</body>
+</html>

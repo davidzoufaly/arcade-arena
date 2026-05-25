@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PS Offsite 2026 — Scoreboard</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-2: #131a2e;
+    --card: #1b2540;
+    --card-hover: #243056;
+    --text: #f5f7fb;
+    --muted: #8b95b5;
+    --accent: #00d4ff;
+    --accent-2: #ff00aa;
+    --gold: #ffd84d;
+    --silver: #d6d8dc;
+    --bronze: #d49a6a;
+    --good: #00e676;
+    --bad: #ff4d6d;
+    --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 20% 0%, #1f2a4a 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  header {
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(10,14,26,0.85);
+  }
+  header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  header .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  button {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  button:hover {
+    background: var(--card-hover);
+    transform: translateY(-1px);
+  }
+  button.primary {
+    background: linear-gradient(135deg, var(--accent), #0099cc);
+    border: none;
+    color: #001;
+  }
+  button.danger { color: var(--bad); }
+  main { padding: 40px; max-width: 1600px; margin: 0 auto; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 32px;
+  }
+  @media (max-width: 1100px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .leaderboard {
+    display: grid;
+    gap: 12px;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 80px 1fr 200px 140px;
+    align-items: center;
+    background: var(--card);
+    padding: 20px 24px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .row.shine::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.15), transparent);
+    animation: shine 1.5s ease-out;
+  }
+  @keyframes shine {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+  }
+  .row .rank {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--muted);
+    text-align: center;
+  }
+  .row.top1 { border-color: var(--gold); box-shadow: 0 0 24px rgba(255,216,77,0.15); }
+  .row.top1 .rank { color: var(--gold); }
+  .row.top2 { border-color: var(--silver); }
+  .row.top2 .rank { color: var(--silver); }
+  .row.top3 { border-color: var(--bronze); }
+  .row.top3 .rank { color: var(--bronze); }
+  .team-name {
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .team-meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .station-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .pill {
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .pill.done {
+    background: rgba(0,230,118,0.15);
+    color: var(--good);
+  }
+  .total-score {
+    font-size: 42px;
+    font-weight: 900;
+    text-align: right;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-variant-numeric: tabular-nums;
+  }
+
+  aside {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 28px;
+    border: 1px solid rgba(255,255,255,0.06);
+    height: fit-content;
+    position: sticky;
+    top: 100px;
+  }
+  aside h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+  .submit-form {
+    display: grid;
+    gap: 12px;
+  }
+  input {
+    background: var(--bg-2);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    width: 100%;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.15);
+  }
+  .hint {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .feedback {
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    min-height: 0;
+    transition: all 0.2s;
+  }
+  .feedback.ok {
+    background: rgba(0,230,118,0.15);
+    color: var(--good);
+    border: 1px solid rgba(0,230,118,0.3);
+  }
+  .feedback.err {
+    background: rgba(255,77,109,0.15);
+    color: var(--bad);
+    border: 1px solid rgba(255,77,109,0.3);
+  }
+  .stations-legend {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .stations-legend .pill { font-family: ui-monospace, monospace; }
+  .legend-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .legend-link {
+    text-decoration: none;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin: 0 -10px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .legend-link:hover {
+    background: var(--bg-2);
+    color: var(--text);
+  }
+  .legend-link span:first-child {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .legend-arrow {
+    color: var(--muted);
+    font-size: 14px;
+    opacity: 0.6;
+    transition: opacity 0.15s, transform 0.15s;
+  }
+  .legend-link:hover .legend-arrow {
+    opacity: 1;
+    transform: translate(2px, -2px);
+    color: var(--accent);
+  }
+  .actions-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .actions-row button { flex: 1; min-width: 100px; }
+
+  .empty {
+    background: var(--card);
+    border: 2px dashed rgba(255,255,255,0.15);
+    border-radius: 20px;
+    padding: 60px 40px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .empty h3 { font-size: 22px; margin-bottom: 12px; color: var(--text); }
+  .empty p { font-size: 14px; line-height: 1.6; }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+  .total-score.bump { animation: pulse 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+
+  .confetti {
+    position: fixed;
+    pointer-events: none;
+    inset: 0;
+    z-index: 100;
+    overflow: hidden;
+  }
+  .confetti span {
+    position: absolute;
+    width: 10px; height: 14px;
+    top: -20px;
+    animation: fall 3s linear forwards;
+  }
+  @keyframes fall {
+    to { transform: translateY(110vh) rotate(720deg); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>PS Offsite 2026 — Scoreboard</h1>
+    <div class="subtitle" id="subtitle">10 teams, 2 stations, one winner</div>
+  </div>
+  <div class="controls">
+    <button onclick="addTeam()">+ Add team</button>
+    <button onclick="resetAll()" class="danger">Reset</button>
+  </div>
+</header>
+
+<main>
+  <div class="layout">
+    <div>
+      <div class="leaderboard" id="leaderboard"></div>
+    </div>
+
+    <aside>
+      <h2>Submit a score</h2>
+      <form class="submit-form" onsubmit="submitCode(event)">
+        <input type="text" id="codeInput" placeholder="GZ-7-85" autocomplete="off" maxlength="9" autofocus>
+        <div class="hint">Format: <strong>STATION-TEAM-SCORE</strong><br>e.g. <code>GZ-7-85</code> = Gesture Lock, team 7, 85 points. Stations: GZ, PM, DN, FL.</div>
+        <button type="submit" class="primary">Submit</button>
+        <div class="feedback" id="feedback" style="display:none"></div>
+      </form>
+
+      <div class="stations-legend">
+        <h2 style="font-size:14px; margin-bottom:8px">Open station</h2>
+        <a class="legend-row legend-link" href="stations/1-gesture-lock.html" target="_blank" rel="noopener">
+          <span><span class="pill">GZ</span> Gesture Lock</span><span class="legend-arrow">↗</span>
+        </a>
+        <a class="legend-row legend-link" href="stations/2-pantomime.html" target="_blank" rel="noopener">
+          <span><span class="pill">PM</span> CV Pantomime</span><span class="legend-arrow">↗</span>
+        </a>
+        <a class="legend-row legend-link" href="dino/index.html" target="_blank" rel="noopener">
+          <span><span class="pill">DN</span> Pipeline Dash</span><span class="legend-arrow">↗</span>
+        </a>
+        <a class="legend-row legend-link" href="flappy/index.html" target="_blank" rel="noopener">
+          <span><span class="pill">FL</span> Insight Monitor</span><span class="legend-arrow">↗</span>
+        </a>
+        <a class="legend-row legend-link" href="index.html" target="_blank" rel="noopener" style="margin-top: 8px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
+          <span><span class="pill" style="background: rgba(255,0,170,0.15); color: var(--accent-2);">QR</span> Hub & QR generator</span><span class="legend-arrow">↗</span>
+        </a>
+      </div>
+
+      <div class="actions-row">
+        <button onclick="exportData()">Export JSON</button>
+        <button onclick="document.getElementById('importInput').click()">Import JSON</button>
+        <input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)">
+      </div>
+    </aside>
+  </div>
+</main>
+
+<div class="confetti" id="confetti"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getDatabase, ref, set, update, remove, push, onValue, get } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { firebaseConfig } from './firebase-config.js';
+
+const STATIONS = {
+  GZ: 'Gesture Lock',
+  PM: 'CV Pantomime',
+  DN: 'Pipeline Dash',
+  FL: 'Insight Monitor',
+};
+
+function showSetupNeeded(msg) {
+  document.body.innerHTML = `
+    <div style="max-width:640px;margin:80px auto;padding:32px;background:#1b2540;border-radius:16px;border:1px solid rgba(255,255,255,0.06);color:#f5f7fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.6">
+      <h1 style="font-size:24px;margin-bottom:16px;background:linear-gradient(90deg,#00d4ff,#ff00aa);-webkit-background-clip:text;background-clip:text;color:transparent">Firebase setup needed</h1>
+      <p style="color:#8b95b5;margin-bottom:16px">${msg}</p>
+      <p>Follow <a href="SETUP.md" style="color:#00d4ff">SETUP.md</a> to create a Firebase project, then copy <code>firebase-config.example.js</code> to <code>firebase-config.js</code> and fill in your values.</p>
+    </div>`;
+}
+
+if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
+  showSetupNeeded('Your <code>firebase-config.js</code> still has placeholder values.');
+  throw new Error('firebase config not filled in');
+}
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let state = { teams: [], history: [] };
+let initialized = false;
+
+function seedTeamsObj() {
+  const teams = {};
+  for (let i = 1; i <= 10; i++) teams[i] = { id: i, name: `Team ${i}` };
+  return teams;
+}
+
+async function ensureSeed() {
+  const snap = await get(ref(db, 'teams'));
+  if (!snap.exists()) {
+    await set(ref(db, 'teams'), seedTeamsObj());
+  }
+}
+
+function snapshotToState(snap) {
+  const root = snap.val() ?? {};
+  const teamsObj = root.teams ?? {};
+  const scoresObj = root.scores ?? {};
+  const historyObj = root.history ?? {};
+  const teams = Object.values(teamsObj)
+    .filter(Boolean)
+    .map(t => ({ id: t.id, name: t.name, scores: scoresObj[t.id] ?? {} }))
+    .sort((a, b) => a.id - b.id);
+  const history = Object.values(historyObj).filter(Boolean).sort((a, b) => a.ts - b.ts);
+  return { teams, history };
+}
+
+onValue(ref(db, '/'), snap => {
+  state = snapshotToState(snap);
+  render();
+  initialized = true;
+});
+
+ensureSeed();
+
+async function addTeam() {
+  const nextId = Math.max(0, ...state.teams.map(t => t.id)) + 1;
+  const name = prompt('Team name:', `Team ${nextId}`);
+  if (!name) return;
+  await update(ref(db, `teams/${nextId}`), { id: nextId, name });
+}
+window.addTeam = addTeam;
+
+async function renameTeam(id) {
+  const t = state.teams.find(x => x.id === id);
+  if (!t) return;
+  const name = prompt('New name:', t.name);
+  if (name && name.trim()) {
+    await update(ref(db, `teams/${id}`), { name: name.trim() });
+  }
+}
+window.renameTeam = renameTeam;
+
+async function removeTeam(id) {
+  if (!confirm('Remove this team?')) return;
+  await remove(ref(db, `teams/${id}`));
+  await remove(ref(db, `scores/${id}`));
+}
+window.removeTeam = removeTeam;
+
+async function resetAll() {
+  if (!confirm('Wipe ALL scores and start over? Affects ALL connected scoreboards.')) return;
+  await set(ref(db, '/'), { teams: seedTeamsObj() });
+}
+window.resetAll = resetAll;
+
+function parseCode(raw) {
+  const code = raw.trim().toUpperCase().replace(/\s+/g, '');
+  const m = code.match(/^([A-Z]{2})-?(\d{1,2})-?(\d{1,3})$/);
+  if (!m) return null;
+  const [, station, teamStr, scoreStr] = m;
+  if (!STATIONS[station]) return null;
+  const teamId = parseInt(teamStr, 10);
+  const score = parseInt(scoreStr, 10);
+  if (score < 0 || score > 100) return null;
+  return { station, teamId, score };
+}
+
+async function submitCode(e) {
+  e.preventDefault();
+  const input = document.getElementById('codeInput');
+  const fb = document.getElementById('feedback');
+  const parsed = parseCode(input.value);
+
+  if (!parsed) {
+    fb.style.display = 'block';
+    fb.className = 'feedback err';
+    fb.textContent = 'Invalid code. Format: GZ-7-85 (2-letter station, team 1–10, score 0–100).';
+    return;
+  }
+
+  const team = state.teams.find(t => t.id === parsed.teamId);
+  if (!team) {
+    fb.style.display = 'block';
+    fb.className = 'feedback err';
+    fb.textContent = `Team ${parsed.teamId} doesn't exist. Click "+ Add team" first.`;
+    return;
+  }
+
+  const previousLeader = computeLeader();
+  const codeRaw = input.value.toUpperCase();
+
+  await update(ref(db, `scores/${parsed.teamId}`), { [parsed.station]: parsed.score });
+  await push(ref(db, 'history'), { ts: Date.now(), code: codeRaw, station: parsed.station, teamId: parsed.teamId, score: parsed.score });
+
+  fb.style.display = 'block';
+  fb.className = 'feedback ok';
+  fb.textContent = `✓ ${team.name} — ${STATIONS[parsed.station]}: ${parsed.score} pts`;
+  input.value = '';
+  input.focus();
+
+  bumpedTeam = { id: parsed.teamId, until: Date.now() + 1500 };
+  render();
+
+  const newLeader = computeLeader();
+  if (newLeader && newLeader.id !== (previousLeader && previousLeader.id)) {
+    confetti();
+  }
+
+  setTimeout(() => { fb.style.display = 'none'; }, 4000);
+}
+window.submitCode = submitCode;
+
+function computeLeader() {
+  const sorted = [...state.teams]
+    .map(t => ({ ...t, total: Object.values(t.scores).reduce((a, b) => a + b, 0) }))
+    .sort((a, b) => b.total - a.total);
+  return sorted[0];
+}
+
+function render() {
+  const list = document.getElementById('leaderboard');
+  if (state.teams.length === 0) {
+    list.innerHTML = '<div class="empty"><h3>No teams yet</h3><p>Click "+ Add team" at the top to start adding participants.</p></div>';
+    return;
+  }
+  const bumpedTeamId = bumpedTeam && bumpedTeam.until > Date.now() ? bumpedTeam.id : null;
+  const sorted = [...state.teams]
+    .map(t => ({ ...t, total: Object.values(t.scores).reduce((a, b) => a + b, 0), stationCount: Object.keys(t.scores).length }))
+    .sort((a, b) => b.total - a.total || a.id - b.id);
+
+  list.innerHTML = sorted.map((t, i) => {
+    const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+    const pills = Object.keys(STATIONS).map(s => {
+      const has = t.scores[s] !== undefined;
+      const cls = has ? 'pill done' : 'pill';
+      const label = has ? `${s} ${t.scores[s]}` : s;
+      return `<span class="${cls}">${label}</span>`;
+    }).join('');
+    const bump = t.id === bumpedTeamId ? 'bump' : '';
+    const shine = t.id === bumpedTeamId ? 'shine' : '';
+    return `
+      <div class="row ${rankClass} ${shine}" ondblclick="renameTeam(${t.id})" oncontextmenu="event.preventDefault(); removeTeam(${t.id})">
+        <div class="rank">${i + 1}</div>
+        <div>
+          <div class="team-name">${escapeHtml(t.name)}</div>
+          <div class="team-meta">${t.stationCount}/${Object.keys(STATIONS).length} stations · double-click to rename · right-click to remove</div>
+        </div>
+        <div class="station-pills">${pills}</div>
+        <div class="total-score ${bump}">${t.total}</div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('subtitle').textContent = `${state.teams.length} teams, ${Object.keys(STATIONS).length} stations · ${state.history.length} submissions`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function confetti() {
+  const wrap = document.getElementById('confetti');
+  const colors = ['#00d4ff','#ff00aa','#ffd84d','#00e676','#ff4d6d'];
+  for (let i = 0; i < 60; i++) {
+    const s = document.createElement('span');
+    s.style.left = Math.random() * 100 + 'vw';
+    s.style.background = colors[Math.floor(Math.random() * colors.length)];
+    s.style.animationDelay = Math.random() * 0.5 + 's';
+    s.style.transform = `rotate(${Math.random() * 360}deg)`;
+    wrap.appendChild(s);
+    setTimeout(() => s.remove(), 3500);
+  }
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ps-offsite-scores-${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.teams || !Array.isArray(data.teams)) throw new Error('bad shape');
+      // Convert exported array shape back into RTDB object shape
+      const teamsObj = {};
+      const scoresObj = {};
+      for (const t of data.teams) {
+        teamsObj[t.id] = { id: t.id, name: t.name };
+        if (t.scores) scoresObj[t.id] = t.scores;
+      }
+      const historyObj = {};
+      if (Array.isArray(data.history)) {
+        for (const h of data.history) {
+          const k = push(ref(db, 'history')).key;
+          historyObj[k] = h;
+        }
+      }
+      await set(ref(db, '/'), { teams: teamsObj, scores: scoresObj, history: historyObj });
+      alert('Imported.');
+    } catch (err) {
+      alert('Invalid file format.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+window.exportData = exportData;
+window.importData = importData;
+
+let bumpedTeam = null;
+render();
+
+document.getElementById('codeInput').addEventListener('input', e => {
+  e.target.value = e.target.value.toUpperCase();
+});
+</script>
+</body>
+</html>

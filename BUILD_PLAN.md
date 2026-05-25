@@ -1,0 +1,49 @@
+- [x] move our two games to ps-offsite-2026 (files and folders)
+- [x] through our existing git repo, use only the fork repo
+- [x] plug it into UI
+- [x] plug it into integrated scoring system
+- [x] connect the scoring to databse -> firebase?
+- [x] deploy FE
+- [] polish all games
+    - [x] gesture lock 
+        - there should be random suqence of 8 gestures 4 different guestures are in place 
+        - the sequence is displayed in a row for few seconds, team needs to remember it and then show it one by one -> take turns -> if they fails, new sequence is shown -> they can try it three times.. times is also taken in cosideration if they can do it faster they should recieve more points
+        - there should be preset of gestures team has to do in 
+        - jeden hráč jedno gesto -> všichni in view
+        - 3 retries only best core counts
+    - [] Pantomime
+        - [] odebrat CV
+        - [] sjednotit s logikou Gesture logu
+    - [] Dino a Flappy
+        - [] překopat grafiku pryč s tou cyberpunk arcade verzí
+        - [] introduce retries apod.
+        - [] make it more stable and playable
+    - [] add backup game dance freeze game? 
+- [] better ui navigace
+    - [] top bar
+        - [] dashboard + scoreboard
+        - [] leave lobby -> redirect to landingpage (create lobby)
+- [] password protected teams picking
+- [] scoreboard admin funkce
+    - [] můžeš udělat normalizaci -> check jestli jsou všechny hry a týmy vyplněné
+    - [] můžeš resetovat scoreboard
+    - [] po kliknutí na admin akci to chce admin heslo -> vrátí se vygenerované při vytváření lobby
+- [] počet hráčů v týmu už se ve hrách nenastavuje (hry by měli být univerzální pro 4 i 8 hráčů)
+- [] screen intro -> create lobby / join lobby -> create nastavíš počet týmů -> něco jako vytvoření lobby v DB a poté se do lobby joinuješ -> vytvoření lobby ti vrátí ID, které používáš do join lobby -> v create lobby akorát nastavíš počet týmů -> kromě join lobby se ti vrátí i heslo pro každý tým -> ten distribuješ ostatním týmům (aby se nedaly přepisovat výsledky)
+- [] po join lobby vybereš tým a připojíš se heslem
+- [] scoreboard matice -> vidíš týmy x hry a body v cells
+- [] games catalog
+    - [] obsahuje všechny hry
+    - [] vidíš jestli je hra už hraná (má odeslané skóre nebo ne) -> UI fajfka apod
+    - [] non playable games jen vysvětli pravidla a umožní zadat počet bodů
+        - Math Without a Brain
+        - Math With a Bigger Brain
+        - Šifra
+        - Pantomime
+        - Gesture Lock
+        - Voice Arena - flappy
+        - Gesture Arena - dino
+        - Gandalf
+        - The Hidden Document race
+        - Draw and guess
+        - Pub quiz -> interaktivní? 
