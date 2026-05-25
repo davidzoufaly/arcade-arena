@@ -22,6 +22,7 @@
 - [] better ui navigace
     - [] top bar
         - [] dashboard + scoreboard
+        - [] lobby id + team number
         - [] leave lobby -> redirect to landingpage (create lobby)
 - [] password protected teams picking
 - [] scoreboard admin funkce
@@ -29,8 +30,8 @@
     - [] můžeš resetovat scoreboard
     - [] po kliknutí na admin akci to chce admin heslo -> vrátí se vygenerované při vytváření lobby
 - [] počet hráčů v týmu už se ve hrách nenastavuje (hry by měli být univerzální pro 4 i 8 hráčů)
-- [] screen intro -> create lobby / join lobby -> create nastavíš počet týmů -> něco jako vytvoření lobby v DB a poté se do lobby joinuješ -> vytvoření lobby ti vrátí ID, které používáš do join lobby -> v create lobby akorát nastavíš počet týmů -> kromě join lobby se ti vrátí i heslo pro každý tým -> ten distribuješ ostatním týmům (aby se nedaly přepisovat výsledky)
-- [] po join lobby vybereš tým a připojíš se heslem
+- [x] screen intro -> create lobby / join lobby -> create nastavíš počet týmů -> něco jako vytvoření lobby v DB a poté se do lobby joinuješ -> vytvoření lobby ti vrátí ID, které používáš do join lobby -> v create lobby akorát nastavíš počet týmů -> kromě join lobby se ti vrátí i heslo pro každý tým -> ten distribuješ ostatním týmům (aby se nedaly přepisovat výsledky)
+- [x] po join lobby vybereš tým a připojíš se heslem
 - [] scoreboard matice -> vidíš týmy x hry a body v cells
 - [] games catalog
     - [] obsahuje všechny hry

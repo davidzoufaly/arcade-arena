@@ -375,6 +375,13 @@ const STATIONS = {
   FL: 'Insight Monitor',
 };
 
+const lobbyId = new URLSearchParams(location.search).get('lobby');
+if (!lobbyId) {
+  location.replace('index.html');
+  throw new Error('no lobby in url');
+}
+const LOBBY_PATH = `lobbies/${lobbyId}`;
+
 function showSetupNeeded(msg) {
   document.body.innerHTML = `
     <div style="max-width:640px;margin:80px auto;padding:32px;background:#1b2540;border-radius:16px;border:1px solid rgba(255,255,255,0.06);color:#f5f7fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.6">
@@ -395,19 +402,6 @@ const db = getDatabase(app);
 let state = { teams: [], history: [] };
 let initialized = false;
 
-function seedTeamsObj() {
-  const teams = {};
-  for (let i = 1; i <= 10; i++) teams[i] = { id: i, name: `Team ${i}` };
-  return teams;
-}
-
-async function ensureSeed() {
-  const snap = await get(ref(db, 'teams'));
-  if (!snap.exists()) {
-    await set(ref(db, 'teams'), seedTeamsObj());
-  }
-}
-
 function snapshotToState(snap) {
   const root = snap.val() ?? {};
   const teamsObj = root.teams ?? {};
@@ -421,19 +415,17 @@ function snapshotToState(snap) {
   return { teams, history };
 }
 
-onValue(ref(db, '/'), snap => {
+onValue(ref(db, LOBBY_PATH), snap => {
   state = snapshotToState(snap);
   render();
   initialized = true;
 });
 
-ensureSeed();
-
 async function addTeam() {
   const nextId = Math.max(0, ...state.teams.map(t => t.id)) + 1;
   const name = prompt('Team name:', `Team ${nextId}`);
   if (!name) return;
-  await update(ref(db, `teams/${nextId}`), { id: nextId, name });
+  await update(ref(db, `${LOBBY_PATH}/teams/${nextId}`), { id: nextId, name });
 }
 window.addTeam = addTeam;
 
@@ -442,21 +434,22 @@ async function renameTeam(id) {
   if (!t) return;
   const name = prompt('New name:', t.name);
   if (name && name.trim()) {
-    await update(ref(db, `teams/${id}`), { name: name.trim() });
+    await update(ref(db, `${LOBBY_PATH}/teams/${id}`), { name: name.trim() });
   }
 }
 window.renameTeam = renameTeam;
 
 async function removeTeam(id) {
   if (!confirm('Remove this team?')) return;
-  await remove(ref(db, `teams/${id}`));
-  await remove(ref(db, `scores/${id}`));
+  await remove(ref(db, `${LOBBY_PATH}/teams/${id}`));
+  await remove(ref(db, `${LOBBY_PATH}/scores/${id}`));
 }
 window.removeTeam = removeTeam;
 
 async function resetAll() {
-  if (!confirm('Wipe ALL scores and start over? Affects ALL connected scoreboards.')) return;
-  await set(ref(db, '/'), { teams: seedTeamsObj() });
+  if (!confirm(`Wipe scores and history for lobby ${lobbyId}? Teams are kept. This affects everyone in this lobby.`)) return;
+  await set(ref(db, `${LOBBY_PATH}/scores`), null);
+  await set(ref(db, `${LOBBY_PATH}/history`), null);
 }
 window.resetAll = resetAll;
 
@@ -496,8 +489,8 @@ async function submitCode(e) {
   const previousLeader = computeLeader();
   const codeRaw = input.value.toUpperCase();
 
-  await update(ref(db, `scores/${parsed.teamId}`), { [parsed.station]: parsed.score });
-  await push(ref(db, 'history'), { ts: Date.now(), code: codeRaw, station: parsed.station, teamId: parsed.teamId, score: parsed.score });
+  await update(ref(db, `${LOBBY_PATH}/scores/${parsed.teamId}`), { [parsed.station]: parsed.score });
+  await push(ref(db, `${LOBBY_PATH}/history`), { ts: Date.now(), code: codeRaw, station: parsed.station, teamId: parsed.teamId, score: parsed.score });
 
   fb.style.display = 'block';
   fb.className = 'feedback ok';
@@ -558,7 +551,7 @@ function render() {
     `;
   }).join('');
 
-  document.getElementById('subtitle').textContent = `${state.teams.length} teams, ${Object.keys(STATIONS).length} stations · ${state.history.length} submissions`;
+  document.getElementById('subtitle').textContent = `Lobby ${lobbyId} · ${state.teams.length} teams · ${state.history.length} submissions`;
 }
 
 function escapeHtml(s) {
@@ -607,11 +600,11 @@ function importData(e) {
       const historyObj = {};
       if (Array.isArray(data.history)) {
         for (const h of data.history) {
-          const k = push(ref(db, 'history')).key;
+          const k = push(ref(db, `${LOBBY_PATH}/history`)).key;
           historyObj[k] = h;
         }
       }
-      await set(ref(db, '/'), { teams: teamsObj, scores: scoresObj, history: historyObj });
+      await set(ref(db, LOBBY_PATH), { teams: teamsObj, scores: scoresObj, history: historyObj });
       alert('Imported.');
     } catch (err) {
       alert('Invalid file format.');
