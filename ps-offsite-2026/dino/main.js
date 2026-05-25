@@ -2,7 +2,11 @@ import { drawGridFloor, fadeOverlay, withGlow, ScreenShake } from '../shared/neo
 import { createCamStream, createHandTracker, createPoseTracker, isFingerUp, isPalmOpen, isFist, isArmOverhead, isJumpingPose, isCrouchingPose, countFingersUp } from '../shared/vision.js';
 import { createStageManager } from '../shared/stages.js';
 import { showDenialModal } from '../shared/perms.js';
-import { generateCode, renderEndScreen, saveRun, showDebugIfRequested } from '../shared/score-panel.js';
+import { generateCode, renderEndScreen, saveRun, showDebugIfRequested, getTeamFromURL } from '../shared/score-panel.js';
+
+const STATION = 'DN';
+const MAX_SCORE = 16;
+const TEAM = getTeamFromURL();
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -529,13 +533,16 @@ function die() {
   state.dead = true;
   state.running = false;
   shake.trigger(8, 12);
-  const code = generateCode(state.score, Date.now());
+  const code = generateCode({ station: STATION, team: TEAM, score: state.score, max: MAX_SCORE });
   saveRun('dino', state.score, code);
   const overlay = document.createElement('div');
   overlay.className = 'end-overlay';
   document.body.appendChild(overlay);
   renderEndScreen(overlay, {
+    station: STATION,
+    team: TEAM,
     score: state.score,
+    max: MAX_SCORE,
     code,
     message: `KNIGHT FALLEN AT ${Math.floor(state.meters)}m`
   });

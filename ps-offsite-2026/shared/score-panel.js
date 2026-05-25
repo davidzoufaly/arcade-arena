@@ -1,31 +1,26 @@
-const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 chars, no ambiguous (I/O/0/1)
-
-function fnv1a(str) {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = (h * 0x01000193) >>> 0;
-  }
-  return h >>> 0;
+// Team comes from `?team=N` URL param. Hub sets it on tile links.
+export function getTeamFromURL() {
+  const raw = new URLSearchParams(location.search).get('team');
+  const n = parseInt(raw ?? '', 10);
+  return Number.isFinite(n) && n >= 1 && n <= 99 ? n : 0;
 }
 
-export function generateCode(score, timestamp) {
-  let h = fnv1a(`${score}|${timestamp}`);
-  let out = '';
-  for (let i = 0; i < 4; i++) {
-    out += ALPHABET[h % ALPHABET.length];
-    h = Math.floor(h / ALPHABET.length);
-    if (h === 0) h = fnv1a(`${score}|${timestamp}|${i}`);
-  }
-  return out;
+// Scoreboard format: STATION-TEAM-SCORE (e.g. DN-7-85). Score normalized 0..100.
+export function generateCode({ station, team, score, max }) {
+  const pts = Math.max(0, Math.min(100, Math.round((score / max) * 100)));
+  return `${station}-${team}-${pts}`;
 }
 
-export function renderEndScreen(container, { score, code, message }) {
+export function renderEndScreen(container, { station, team, score, max, code, message }) {
+  const pts = Math.max(0, Math.min(100, Math.round((score / max) * 100)));
+  const teamLine = team > 0
+    ? `<div class="code">CODE: ${code}</div><div class="hint">TEAM ${team} · BRING CODE TO SCOREBOARD</div>`
+    : `<div class="code" style="color:#ff5a3c">NO TEAM SET</div><div class="hint">REOPEN FROM HUB SO ?team=N IS SET</div>`;
   container.innerHTML = `
     <div class="end-screen">
       <h1>${message}</h1>
-      <div class="score">SCORE: ${score} / 30</div>
-      <div class="code">CODE: ${code}</div>
+      <div class="score">SCORE: ${score} / ${max} (${pts} pts)</div>
+      ${teamLine}
       <div class="hint">PRESS SPACE TO PLAY AGAIN</div>
     </div>
   `;
@@ -48,6 +43,6 @@ export function showDebugIfRequested(game) {
   const runs = loadRuns(game);
   const pre = document.createElement('pre');
   pre.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow:auto;background:#000c;color:#0ff;padding:8px;font-size:11px;z-index:100';
-  pre.textContent = runs.map(r => `${new Date(r.at).toLocaleTimeString()}  ${r.score}/30  ${r.code}`).join('\n');
+  pre.textContent = runs.map(r => `${new Date(r.at).toLocaleTimeString()}  ${r.score}  ${r.code}`).join('\n');
   document.body.appendChild(pre);
 }

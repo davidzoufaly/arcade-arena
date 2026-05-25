@@ -1,25 +1,17 @@
-export function withGlow(ctx, color, blur, fn) {
-  // Fast halo: draw a translucent thick stroke pass behind the fill, then the fill on top.
-  // `blur` is treated as halo radius for backwards compat.
+export function withGlow(ctx, color, _blur, fn) {
   ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = color;
   ctx.strokeStyle = color;
-  ctx.fillStyle = color;
-  ctx.lineWidth = Math.max(2, blur * 0.6);
-  ctx.globalAlpha = 0.25;
-  fn();
-  ctx.lineWidth = Math.max(1, blur * 0.25);
-  ctx.globalAlpha = 0.5;
-  fn();
-  ctx.restore();
-  ctx.save();
-  ctx.fillStyle = color;
   fn();
   ctx.restore();
 }
 
 export function fadeOverlay(ctx, alpha = 0.15) {
-  ctx.fillStyle = `rgba(10, 10, 26, ${alpha})`;
+  if (alpha >= 0.95) {
+    ctx.fillStyle = '#0a0a1a';
+  } else {
+    ctx.fillStyle = `rgba(10, 10, 26, ${alpha})`;
+  }
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 }
 

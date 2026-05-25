@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createStageManager } from '../shared/stages.js';
+import { createStageManager } from '../ps-offsite-2026/shared/stages.js';
 
 describe('createStageManager', () => {
   it('starts at stage 1', () => {

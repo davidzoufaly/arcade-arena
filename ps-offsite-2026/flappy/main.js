@@ -2,7 +2,11 @@ import { fadeOverlay, withGlow, ScreenShake } from '../shared/neon-fx.js';
 import { createAudioInput } from '../shared/audio.js';
 import { showDenialModal } from '../shared/perms.js';
 import { createStageManager } from '../shared/stages.js';
-import { generateCode, renderEndScreen, saveRun, showDebugIfRequested } from '../shared/score-panel.js';
+import { generateCode, renderEndScreen, saveRun, showDebugIfRequested, getTeamFromURL } from '../shared/score-panel.js';
+
+const STATION = 'FL';
+const MAX_SCORE = 31;
+const TEAM = getTeamFromURL();
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -270,14 +274,17 @@ function die() {
 }
 
 function showEndScreen() {
-  const code = generateCode(state.score, Date.now());
+  const code = generateCode({ station: STATION, team: TEAM, score: state.score, max: MAX_SCORE });
   saveRun('flappy', state.score, code);
   const overlay = document.createElement('div');
   overlay.className = 'end-overlay';
   overlay.id = 'end';
   document.body.appendChild(overlay);
   renderEndScreen(overlay, {
+    station: STATION,
+    team: TEAM,
     score: state.score,
+    max: MAX_SCORE,
     code,
     message: `CUSTOMERS RESCUED: ${state.score}`
   });
