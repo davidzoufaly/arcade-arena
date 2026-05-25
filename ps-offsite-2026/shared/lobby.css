@@ -1,0 +1,179 @@
+/* ps-offsite-2026/shared/lobby.css */
+.lobby-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  margin-top: 32px;
+}
+.lobby-card {
+  background: var(--card);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.lobby-card h2 {
+  font-size: 22px;
+  font-weight: 800;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.lobby-card label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+.lobby-card input {
+  background: var(--bg-2);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text);
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-family: inherit;
+  width: 100%;
+}
+.lobby-card input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.15);
+}
+.lobby-card button {
+  background: linear-gradient(135deg, var(--accent), #0099cc);
+  border: none;
+  color: #001;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+}
+.lobby-card button[disabled] { opacity: 0.4; cursor: not-allowed; }
+
+.lobby-banner {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.lobby-banner.err {
+  background: rgba(255,77,109,0.15);
+  color: #ff4d6d;
+  border: 1px solid rgba(255,77,109,0.3);
+}
+
+.lobby-credentials {
+  background: var(--card);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 28px;
+  margin-top: 24px;
+}
+.lobby-credentials .big {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.lobby-credentials .big .code {
+  font-family: ui-monospace, monospace;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--accent);
+}
+.lobby-credentials table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+.lobby-credentials th, .lobby-credentials td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 14px;
+}
+.lobby-credentials th {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.lobby-credentials td .code {
+  font-family: ui-monospace, monospace;
+  letter-spacing: 1.5px;
+}
+.lobby-credentials .copy-btn {
+  background: var(--bg-2);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.lobby-credentials .copy-btn:hover { background: var(--card); }
+.lobby-credentials .continue {
+  margin-top: 24px;
+  background: linear-gradient(135deg, var(--accent), #0099cc);
+  border: none;
+  color: #001;
+  padding: 12px 22px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.lobby-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--card);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 14px 20px;
+  margin-bottom: 24px;
+}
+.lobby-strip .info { font-size: 14px; }
+.lobby-strip .info .code { font-family: ui-monospace, monospace; color: var(--accent); letter-spacing: 1.5px; }
+.lobby-strip button {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--muted);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.lobby-strip button:hover { color: var(--text); border-color: var(--accent); }
+
+.team-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.team-picker label.team-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-2);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.team-picker label.team-option input { width: auto; }
