@@ -19,11 +19,11 @@
         - [] introduce retries apod.
         - [] make it more stable and playable
     - [] add backup game dance freeze game? 
-- [] better ui navigace
-    - [] top bar
-        - [] dashboard + scoreboard
-        - [] lobby id + team number
-        - [] leave lobby -> redirect to landingpage (create lobby)
+- [x] better ui navigace
+    - [x] top bar
+        - [x] dashboard + scoreboard
+        - [x] lobby id + team number
+        - [x] leave lobby -> redirect to landingpage (create lobby)
 - [] password protected teams picking
 - [] scoreboard admin funkce
     - [] můžeš udělat normalizaci -> check jestli jsou všechny hry a týmy vyplněné
