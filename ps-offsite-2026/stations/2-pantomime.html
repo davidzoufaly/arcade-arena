@@ -69,6 +69,19 @@
   .video-wrap {
     position: relative; background: #000; border-radius: 20px;
     overflow: hidden; aspect-ratio: 4/3;
+    box-shadow: 0 0 0 0 rgba(0,230,118,0);
+    transition: box-shadow 0.15s ease-out;
+  }
+  .video-wrap.match-pulse { animation: match-pulse 0.6s ease-out; }
+  .video-wrap.miss-flash { animation: miss-flash 0.45s ease-out; }
+  @keyframes match-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(0,230,118,0.9), inset 0 0 0 6px rgba(0,230,118,0.0); }
+    30%  { box-shadow: 0 0 32px 8px rgba(0,230,118,0.65), inset 0 0 0 6px rgba(0,230,118,0.85); }
+    100% { box-shadow: 0 0 0 0 rgba(0,230,118,0),   inset 0 0 0 6px rgba(0,230,118,0.0); }
+  }
+  @keyframes miss-flash {
+    0%, 100% { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.0); }
+    50%      { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.9); }
   }
   video, .skel-overlay-canvas {
     width: 100%; height: 100%; object-fit: cover; display: block;
@@ -270,7 +283,7 @@
   <div id="phase-playing" class="hidden">
     <div class="game">
       <div>
-        <div class="video-wrap">
+        <div class="video-wrap" id="videoWrap">
           <video id="video" playsinline autoplay muted></video>
           <canvas id="overlay" class="skel-overlay-canvas"></canvas>
           <div class="video-overlay" id="hint">Stand in front of the camera</div>
@@ -518,7 +531,15 @@ function startStep() {
   }, pose.timeout * 1000);
 }
 
+function pulseVideo(cls) {
+  const el = document.getElementById('videoWrap');
+  el.classList.remove('match-pulse', 'miss-flash');
+  void el.offsetWidth; // reflow -> restart animation
+  el.classList.add(cls);
+}
+
 function timeoutStep() {
+  pulseVideo('miss-flash');
   scores.push(0);
   advance();
 }
@@ -634,6 +655,7 @@ function handlePose(result) {
       const stepScore = Math.round(Math.min(100, sim * 100));
       scores.push(stepScore);
       if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
+      pulseVideo('match-pulse');
       advance();
     }
   } else {
@@ -658,6 +680,7 @@ window.skipCurrent = function() {
   if (!running || stepIndex >= POSES.length) return;
   scores.push(0);
   if (stepTimeoutHandle) clearTimeout(stepTimeoutHandle);
+  pulseVideo('miss-flash');
   advance();
 };
 
