@@ -2,15 +2,26 @@ import { drawGridFloor, fadeOverlay, withGlow, ScreenShake } from '../shared/neo
 import { createCamStream, createHandTracker, createPoseTracker, isFingerUp, isPalmOpen, isFist, isArmOverhead, isJumpingPose, isCrouchingPose, countFingersUp } from '../shared/vision.js';
 import { createStageManager } from '../shared/stages.js';
 import { showDenialModal } from '../shared/perms.js';
-import { generateCode, renderEndScreen, saveRun, showDebugIfRequested } from '../shared/score-panel.js';
+import { renderEndScreen, saveRun, showDebugIfRequested } from '../shared/score-panel.js';
 import { resolveSession } from '../shared/lobby.js';
 import { mountTopbar } from '../shared/topbar.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getDatabase, ref, update, push } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { firebaseConfig } from '../firebase-config.js';
+import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 
-mountTopbar({ activePage: 'dashboard' });
+mountTopbar({ activePage: 'games' });
 
-const STATION = 'DN';
+const GAME = 'DN';
 const MAX_SCORE = 16;
-const TEAM = (resolveSession() ?? { teamId: 0 }).teamId;
+const session = resolveSession();
+const TEAM = (session ?? { teamId: 0 }).teamId;
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const writer = firebaseWriter({ db, ref, update, push });
+const catalogHref = session
+  ? `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`
+  : '../games.html';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -537,18 +548,19 @@ function die() {
   state.dead = true;
   state.running = false;
   shake.trigger(8, 12);
-  const code = generateCode({ station: STATION, team: TEAM, score: state.score, max: MAX_SCORE });
-  saveRun('dino', state.score, code);
+  saveRun('dino', state.score);
   const overlay = document.createElement('div');
   overlay.className = 'end-overlay';
   document.body.appendChild(overlay);
-  renderEndScreen(overlay, {
-    station: STATION,
-    team: TEAM,
-    score: state.score,
-    max: MAX_SCORE,
-    code,
-    message: `KNIGHT FALLEN AT ${Math.floor(state.meters)}m`
+  const message = `KNIGHT FALLEN AT ${Math.floor(state.meters)}m`;
+  renderEndScreen(overlay, { score: state.score, saved: null, message, catalogHref });
+  submitScore({
+    writer, lobbyId: session?.lobbyId, teamId: TEAM, gameKey: GAME, score: state.score,
+  }).then(() => {
+    renderEndScreen(overlay, { score: state.score, saved: true, message, catalogHref });
+  }).catch(e => {
+    console.error('submit failed', e);
+    renderEndScreen(overlay, { score: state.score, saved: false, message, catalogHref });
   });
   const onKey = (e) => {
     if (e.code === 'Space') {
