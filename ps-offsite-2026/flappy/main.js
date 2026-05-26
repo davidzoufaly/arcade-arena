@@ -2,15 +2,26 @@ import { fadeOverlay, withGlow, ScreenShake } from '../shared/neon-fx.js';
 import { createAudioInput } from '../shared/audio.js';
 import { showDenialModal } from '../shared/perms.js';
 import { createStageManager } from '../shared/stages.js';
-import { generateCode, renderEndScreen, saveRun, showDebugIfRequested } from '../shared/score-panel.js';
+import { renderEndScreen, saveRun, showDebugIfRequested } from '../shared/score-panel.js';
 import { resolveSession } from '../shared/lobby.js';
 import { mountTopbar } from '../shared/topbar.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getDatabase, ref, update, push } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { firebaseConfig } from '../firebase-config.js';
+import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 
-mountTopbar({ activePage: 'dashboard' });
+mountTopbar({ activePage: 'games' });
 
-const STATION = 'FL';
+const GAME = 'FL';
 const MAX_SCORE = 31;
-const TEAM = (resolveSession() ?? { teamId: 0 }).teamId;
+const session = resolveSession();
+const TEAM = (session ?? { teamId: 0 }).teamId;
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const writer = firebaseWriter({ db, ref, update, push });
+const catalogHref = session
+  ? `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`
+  : '../games.html';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -278,19 +289,20 @@ function die() {
 }
 
 function showEndScreen() {
-  const code = generateCode({ station: STATION, team: TEAM, score: state.score, max: MAX_SCORE });
-  saveRun('flappy', state.score, code);
+  saveRun('flappy', state.score);
   const overlay = document.createElement('div');
   overlay.className = 'end-overlay';
   overlay.id = 'end';
   document.body.appendChild(overlay);
-  renderEndScreen(overlay, {
-    station: STATION,
-    team: TEAM,
-    score: state.score,
-    max: MAX_SCORE,
-    code,
-    message: `CUSTOMERS RESCUED: ${state.score}`
+  const message = `CUSTOMERS RESCUED: ${state.score}`;
+  renderEndScreen(overlay, { score: state.score, saved: null, message, catalogHref });
+  submitScore({
+    writer, lobbyId: session?.lobbyId, teamId: TEAM, gameKey: GAME, score: state.score,
+  }).then(() => {
+    renderEndScreen(overlay, { score: state.score, saved: true, message, catalogHref });
+  }).catch(e => {
+    console.error('submit failed', e);
+    renderEndScreen(overlay, { score: state.score, saved: false, message, catalogHref });
   });
   const onKey = (e) => {
     if (e.code === 'Space') {
