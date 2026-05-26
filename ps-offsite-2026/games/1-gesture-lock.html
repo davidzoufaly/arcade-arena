@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Station 1 — Gesture Lock</title>
+<title>Game 1 — Gesture Lock</title>
 <style>
   :root {
     --bg: #0a0e1a;
@@ -32,7 +32,7 @@
     border-bottom: 1px solid rgba(255,255,255,0.08);
   }
   header h1 { font-size: 22px; font-weight: 800; }
-  header .station-badge {
+  header .game-badge {
     background: var(--accent); color: #001;
     padding: 4px 10px; border-radius: 6px;
     font-size: 12px; font-weight: 800; letter-spacing: 0.5px; margin-right: 12px;
@@ -203,6 +203,18 @@
     display: inline-block; margin: 20px 0;
     border: 2px dashed var(--accent); color: var(--accent);
   }
+  .save-status {
+    display: inline-block; margin-top: 14px;
+    font-size: 12px; font-weight: 800; letter-spacing: 1.5px;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(255,255,255,0.08); color: var(--text);
+  }
+  .save-status.ok  { background: rgba(0,230,118,0.18); color: #00e676; }
+  .save-status.bad { background: rgba(255,77,109,0.18); color: #ff4d6d; cursor: pointer; }
+  .secondary-link {
+    color: var(--accent); text-decoration: none; font-weight: 700; font-size: 14px;
+    align-self: center; padding: 8px 14px;
+  }
   .result-row {
     display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
   }
@@ -213,7 +225,7 @@
 </head>
 <body>
 <header>
-  <h1><span class="station-badge">GZ</span>Gesture Lock</h1>
+  <h1><span class="game-badge">GZ</span>Gesture Lock</h1>
 </header>
 
 <main>
@@ -225,9 +237,6 @@
   <div id="phase-setup" class="card">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup">
-      <label>Team size:
-        <select id="teamSize"></select>
-      </label>
       <button id="startBtn">Start camera</button>
     </div>
     <div class="briefing" style="margin-top: 12px; font-size: 13px;">
@@ -275,7 +284,7 @@
       <div class="panel">
         <div class="player-banner">
           <div class="label">Now showing</div>
-          <div class="name" id="playerName">Player 1</div>
+          <div class="name" id="playerName">Take turns</div>
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
         </div>
         <div>
@@ -310,9 +319,11 @@
     <h2 id="finalTitle">🔓 Vault unlocked!</h2>
     <p style="color:var(--muted)">Team <strong id="resTeam"></strong></p>
     <div class="score" id="resScore">0</div>
-    <p style="color:var(--muted); font-size: 14px;">Enter this code at the central scoreboard:</p>
-    <div class="submit-code" id="resCode">GZ-?-?</div>
-    <div><button id="finalPlayAgain">Play again</button></div>
+    <div id="saveStatus" class="save-status">SAVING…</div>
+    <div class="result-row" style="margin-top: 14px;">
+      <button id="finalPlayAgain">Play again</button>
+      <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
+    </div>
   </div>
 </main>
 
@@ -326,11 +337,22 @@ import {
 } from '../shared/gesture-lock-logic.js';
 import { mountTopbar } from '../shared/topbar.js';
 import { resolveSession } from '../shared/lobby.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getDatabase, ref, update, push } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { firebaseConfig } from '../firebase-config.js';
+import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 
-mountTopbar({ activePage: 'dashboard' });
+mountTopbar({ activePage: 'games' });
 const _session = resolveSession();
+const session = _session;
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const writer = firebaseWriter({ db, ref, update, push });
+const catalogHref = session
+  ? `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`
+  : '../games.html';
 
-const STATION_CODE = 'GZ';
+const GAME_CODE = 'GZ';
 const SEQUENCE_LEN = 8;
 const MAX_ATTEMPTS = 3;
 const MEMORIZE_FLASH_MS = 800;
@@ -347,7 +369,6 @@ let activeCleanup = null;
 
 const state = {
   teamId: null,
-  teamSize: 4,
   recognizer: null,
   stream: null,
   attemptIdx: 0,
@@ -370,17 +391,9 @@ function goto(phase) {
 const phaseEnter = {};
 
 // ----- SETUP -----
-const teamSizeSel = $('teamSize');
-for (let i = 2; i <= 8; i++) {
-  const o = document.createElement('option');
-  o.value = i; o.textContent = `${i} players`;
-  if (i === 4) o.selected = true;
-  teamSizeSel.appendChild(o);
-}
 const startBtn = $('startBtn');
 startBtn.addEventListener('click', () => {
   state.teamId = _session?.teamId ?? 0;
-  state.teamSize = parseInt(teamSizeSel.value, 10);
   state.attempts = [];
   state.attemptIdx = 0;
   goto('loading');
@@ -492,7 +505,6 @@ phaseEnter.recall = () => {
   $('attemptLabel').textContent = `${state.attemptIdx + 1} / ${MAX_ATTEMPTS}`;
   $('progressFill').style.width = '0%';
   $('currentGesture').textContent = '—';
-  updatePlayerBanner();
   updateStepBadge();
 
   let rafId = null;
@@ -503,10 +515,6 @@ phaseEnter.recall = () => {
   let lastMatchMs = 0;
   let wrongStart = 0;
   let wrongName = null;
-
-  function updatePlayerBanner() {
-    $('playerName').textContent = `Player ${(state.stepIdx % state.teamSize) + 1}`;
-  }
 
   function updateStepBadge() {
     $('stepBadge').textContent = `${Math.min(state.stepIdx + 1, SEQUENCE_LEN)} / ${SEQUENCE_LEN}`;
@@ -579,7 +587,6 @@ phaseEnter.recall = () => {
           endAttempt('success');
           return;
         }
-        updatePlayerBanner();
         updateStepBadge();
       }
     } else {
@@ -658,18 +665,33 @@ phaseEnter['attempt-end'] = () => {
 };
 
 phaseEnter.final = () => {
-  // Tear down camera + recognizer
+  // Tear down camera
   if (state.stream) {
     state.stream.getTracks().forEach(t => t.stop());
     state.stream = null;
   }
-  // Note: keep recognizer (cheap to keep, expensive to re-create) — only stream needs stopping
   const score = finalScore(state.attempts);
   const anySuccess = state.attempts.some(a => a.result === 'success');
   $('finalTitle').textContent = anySuccess ? '🔓 Vault unlocked!' : '🔒 Vault still locked';
   $('resTeam').textContent = state.teamId;
   $('resScore').textContent = score;
-  $('resCode').textContent = `${STATION_CODE}-${state.teamId}-${score}`;
+  const status = $('saveStatus');
+  const link = $('finalReturnLink');
+  link.href = catalogHref;
+  status.className = 'save-status';
+  status.textContent = 'SAVING…';
+  const attempt = () => submitScore({
+    writer, lobbyId: session.lobbyId, teamId: state.teamId, gameKey: GAME_CODE, score,
+  });
+  attempt().then(() => {
+    status.className = 'save-status ok';
+    status.textContent = 'SAVED ✓';
+  }).catch(e => {
+    console.error('submit failed', e);
+    status.className = 'save-status bad';
+    status.textContent = 'FAILED — TAP TO RETRY';
+    status.onclick = () => phaseEnter.final();
+  });
   $('finalPlayAgain').onclick = () => {
     state.attempts = [];
     state.attemptIdx = 0;
