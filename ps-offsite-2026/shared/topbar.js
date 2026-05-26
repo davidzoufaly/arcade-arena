@@ -2,7 +2,7 @@ import { resolveSession, clearSession } from './lobby.js';
 
 function prefix() {
   const p = location.pathname;
-  if (p.includes('/stations/') || p.includes('/dino/') || p.includes('/flappy/')) {
+  if (p.includes('/games/') || p.includes('/dino/') || p.includes('/flappy/')) {
     return '../';
   }
   return './';
@@ -20,15 +20,18 @@ function isCanvasGamePage() {
 
 function buildHeader({ lobbyId, teamId }, activePage) {
   const pfx = prefix();
-  const hubHref = `${pfx}index.html`;
-  const scoreHref = `${pfx}scoreboard.html?lobby=${encodeURIComponent(lobbyId)}`;
+  const lobbyQ = `?lobby=${encodeURIComponent(lobbyId)}&team=${teamId}`;
+  const hubHref      = `${pfx}index.html`;
+  const gamesHref    = `${pfx}games.html${lobbyQ}`;
+  const scoreHref    = `${pfx}scoreboard.html?lobby=${encodeURIComponent(lobbyId)}`;
 
   const header = document.createElement('header');
   header.className = 'ps-topbar';
   header.innerHTML = `
-    <a class="ps-topbar-brand" href="${hubHref}">PS Offsite</a>
+    <a class="ps-topbar-brand" href="${gamesHref}">PS Offsite</a>
     <nav class="ps-topbar-nav">
-      <a data-nav="dashboard" href="${hubHref}">Dashboard</a>
+      <a data-nav="hub" href="${hubHref}">Hub</a>
+      <a data-nav="games" href="${gamesHref}">Games</a>
       <a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>
     </nav>
     <div class="ps-topbar-info">
