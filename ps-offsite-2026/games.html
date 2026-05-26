@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PS Offsite 2026 — Games</title>
+<link rel="stylesheet" href="shared/topbar.css">
+<style>
+  :root {
+    --bg: #0a0e1a; --bg-2: #131a2e; --card: #1b2540;
+    --text: #f5f7fb; --muted: #8b95b5;
+    --accent: #00d4ff; --accent-2: #ff00aa; --good: #00e676;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #1f2a4a 0%, var(--bg) 60%);
+    color: var(--text); min-height: 100vh;
+  }
+  main { max-width: 1100px; margin: 0 auto; padding: 40px; }
+  h1 {
+    font-size: 36px; font-weight: 900; letter-spacing: -1px; margin-bottom: 8px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .subtitle { color: var(--muted); font-size: 15px; margin-bottom: 32px; }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .tile {
+    background: var(--card); border-radius: 14px; padding: 18px;
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--text); text-decoration: none;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: all 0.15s; position: relative; overflow: hidden;
+    min-height: 130px;
+  }
+  .tile.play   { border-color: rgba(0,212,255,0.35); }
+  .tile.manual { border-color: rgba(255,0,170,0.30); }
+  .tile.soon   { opacity: 0.4; pointer-events: none; border-style: dashed; }
+  .tile:not(.soon):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  }
+  .tile-emoji { font-size: 28px; }
+  .tile-num { font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+  .tile h3 { font-size: 17px; font-weight: 800; }
+  .tile-tag {
+    align-self: flex-start; margin-top: auto;
+    font-size: 10px; font-weight: 700; padding: 3px 8px;
+    border-radius: 999px; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .tile.play   .tile-tag { background: rgba(0,212,255,0.12); color: var(--accent); }
+  .tile.manual .tile-tag { background: rgba(255,0,170,0.12); color: var(--accent-2); }
+  .tile.soon   .tile-tag { background: rgba(255,255,255,0.08); color: var(--muted); }
+  .tile .check {
+    position: absolute; top: 10px; right: 12px;
+    color: var(--good); font-size: 18px; font-weight: 800;
+    text-shadow: 0 0 10px rgba(0,230,118,0.6);
+  }
+  .tile .score-line {
+    font-size: 11px; color: var(--muted);
+  }
+  .tile .score-line strong { color: var(--good); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Games</h1>
+  <div class="subtitle" id="subtitle">Loading…</div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { firebaseConfig } from './firebase-config.js';
+import { resolveSession } from './shared/lobby.js';
+import { mountTopbar } from './shared/topbar.js';
+import { GAMES } from './shared/games-catalog.js';
+
+if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
+  document.body.innerHTML = '<div style="max-width:640px;margin:80px auto;padding:32px;background:#1b2540;border-radius:16px;color:#f5f7fb;font-family:system-ui">Firebase config missing. See SETUP.md.</div>';
+  throw new Error('firebase config not filled in');
+}
+
+const session = resolveSession();
+if (!session) {
+  location.replace('index.html');
+  throw new Error('no session');
+}
+mountTopbar({ activePage: 'games' });
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const grid = document.getElementById('grid');
+const subtitle = document.getElementById('subtitle');
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function tileHref(key, g) {
+  const q = `?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
+  if (g.kind === 'play')   return `${g.href}${q}`;
+  if (g.kind === 'manual') return `games/manual.html?key=${key}&lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
+  return null;
+}
+
+function render(scoresForTeam) {
+  const html = Object.entries(GAMES).map(([key, g]) => {
+    const href = tileHref(key, g);
+    const tag = g.kind === 'play' ? 'Playable' : g.kind === 'manual' ? 'Manual entry' : 'Coming soon';
+    const score = scoresForTeam?.[key];
+    const tick = score !== undefined ? '<div class="check" title="Submitted">✓</div>' : '';
+    const scoreLine = score !== undefined
+      ? `<div class="score-line">Raw: <strong>${esc(String(score))}</strong></div>`
+      : '';
+    const tag2 = `<span class="tile-tag">${tag}</span>`;
+    const open = g.kind === 'soon' ? '<div' : '<a';
+    const close = g.kind === 'soon' ? '</div>' : '</a>';
+    const hrefAttr = href ? ` href="${href}"` : '';
+    return `${open} class="tile ${g.kind}"${hrefAttr}>
+      <div class="tile-emoji">${g.emoji}</div>
+      <div class="tile-num">${key}</div>
+      <h3>${esc(g.name)}</h3>
+      ${scoreLine}
+      ${tag2}
+      ${tick}
+    ${close}`;
+  }).join('');
+  grid.innerHTML = html;
+
+  const submitted = scoresForTeam ? Object.keys(scoresForTeam).length : 0;
+  const total = Object.values(GAMES).filter(g => g.kind !== 'soon').length;
+  subtitle.textContent = `Lobby ${session.lobbyId} · Team ${session.teamId} · ${submitted}/${total} games submitted`;
+}
+
+onValue(ref(db, `lobbies/${session.lobbyId}/scores/${session.teamId}`), snap => {
+  render(snap.exists() ? snap.val() : null);
+});
+</script>
+</body>
+</html>
