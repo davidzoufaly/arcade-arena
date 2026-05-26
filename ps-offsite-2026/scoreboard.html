@@ -445,6 +445,14 @@ function snapshotToState(snap) {
 onValue(ref(db, LOBBY_PATH), snap => {
   state = snapshotToState(snap);
   render();
+  const leader = computeLeader();
+  const leaderId = leader?.id ?? null;
+  if (initialized && leader && leaderId !== prevLeaderId && state.teams.length > 0) {
+    bumpedTeam = { id: leaderId, until: Date.now() + 4000 };
+    confetti();
+    render();
+  }
+  prevLeaderId = leaderId;
   initialized = true;
 });
 
@@ -690,6 +698,7 @@ window.exportData = exportData;
 window.importData = importData;
 
 let bumpedTeam = null;
+let prevLeaderId = null;
 render();
 </script>
 </body>
