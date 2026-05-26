@@ -27,42 +27,6 @@
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   .subtitle { color: var(--muted); font-size: 16px; margin-bottom: 40px; }
-  .grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
-  }
-  .tile {
-    background: var(--card); border-radius: 16px; padding: 24px;
-    border: 1px solid rgba(255,255,255,0.06);
-    text-decoration: none; color: var(--text);
-    display: flex; flex-direction: column; gap: 8px;
-    transition: all 0.2s;
-    position: relative; overflow: hidden;
-  }
-  .tile:hover {
-    transform: translateY(-2px);
-    border-color: var(--accent);
-    box-shadow: 0 12px 40px rgba(0,212,255,0.15);
-  }
-  .tile.scoreboard {
-    background: linear-gradient(135deg, #1b2540 0%, #2a1a3a 100%);
-    grid-column: 1 / -1;
-    flex-direction: row; align-items: center;
-  }
-  .tile.scoreboard h3 { font-size: 28px; }
-  .tile-num {
-    font-size: 12px; color: var(--muted); font-weight: 700;
-    letter-spacing: 1.5px; text-transform: uppercase;
-  }
-  .tile-emoji { font-size: 40px; }
-  .tile h3 { font-size: 20px; font-weight: 800; }
-  .tile p { font-size: 13px; color: var(--muted); line-height: 1.5; }
-  .tile-tag {
-    background: rgba(0,212,255,0.1); color: var(--accent);
-    padding: 3px 10px; border-radius: 999px;
-    font-size: 11px; font-weight: 700;
-    align-self: flex-start; margin-top: 8px;
-  }
   .qr-section {
     margin-top: 40px; padding-top: 32px;
     border-top: 1px solid rgba(255,255,255,0.08);
@@ -103,15 +67,26 @@
   }
   .team-row select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,0.15); }
   .team-row .team-note { font-size: 12px; color: var(--muted); margin-left: auto; }
-  .tile.disabled { opacity: 0.45; pointer-events: none; }
-  .tile-game { background: linear-gradient(135deg, #1b2540 0%, #1a2a3a 100%); }
+  .host-banner {
+    background: linear-gradient(135deg, #1b2540 0%, #2a1a3a 100%);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px; padding: 24px; margin-bottom: 32px;
+  }
+  .host-banner h2 { font-size: 22px; margin-bottom: 6px; }
+  .host-banner p { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+  .open-catalog {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--accent), #0099cc);
+    color: #001; font-weight: 800; font-size: 14px;
+    padding: 10px 16px; border-radius: 10px; text-decoration: none;
+  }
 </style>
 <link rel="stylesheet" href="shared/lobby.css">
 </head>
 <body>
 <main>
   <h1>PS Offsite 2026</h1>
-  <div class="subtitle" id="subtitle">10 teams · 4 stations · one winner</div>
+  <div class="subtitle" id="subtitle">10 teams · 4 games · one winner</div>
 
   <!-- ============== VIEW: create-join ============== -->
   <section id="view-create-join" hidden>
@@ -167,52 +142,15 @@
 
   <!-- ============== VIEW: hub ============== -->
   <section id="view-hub" hidden>
-    <div class="lobby-strip">
-      <div class="info">Lobby <span class="code" id="hubLobbyId"></span> · <strong id="hubTeamLabel"></strong></div>
-      <button id="leaveBtn">Leave lobby</button>
-    </div>
-    <div class="grid">
-      <a class="tile scoreboard" id="tileScoreboard" href="#">
-        <div class="tile-emoji">🏆</div>
-        <div>
-          <div class="tile-num">CENTRAL</div>
-          <h3>Scoreboard</h3>
-          <p>Open this on the host laptop (projector / TV). Teams report submit codes here.</p>
-        </div>
-      </a>
-      <a class="tile" id="tileGesture" href="#">
-        <div class="tile-emoji">✋</div>
-        <div class="tile-num">Station 1 · GZ</div>
-        <h3>Gesture Lock</h3>
-        <p>Unlock the vault with a 4-gesture sequence. MediaPipe Hands.</p>
-        <span class="tile-tag">Gestures</span>
-      </a>
-      <a class="tile" id="tilePantomime" href="#">
-        <div class="tile-emoji">🎭</div>
-        <div class="tile-num">Station 2 · PM</div>
-        <h3>CV Pantomime</h3>
-        <p>Match poses to a ghost skeleton overlay. MediaPipe Pose.</p>
-        <span class="tile-tag">Body pose</span>
-      </a>
-      <a class="tile tile-game" id="tileDino" href="#">
-        <div class="tile-emoji">🛡️</div>
-        <div class="tile-num">Station 3 · DN</div>
-        <h3>Pipeline Dash</h3>
-        <p>Run the ETL Knight past anomalies. Wave fingers to jump, fist to duck.</p>
-        <span class="tile-tag">Hand vision</span>
-      </a>
-      <a class="tile tile-game" id="tileFlappy" href="#">
-        <div class="tile-emoji">📊</div>
-        <div class="tile-num">Station 4 · FL</div>
-        <h3>Insight Monitor</h3>
-        <p>Yell to fly the insight orb past data anomalies.</p>
-        <span class="tile-tag">Voice</span>
-      </a>
+    <div class="host-banner">
+      <h2>Host view</h2>
+      <p>Share these QR codes with the teams. Players use the <strong>Games</strong> catalog from their phone.</p>
+      <a class="open-catalog" id="openCatalogBtn" href="#">Open Games catalog →</a>
     </div>
 
     <div class="qr-section">
-      <h2>QR codes for stations</h2>
-      <p>Paste your deploy URL and QR codes generate for each station, scoped to this lobby and team.</p>
+      <h2>QR codes</h2>
+      <p>Paste your deploy URL and QR codes generate for each surface, scoped to this lobby and team.</p>
       <input class="base-url" id="baseUrl" type="url" placeholder="https://ps-offsite-2026.netlify.app/">
       <div class="qr-grid" id="qrGrid"></div>
     </div>
@@ -227,6 +165,7 @@ import {
   createLobbyApi, isValidLobbyId,
   getSession, setSession, clearSession,
 } from './shared/lobby.js';
+import { mountTopbar } from './shared/topbar.js';
 
 if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
   document.body.innerHTML = '<div style="max-width:640px;margin:80px auto;padding:32px;background:#1b2540;border-radius:16px;color:#f5f7fb;font-family:system-ui">Firebase config missing. See SETUP.md.</div>';
@@ -355,20 +294,14 @@ async function doJoin(lobbyId) {
   const ok = await api.verifyTeamPwd(lobbyId, teamId, pwd);
   if (!ok) { showErr('joinErr', 'Wrong password.'); return; }
   setSession({ lobbyId, teamId, teamPwd: pwd });
-  location.reload();
+  location.href = `games.html?lobby=${encodeURIComponent(lobbyId)}&team=${teamId}`;
 }
 
 // ---------- hub ----------
 function renderHub(session) {
-  $('hubLobbyId').textContent = session.lobbyId;
-  $('hubTeamLabel').textContent = `Team ${session.teamId}`;
   const q = `?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
-  $('tileScoreboard').href = `scoreboard.html${q}`;
-  $('tileGesture').href = `stations/1-gesture-lock.html${q}`;
-  $('tilePantomime').href = `stations/2-pantomime.html${q}`;
-  $('tileDino').href = `dino/index.html${q}`;
-  $('tileFlappy').href = `flappy/index.html${q}`;
-  $('leaveBtn').onclick = () => { clearSession(); location.reload(); };
+  $('openCatalogBtn').href = `games.html${q}`;
+  mountTopbar({ activePage: 'hub' });
   $('baseUrl').addEventListener('input', renderQRs);
   renderQRs();
 }
@@ -383,14 +316,15 @@ function renderQRs() {
     return;
   }
   const q = `?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
-  const stations = [
+  const games = [
+    { name: 'Games catalog', file: 'games.html' },
     { name: 'Scoreboard', file: 'scoreboard.html' },
-    { name: '1 · Gesture Lock', file: 'stations/1-gesture-lock.html' },
-    { name: '2 · CV Pantomime', file: 'stations/2-pantomime.html' },
+    { name: '1 · Gesture Lock', file: 'games/1-gesture-lock.html' },
+    { name: '2 · Pantomime', file: 'games/2-pantomime.html' },
     { name: '3 · Pipeline Dash', file: 'dino/index.html' },
     { name: '4 · Insight Monitor', file: 'flappy/index.html' },
   ];
-  grid.innerHTML = stations.map(s => {
+  grid.innerHTML = games.map(s => {
     const url = base + s.file + q;
     const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
     return `<div class="qr-tile">
