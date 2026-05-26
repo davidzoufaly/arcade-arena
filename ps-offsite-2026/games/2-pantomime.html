@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Station 2 — CV Pantomime</title>
+<title>Game 2 — Pantomime</title>
 <style>
   :root {
     --bg: #0a0e1a;
@@ -32,7 +32,7 @@
     border-bottom: 1px solid rgba(255,255,255,0.08);
   }
   header h1 { font-size: 22px; font-weight: 800; }
-  .station-badge {
+  .game-badge {
     background: var(--accent); color: #fff;
     padding: 4px 10px; border-radius: 6px;
     font-size: 12px; font-weight: 800; letter-spacing: 0.5px; margin-right: 12px;
@@ -230,6 +230,19 @@
     letter-spacing: 4px; display: inline-block; margin: 20px 0;
     border: 2px dashed var(--accent); color: var(--accent);
   }
+  .save-status {
+    display: inline-block; margin-top: 14px;
+    font-size: 12px; font-weight: 800; letter-spacing: 1.5px;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(255,255,255,0.08); color: var(--text);
+  }
+  .save-status.ok  { background: rgba(0,230,118,0.18); color: #00e676; }
+  .save-status.bad { background: rgba(255,77,109,0.18); color: #ff4d6d; cursor: pointer; }
+  .secondary-link {
+    color: var(--accent); text-decoration: none; font-weight: 700; font-size: 14px;
+    align-self: center; padding: 8px 14px;
+  }
+  .result-row { display: flex; gap: 12px; justify-content: center; align-items: center; }
   .hidden { display: none !important; }
   .breakdown {
     display: flex; flex-direction: column; gap: 6px;
@@ -248,7 +261,7 @@
 </head>
 <body>
 <header>
-  <h1><span class="station-badge">PM</span>CV Pantomime</h1>
+  <h1><span class="game-badge">PM</span>Pantomime</h1>
 </header>
 
 <main>
@@ -261,9 +274,6 @@
   <div class="card" id="phase-setup">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup">
-      <label>Team size:
-        <select id="teamSize"></select>
-      </label>
       <button id="startBtn">Start camera</button>
     </div>
     <div class="briefing" style="margin-top: 12px; font-size: 13px;">
@@ -298,7 +308,7 @@
       <div class="panel">
         <div class="player-banner" id="playerBanner">
           <div class="label">Now posing</div>
-          <div class="name" id="playerName">Player 1</div>
+          <div class="name" id="playerName">Take turns</div>
         </div>
         <div class="pose-card" id="poseCard">
           <div class="label">Match this pose <span id="diffBadge"></span></div>
@@ -336,9 +346,11 @@
     <p style="color:var(--muted)">Team <strong id="resTeam"></strong></p>
     <div class="score" id="resScore">0</div>
     <div class="breakdown" id="resBreakdown"></div>
-    <p style="color:var(--muted); font-size: 14px;">Enter this code at the central scoreboard:</p>
-    <div class="submit-code" id="resCode">PM-?-?</div>
-    <div><button onclick="resetGame()">Play again</button></div>
+    <div id="saveStatus" class="save-status">SAVING…</div>
+    <div class="result-row" style="margin-top: 14px;">
+      <button onclick="resetGame()">Play again</button>
+      <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
+    </div>
   </div>
 </main>
 
@@ -354,9 +366,20 @@ import {
 } from '../shared/pantomime-logic.js';
 import { mountTopbar } from '../shared/topbar.js';
 import { resolveSession } from '../shared/lobby.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getDatabase, ref, update, push } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { firebaseConfig } from '../firebase-config.js';
+import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 
-mountTopbar({ activePage: 'dashboard' });
+mountTopbar({ activePage: 'games' });
 const _session = resolveSession();
+const session = _session;
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const writer = firebaseWriter({ db, ref, update, push });
+const catalogHref = session
+  ? `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`
+  : '../games.html';
 
 const PHASES = ['setup', 'loading', 'countdown', 'playing', 'final'];
 let activeCleanup = null;
@@ -372,7 +395,7 @@ function goto(phase) {
   if (entry) entry();
 }
 
-const STATION_CODE = 'PM';
+const GAME_CODE = 'PM';
 
 let POSES = [];
 
@@ -421,7 +444,6 @@ let stream = null;
 let running = false;
 let stepIndex = 0;
 let teamId = null;
-let teamSize = 4;
 let scores = [];
 let holdStart = 0;
 let lastVideoTime = -1;
@@ -429,16 +451,8 @@ let stepStartTs = 0;
 let recentLandmarks = []; // for stability check
 let showGhost = true;
 
-const teamSizeSel = document.getElementById('teamSize');
-for (let i = 2; i <= 8; i++) {
-  const o = document.createElement('option');
-  o.value = i; o.textContent = `${i} players`;
-  if (i === 4) o.selected = true;
-  teamSizeSel.appendChild(o);
-}
 document.getElementById('startBtn').addEventListener('click', () => {
   teamId = _session?.teamId ?? 0;
-  teamSize = parseInt(teamSizeSel.value, 10);
   goto('loading');
 });
 document.getElementById('ghostToggle').addEventListener('click', () => {
@@ -519,7 +533,6 @@ function startStep() {
   document.getElementById('poseIdx').textContent = `${stepIndex + 1}/${POSES.length}`;
   document.getElementById('totalScore').textContent = scores.reduce((a, b) => a + b, 0);
   document.getElementById('diffBadge').innerHTML = `<span class="difficulty ${pose.difficulty}">${pose.difficulty}</span>`;
-  document.getElementById('playerName').textContent = `Player ${(stepIndex % teamSize) + 1}`;
   renderRefSvg(pose.ref);
   renderPoseList();
 
@@ -685,10 +698,8 @@ function finish() {
 
 phaseEnter.final = () => {
   const final = finalScore(scores);
-  const code = `${STATION_CODE}-${teamId}-${final}`;
   document.getElementById('resTeam').textContent = teamId;
   document.getElementById('resScore').textContent = final;
-  document.getElementById('resCode').textContent = code;
   document.getElementById('resBreakdown').innerHTML = POSES.map((p, i) => {
     const s = scores[i] ?? 0;
     return `<div class="breakdown-row ${s === 0 ? 'failed' : ''}">
@@ -696,6 +707,23 @@ phaseEnter.final = () => {
       <span class="pose-score">${s === 0 ? '— skipped' : s + ' / 100'}</span>
     </div>`;
   }).join('');
+  const status = document.getElementById('saveStatus');
+  const link = document.getElementById('finalReturnLink');
+  link.href = catalogHref;
+  status.className = 'save-status';
+  status.textContent = 'SAVING…';
+  const attempt = () => submitScore({
+    writer, lobbyId: session.lobbyId, teamId, gameKey: GAME_CODE, score: final,
+  });
+  attempt().then(() => {
+    status.className = 'save-status ok';
+    status.textContent = 'SAVED ✓';
+  }).catch(e => {
+    console.error('submit failed', e);
+    status.className = 'save-status bad';
+    status.textContent = 'FAILED — TAP TO RETRY';
+    status.onclick = () => phaseEnter.final();
+  });
 };
 
 window.resetGame = function() {
