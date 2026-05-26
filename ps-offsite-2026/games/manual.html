@@ -85,10 +85,14 @@ const game = getGame(key);
 const container = document.getElementById('container');
 const catalogHref = `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
 
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 if (!game || game.kind !== 'manual') {
   container.innerHTML = `
     <h1>Unknown game</h1>
-    <p style="color:#8b95b5;margin-top:10px">No manual game registered for key <code>${key ?? '(none)'}</code>.</p>
+    <p style="color:#8b95b5;margin-top:10px">No manual game registered for key <code>${esc(key ?? '(none)')}</code>.</p>
     <a class="back-link" href="${catalogHref}">← Back to catalog</a>
   `;
   throw new Error('unknown manual game');
@@ -97,10 +101,6 @@ if (!game || game.kind !== 'manual') {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const writer = firebaseWriter({ db, ref, update, push });
-
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
 
 function renderRules(text) {
   const blocks = String(text || '').split(/\n\s*\n/);
