@@ -39,6 +39,9 @@
   .tile.play   { border-color: rgba(0,212,255,0.35); }
   .tile.manual { border-color: rgba(255,0,170,0.30); }
   .tile.soon   { opacity: 0.4; pointer-events: none; border-style: dashed; }
+  .tile.locked { opacity: 0.5; pointer-events: none; border-style: dashed; border-color: rgba(255,77,109,0.4); }
+  .tile.locked .tile-tag { background: rgba(255,77,109,0.12); color: #ff4d6d; }
+  .tile .lock-badge { position: absolute; top: 10px; left: 12px; font-size: 16px; }
   .tile:not(.soon):hover {
     transform: translateY(-2px);
     box-shadow: 0 12px 30px rgba(0,0,0,0.35);
@@ -78,6 +81,7 @@ import { firebaseConfig } from './firebase-config.js';
 import { resolveSession } from './shared/lobby.js';
 import { mountTopbar } from './shared/topbar.js';
 import { GAMES } from './shared/games-catalog.js';
+import { resolveLock } from './shared/game-lock.js';
 
 if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
   document.body.innerHTML = '<div style="max-width:640px;margin:80px auto;padding:32px;background:#1b2540;border-radius:16px;color:#f5f7fb;font-family:system-ui">Firebase config missing. See SETUP.md.</div>';
@@ -97,6 +101,9 @@ const db = getDatabase(app);
 const grid = document.getElementById('grid');
 const subtitle = document.getElementById('subtitle');
 
+let currentScores = null;
+let currentLocks = null;
+
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -108,25 +115,32 @@ function tileHref(key, g) {
   return null;
 }
 
-function render(scoresForTeam) {
+function render() {
+  const scoresForTeam = currentScores;
   const html = Object.entries(GAMES).map(([key, g]) => {
-    const href = tileHref(key, g);
-    const tag = g.kind === 'play' ? 'Playable' : g.kind === 'manual' ? 'Manual entry' : 'Coming soon';
+    const lockedTile = g.kind !== 'soon' && resolveLock(currentLocks, key, session.teamId) === 'locked';
+    const href = lockedTile ? null : tileHref(key, g);
+    const baseTag = g.kind === 'play' ? 'Playable' : g.kind === 'manual' ? 'Manual entry' : 'Coming soon';
+    const tag = lockedTile ? 'Locked' : baseTag;
     const score = scoresForTeam?.[key];
     const tick = score !== undefined ? '<div class="check" title="Submitted">✓</div>' : '';
     const scoreLine = score !== undefined
       ? `<div class="score-line">Raw: <strong>${esc(String(score))}</strong></div>`
       : '';
+    const lockBadge = lockedTile ? '<div class="lock-badge" title="Locked by host">🔒</div>' : '';
     const tag2 = `<span class="tile-tag">${tag}</span>`;
-    const open = g.kind === 'soon' ? '<div' : '<a';
-    const close = g.kind === 'soon' ? '</div>' : '</a>';
+    const tileCls = lockedTile ? `${g.kind} locked` : g.kind;
+    const isDiv = g.kind === 'soon' || lockedTile;
+    const open = isDiv ? '<div' : '<a';
+    const close = isDiv ? '</div>' : '</a>';
     const hrefAttr = href ? ` href="${href}"` : '';
-    return `${open} class="tile ${g.kind}"${hrefAttr}>
+    return `${open} class="tile ${tileCls}"${hrefAttr}>
       <div class="tile-emoji">${g.emoji}</div>
       <h3>${esc(g.name)}</h3>
       ${scoreLine}
       ${tag2}
       ${tick}
+      ${lockBadge}
     ${close}`;
   }).join('');
   grid.innerHTML = html;
@@ -137,7 +151,13 @@ function render(scoresForTeam) {
 }
 
 onValue(ref(db, `lobbies/${session.lobbyId}/scores/${session.teamId}`), snap => {
-  render(snap.exists() ? snap.val() : null);
+  currentScores = snap.exists() ? snap.val() : null;
+  render();
+});
+
+onValue(ref(db, `lobbies/${session.lobbyId}/locks`), snap => {
+  currentLocks = snap.exists() ? snap.val() : null;
+  render();
 });
 </script>
 </body>
