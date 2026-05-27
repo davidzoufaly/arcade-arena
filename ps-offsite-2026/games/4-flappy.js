@@ -104,7 +104,7 @@ phaseEnter.play = () => {
     y: CANVAS_H / 2, vy: 0, score: 0,
     pipes: [], spawnTimer: 0, worldX: 0,
     floor: 0, calibrating: true, calibStart: performance.now(), calibSamples: [],
-    warming: true, warmStartMs: 0, startMs: 0,
+    warming: false, warmStartMs: 0, startMs: 0,
   };
 
   let rafId = null, cancelled = false, prevTs = performance.now(), hiddenAt = 0;
