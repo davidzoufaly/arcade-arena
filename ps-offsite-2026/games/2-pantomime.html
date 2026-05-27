@@ -478,9 +478,10 @@ function drawGhostOverlay(ref) {
   ctx.restore();
 }
 
-const HOLD_MS_BY_DIFFICULTY = { easy: 1200, medium: 1500, hard: 2000 };
+const HOLD_MS_BY_DIFFICULTY = { easy: 1200, medium: 1500, hard: 2000, duo: 1500 };
 const SIM_THRESHOLD = 0.85; // tighter than before
 const STABILITY_MAX_DRIFT = 0.025; // max landmark drift over recent window — anything more = wobble
+const STABILITY_MAX_DRIFT_DUO = 0.045; // looser: two people can't freeze as still
 const STABILITY_WINDOW = 8; // recent frames to track for stability
 let landmarker = null;
 let stream = null;
@@ -510,7 +511,7 @@ async function loadModel() {
       delegate: 'GPU',
     },
     runningMode: 'VIDEO',
-    numPoses: 1,
+    numPoses: 2,
   });
 }
 
@@ -658,50 +659,89 @@ function drawSkeleton(result) {
   }
 }
 
-function handlePose(result) {
-  const lm = result.landmarks && result.landmarks[0];
-  if (!lm || lm.length < 33) {
-    document.getElementById('hint').textContent = 'Stand in front of the camera, full body visible';
-    document.getElementById('simFill').style.width = '0%';
-    document.getElementById('simText').textContent = '—';
-    holdStart = 0;
-    return;
-  }
-
+function torsoSize(lm) {
+  const shMid = { x: (lm[LM.L_SHOULDER].x + lm[LM.R_SHOULDER].x) / 2, y: (lm[LM.L_SHOULDER].y + lm[LM.R_SHOULDER].y) / 2 };
+  const hipMid = { x: (lm[LM.L_HIP].x + lm[LM.R_HIP].x) / 2, y: (lm[LM.L_HIP].y + lm[LM.R_HIP].y) / 2 };
+  return dist(shMid, hipMid);
+}
+function primaryBody(bodies) {
+  return bodies.slice().sort((a, b) => torsoSize(b) - torsoSize(a))[0];
+}
+function sortedPair(bodies) {
+  const hipX = lm => (lm[LM.L_HIP].x + lm[LM.R_HIP].x) / 2;
+  return bodies.slice().sort((a, b) => hipX(a) - hipX(b)); // left (smaller x) first
+}
+function bodyVisible(lm) {
   const required = [LM.L_SHOULDER, LM.R_SHOULDER, LM.L_HIP, LM.R_HIP, LM.L_KNEE, LM.R_KNEE, LM.L_ANKLE, LM.R_ANKLE];
-  const visible = required.every(i => (lm[i].visibility ?? 1) > 0.4);
-  if (!visible) {
-    document.getElementById('hint').textContent = 'Move so your full body is visible';
-    return;
-  }
-  document.getElementById('hint').textContent = '✓ Full body detected';
+  return lm && lm.length >= 33 && required.every(i => (lm[i].visibility ?? 1) > 0.4);
+}
 
+function handlePose(result) {
   const pose = POSES[stepIndex];
-  const checkResults = pose.checks.map(c => ({ name: c.name, val: c.fn(lm) }));
+  const isDuo = (pose?.people ?? 1) === 2;
+  const bodies = (result.landmarks || []).filter(b => b && b.length >= 33);
+
+  let checkResults, frameForStability, seriesKeys;
+
+  if (isDuo) {
+    const visBodies = bodies.filter(bodyVisible);
+    if (visBodies.length < 2) {
+      document.getElementById('hint').textContent = 'Need 2 people in frame, full body visible';
+      document.getElementById('simFill').style.width = '0%';
+      document.getElementById('simText').textContent = '—';
+      document.getElementById('holdFill').style.width = '0%';
+      document.getElementById('poseCard').classList.remove('match');
+      holdStart = 0;
+      recentLandmarks = []; // duo buffer requires both bodies; reset on dropout
+      return;
+    }
+    const [a, b] = sortedPair(visBodies);
+    document.getElementById('hint').textContent = '✓ Both bodies detected';
+    checkResults = pose.checks.map(c => ({ name: c.name, val: c.fn(a, b) }));
+    frameForStability = { a: a.map(p => ({ x: p.x, y: p.y })), b: b.map(p => ({ x: p.x, y: p.y })) };
+    seriesKeys = ['a', 'b'];
+  } else {
+    if (bodies.length === 0) {
+      document.getElementById('hint').textContent = 'Stand in front of the camera, full body visible';
+      document.getElementById('simFill').style.width = '0%';
+      document.getElementById('simText').textContent = '—';
+      holdStart = 0;
+      return;
+    }
+    const lm = primaryBody(bodies);
+    if (!bodyVisible(lm)) {
+      document.getElementById('hint').textContent = 'Move so your full body is visible';
+      return;
+    }
+    document.getElementById('hint').textContent = '✓ Full body detected';
+    checkResults = pose.checks.map(c => ({ name: c.name, val: c.fn(lm) }));
+    frameForStability = lm.map(p => ({ x: p.x, y: p.y }));
+    seriesKeys = [null];
+  }
+
   const sim = checkResults.reduce((s, c) => s + c.val, 0) / checkResults.length;
   const pct = Math.round(sim * 100);
 
-  // Track recent landmarks for stability check
-  recentLandmarks.push(lm.map(p => ({ x: p.x, y: p.y })));
+  // Stability: max per-joint drift across the recent window (over both bodies if duo)
+  recentLandmarks.push(frameForStability);
   if (recentLandmarks.length > STABILITY_WINDOW) recentLandmarks.shift();
-
-  // Stability: max per-landmark drift (max - min) across recent window — main joints only
+  const driftThreshold = isDuo ? STABILITY_MAX_DRIFT_DUO : STABILITY_MAX_DRIFT;
+  const joints = [LM.L_WRIST, LM.R_WRIST, LM.L_ANKLE, LM.R_ANKLE, LM.L_KNEE, LM.R_KNEE];
   let stabilityDrift = 0;
   if (recentLandmarks.length >= STABILITY_WINDOW) {
-    const joints = [LM.L_WRIST, LM.R_WRIST, LM.L_ANKLE, LM.R_ANKLE, LM.L_KNEE, LM.R_KNEE];
-    for (const j of joints) {
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      for (const frame of recentLandmarks) {
-        const p = frame[j];
-        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+    for (const key of seriesKeys) {
+      for (const j of joints) {
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const frame of recentLandmarks) {
+          const p = key ? frame[key][j] : frame[j];
+          if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+        }
+        stabilityDrift = Math.max(stabilityDrift, maxX - minX, maxY - minY);
       }
-      stabilityDrift = Math.max(stabilityDrift, maxX - minX, maxY - minY);
     }
-  } else {
-    stabilityDrift = 0; // not enough data yet, optimistic
   }
-  const stable = stabilityDrift <= STABILITY_MAX_DRIFT;
+  const stable = stabilityDrift <= driftThreshold;
 
   document.getElementById('simFill').style.width = pct + '%';
   document.getElementById('simText').textContent = pct + '%';
@@ -710,7 +750,6 @@ function handlePose(result) {
     const icon = c.val > 0.85 ? '✓' : c.val > 0.5 ? '◐' : '·';
     return `<div class="check ${cls}"><span>${c.name}</span><span>${icon} ${(c.val * 100).toFixed(0)}%</span></div>`;
   }).join('');
-  // Append stability indicator
   document.getElementById('checks').innerHTML += `<div class="check ${stable ? 'pass' : ''}"><span>Hold steady (no wobble)</span><span>${stable ? '✓' : '◌'} ${(stabilityDrift * 100).toFixed(1)}%</span></div>`;
 
   const holdMs = HOLD_MS_BY_DIFFICULTY[pose.difficulty] || 2500;
@@ -718,12 +757,10 @@ function handlePose(result) {
   if (sim > SIM_THRESHOLD && stable) {
     if (holdStart === 0) holdStart = performance.now();
     const held = performance.now() - holdStart;
-    const holdPct = Math.min(100, (held / holdMs) * 100);
-    document.getElementById('holdFill').style.width = holdPct + '%';
+    document.getElementById('holdFill').style.width = Math.min(100, (held / holdMs) * 100) + '%';
     document.getElementById('poseCard').classList.add('match');
     if (held >= holdMs) {
-      const stepScore = scorePose({ sim, locked: true });
-      scores.push(stepScore);
+      scores.push(scorePose({ sim, locked: true }));
       pulseVideo('match-pulse');
       advance();
     }
