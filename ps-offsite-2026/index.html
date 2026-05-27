@@ -54,17 +54,10 @@
         <div id="teamPicker" hidden>
           <label>Pick your team</label>
           <div class="team-picker" id="teamPickerList"></div>
-          <label for="joinTeamPwd">Team password</label>
+          <label for="joinTeamPwd" id="joinPwdLabel">Team password</label>
           <input id="joinTeamPwd" type="text" maxlength="6" autocomplete="off">
           <button id="joinFinalBtn">Join</button>
         </div>
-      </div>
-      <div class="lobby-card">
-        <h2>View scoreboard</h2>
-        <label for="spectateLobbyId">Lobby ID</label>
-        <input id="spectateLobbyId" type="text" placeholder="PS-XXXX" maxlength="7" autocomplete="off">
-        <button id="spectateBtn">View scoreboard</button>
-        <div id="spectateErr" class="lobby-banner err" hidden></div>
       </div>
     </div>
   </section>
@@ -102,7 +95,7 @@ import { getDatabase, ref, get, set } from 'https://www.gstatic.com/firebasejs/1
 import { firebaseConfig } from './firebase-config.js';
 import {
   createLobbyApi, isValidLobbyId,
-  getSession, setSession,
+  getSession, setSession, isAdminSession,
 } from './shared/lobby.js';
 
 if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
@@ -187,29 +180,6 @@ function renderCredentials({ lobbyId, adminPwd, teams }) {
   });
 }
 
-// ---------- spectator flow ----------
-$('spectateLobbyId').addEventListener('input', e => {
-  e.target.value = e.target.value.toUpperCase();
-});
-$('spectateBtn').addEventListener('click', async () => {
-  hideErr('spectateErr');
-  const id = $('spectateLobbyId').value.trim();
-  if (!isValidLobbyId(id)) {
-    showErr('spectateErr', 'Lobby ID format: PS-XXXX (uppercase, no 0/O/1/I).');
-    return;
-  }
-  $('spectateBtn').disabled = true;
-  try {
-    await api.loadLobbyTeams(id);
-    location.href = `scoreboard.html?lobby=${encodeURIComponent(id)}`;
-  } catch (e) {
-    if (e.code === 'NOT_FOUND') showErr('spectateErr', 'Lobby not found. Check the ID.');
-    else showErr('spectateErr', e.message || 'Failed to load lobby.');
-  } finally {
-    $('spectateBtn').disabled = false;
-  }
-});
-
 // ---------- join flow ----------
 $('joinLobbyId').addEventListener('input', e => {
   e.target.value = e.target.value.toUpperCase();
@@ -240,7 +210,15 @@ async function revealTeamPicker(lobbyId) {
         <input type="radio" name="teamPick" value="${t.id}" ${i === 0 ? 'checked' : ''}>
         <span>${esc(t.name)}</span>
       </label>
-    `).join('');
+    `).join('') + `
+      <label class="team-option team-option-admin">
+        <input type="radio" name="teamPick" value="__admin__">
+        <span>Enter as Admin</span>
+      </label>`;
+    list.onchange = () => {
+      const isAdmin = document.querySelector('input[name="teamPick"]:checked')?.value === '__admin__';
+      $('joinPwdLabel').textContent = isAdmin ? 'Admin password' : 'Team password';
+    };
     $('teamPicker').hidden = false;
     $('joinFinalBtn').onclick = () => doJoin(lobbyId);
   } catch (e) {
@@ -254,9 +232,16 @@ async function doJoin(lobbyId) {
   hideErr('joinErr');
   const radio = document.querySelector('input[name="teamPick"]:checked');
   if (!radio) { showErr('joinErr', 'Pick a team.'); return; }
-  const teamId = parseInt(radio.value, 10);
   const pwd = $('joinTeamPwd').value.trim().toUpperCase();
-  if (!pwd) { showErr('joinErr', 'Enter team password.'); return; }
+  if (!pwd) { showErr('joinErr', 'Enter password.'); return; }
+  if (radio.value === '__admin__') {
+    const ok = await api.verifyAdminPwd(lobbyId, pwd);
+    if (!ok) { showErr('joinErr', 'Wrong admin password.'); return; }
+    setSession({ lobbyId, role: 'admin', adminPwd: pwd });
+    location.href = `scoreboard.html?lobby=${encodeURIComponent(lobbyId)}`;
+    return;
+  }
+  const teamId = parseInt(radio.value, 10);
   const ok = await api.verifyTeamPwd(lobbyId, teamId, pwd);
   if (!ok) { showErr('joinErr', 'Wrong password.'); return; }
   setSession({ lobbyId, teamId, teamPwd: pwd });
@@ -265,7 +250,9 @@ async function doJoin(lobbyId) {
 
 // ---------- bootstrap ----------
 const session = getSession();
-if (session) {
+if (session && isAdminSession(session)) {
+  location.replace(`scoreboard.html?lobby=${encodeURIComponent(session.lobbyId)}`);
+} else if (session) {
   location.replace(`games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`);
 } else {
   show('view-create-join');
