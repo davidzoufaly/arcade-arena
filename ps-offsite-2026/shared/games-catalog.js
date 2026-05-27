@@ -6,7 +6,7 @@ export const GAMES = {
   FL: { name: 'Flappy Voice',    emoji: '📢', kind: 'play',   href: 'games/4-flappy.html' },
   MX: { name: 'Math No-Brain',   emoji: '🧮', kind: 'manual', rules: 'Simple arithmetic round. Team writes answers, count correct out of total.\n\n- Submit number of correct answers as raw score.' },
   MB: { name: 'Math Big-Brain',  emoji: '🧠', kind: 'manual', rules: 'Harder math round. Same scoring: count correct.\n\n- Submit number of correct answers as raw score.' },
-  SF: { name: 'Šifra',           emoji: '🔐', kind: 'manual', rules: 'Crack the cipher. Faster team = higher raw score.\n\n- Submit raw points awarded by host.' },
+  SF: { name: 'Cipher',          emoji: '🔐', kind: 'manual', rules: 'Crack the cipher. Faster team = higher raw score.\n\n- Submit raw points awarded by host.' },
   GD: { name: 'Gandalf',         emoji: '🧙', kind: 'manual', rules: 'Prompt-injection challenge. Each cracked level scores points.\n\n- Submit total points reached.' },
   HD: { name: 'Hidden Document', emoji: '📄', kind: 'manual', rules: 'Find the document hidden in the office. Faster team = higher raw score.\n\n- Submit raw points awarded by host.' },
   DG: { name: 'Draw & Guess',    emoji: '🎨', kind: 'manual', rules: 'Draw the prompt, teammates guess.\n\n- Submit raw points awarded by host.' },

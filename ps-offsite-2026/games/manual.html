@@ -152,7 +152,7 @@ async function render() {
         writer, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: key, score: raw,
       });
       banner.className = 'banner ok';
-      banner.innerHTML = `Saved <strong>${esc(String(saved))}</strong> pts. <a class="back-link" style="margin:0" href="${catalogHref}">Return to catalog →</a>`;
+      banner.innerHTML = `Saved <strong>${esc(String(saved))}</strong> pts.`;
     } catch (e) {
       banner.className = 'banner bad';
       banner.textContent = 'Save failed: ' + (e.message || 'unknown error');

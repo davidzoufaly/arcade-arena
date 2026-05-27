@@ -1,3 +1,7 @@
+- [] pantomine is buggy
+- [] v češtině popsat jak celá appka a jednotlivé věci fungují
+- [] add some dry run to flappy and dino -> just test the mechanics -> no barriers 
+- [] unlocking games by admin for specific team -> verify
 - [x] move our two games to ps-offsite-2026 (files and folders)
 - [x] through our existing git repo, use only the fork repo
 - [x] plug it into UI
@@ -18,7 +22,6 @@
         - [x] překopat grafiku pryč s tou cyberpunk arcade verzí
         - [x] introduce retries apod.
         - [x] make it more stable and playable
-    - [] add backup game dance freeze game? 
 - [x] better ui navigace
     - [x] top bar
         - [x] dashboard + scoreboard
@@ -57,3 +60,14 @@
         - Draw and guess
         - Pub quiz -> interaktivní? 
 - [x] rename stations to games
+- [x] play again -> restart game -> admin banner
+- [x] admin view -> pri joinu do lobby je pod týmama ještě join as admin -> to chce admin heslo -> vidím scoreboard + admin akce (reset scoreboard)
+- [x] scoreboard když není skoe submitnuté stačí "- "bez borderu
+- [x] remove abbreviations of games -> not needed
+- [x] add some loading when rendering game detail -> now there is flash between default UI and UI as game has been already played
+- [x] remove normalize button in scoreboard (now it's done automatically)
+- [x] rename Šifra to Cipher
+- [x] edit scoreboard from admin view -> button and save + cancel
+- [x] dino a flappy should be centered on the page -> should not overflow the content
+- [x] flappy cannot leave the game area (top or bottom) stuck on each side but won't fail the whole game
+- [x] autorefresh admin scoreboard

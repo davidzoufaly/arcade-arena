@@ -192,11 +192,11 @@ export const POSE_POOL = [
   },
   {
     id: 'star',
-    name: 'Star Jump',
+    name: 'Star Pose',
     emoji: '⭐',
     difficulty: 'easy',
     timeout: 25,
-    desc: 'Arms diagonally up, legs spread wide. Make a big X with your body.',
+    desc: 'Stand still in a big X — arms diagonally up, legs spread wide. Hold, don\'t jump.',
     ref: starRef(),
     checks: [
       { name: 'Left arm up & out', fn: lm => {
@@ -228,7 +228,7 @@ export const POSE_POOL = [
     name: 'Conductor',
     emoji: '🎼',
     difficulty: 'medium',
-    timeout: 35,
+    timeout: 25,
     desc: 'One hand high above the head, the other arm relaxed by your side.',
     ref: conductorRef(),
     checks: [
@@ -257,7 +257,7 @@ export const POSE_POOL = [
     name: 'Superhero',
     emoji: '🦸',
     difficulty: 'medium',
-    timeout: 35,
+    timeout: 25,
     desc: 'Hands on hips, elbows pointing out wide, chest forward. Strike a pose.',
     ref: superheroRef(),
     checks: [
@@ -283,7 +283,7 @@ export const POSE_POOL = [
     name: 'Downhill Skier',
     emoji: '⛷️',
     difficulty: 'medium',
-    timeout: 35,
+    timeout: 25,
     desc: 'Squat down, knees bent, both fists forward as if holding ski poles.',
     ref: skierRef(),
     checks: [
@@ -314,7 +314,7 @@ export const POSE_POOL = [
     name: 'Disco King',
     emoji: '🕺',
     difficulty: 'hard',
-    timeout: 45,
+    timeout: 25,
     desc: 'Saturday Night Fever — one arm high diagonally up, other arm low at your side.',
     ref: discoRef(),
     checks: [
@@ -355,7 +355,7 @@ export const POSE_POOL = [
     name: 'Warrior I',
     emoji: '🧘',
     difficulty: 'hard',
-    timeout: 45,
+    timeout: 25,
     desc: 'Yoga lunge — one leg forward bent at knee, back leg straight, both arms straight up overhead.',
     ref: warriorRef(),
     checks: [
@@ -393,7 +393,7 @@ export const POSE_POOL = [
     name: 'Tree Pose',
     emoji: '🌳',
     difficulty: 'hard',
-    timeout: 45,
+    timeout: 25,
     desc: 'Yoga balance — stand on one leg, the other foot pressed against the standing leg. Hands together above head OR at chest.',
     ref: treeRef(),
     checks: [
@@ -427,7 +427,7 @@ export const POSE_POOL = [
     name: 'Wide Squat',
     emoji: '🦴',
     difficulty: 'medium',
-    timeout: 35,
+    timeout: 25,
     desc: 'Deep squat — feet very wide apart, knees bent close to 90°, both arms extended out to the sides.',
     ref: wideSquatRef(),
     checks: [
@@ -466,7 +466,7 @@ export const POSE_POOL = [
     name: 'Statue of Liberty',
     emoji: '🗽',
     difficulty: 'hard',
-    timeout: 45,
+    timeout: 25,
     desc: 'One arm straight up high (the torch). Other arm bent at the elbow, forearm horizontal across the chest (the tablet). Stand tall.',
     ref: libertyRef(),
     checks: [
@@ -516,7 +516,7 @@ export const POSE_POOL = [
     name: 'Karate Kick',
     emoji: '🥋',
     difficulty: 'hard',
-    timeout: 45,
+    timeout: 25,
     desc: 'Stand on one leg. Kick the other leg out high and to the side — knee at hip level or higher. Keep balance.',
     ref: karateRef(),
     checks: [
@@ -556,7 +556,7 @@ export const POSE_POOL = [
     name: 'Arabesque',
     emoji: '🩰',
     difficulty: 'hard',
-    timeout: 45,
+    timeout: 25,
     desc: 'Ballet pose — stand on one leg, lift the other leg straight back, body leaned forward, arms extended sideways like wings.',
     ref: arabesqueRef(),
     checks: [

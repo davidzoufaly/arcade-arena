@@ -32,11 +32,6 @@
     border-bottom: 1px solid rgba(255,255,255,0.08);
   }
   header h1 { font-size: 22px; font-weight: 800; }
-  header .game-badge {
-    background: var(--accent); color: #001;
-    padding: 4px 10px; border-radius: 6px;
-    font-size: 12px; font-weight: 800; letter-spacing: 0.5px; margin-right: 12px;
-  }
   main { max-width: 1200px; margin: 0 auto; padding: 32px; }
   .card {
     background: var(--card);
@@ -47,7 +42,7 @@
   }
   .briefing { font-size: 15px; line-height: 1.6; color: var(--muted); }
   .briefing strong { color: var(--text); }
-  .setup { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .setup { display: flex; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap; }
   input, select {
     background: var(--bg-2);
     border: 1px solid rgba(255,255,255,0.1);
@@ -116,19 +111,20 @@
 
   .panel { display: flex; flex-direction: column; gap: 16px; }
 
-  .player-banner {
-    background: var(--card);
-    border-radius: 20px;
-    padding: 24px;
-    text-align: center;
-    border: 2px solid var(--accent);
+  .cam-flash {
+    position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.72); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.14);
+    padding: 12px 22px; border-radius: 14px;
+    font-size: 22px; font-weight: 800; color: var(--text);
+    white-space: nowrap; pointer-events: none; opacity: 0;
   }
-  .player-banner .label {
-    font-size: 12px; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 1px;
-  }
-  .player-banner .name {
-    font-size: 36px; font-weight: 900; margin-top: 4px;
+  .cam-flash.show { animation: cam-flash-anim 1.6s ease-out forwards; }
+  @keyframes cam-flash-anim {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.92); }
+    15%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    72%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.97); }
   }
 
   .progress-dots {
@@ -225,19 +221,22 @@
 </head>
 <body>
 <header>
-  <h1><span class="game-badge">GZ</span>Gesture Lock</h1>
+  <h1>Gesture Lock</h1>
 </header>
 
 <main>
-  <div class="card briefing">
-    <strong>Goal:</strong> Watch the 8-gesture sequence flash, then unlock the vault from memory — one player per gesture, take turns. <strong>3 attempts</strong>. Best successful attempt counts; if none succeed, best partial counts. Faster = more points.
+  <div class="card briefing" id="briefing">
+    <strong>Goal:</strong> Watch an 8-gesture sequence flash by once, then unlock the vault by repeating it from memory. <strong>Take turns — a new player does each gesture.</strong> One wrong move locks you out, so go in order. <strong>3 attempts</strong>, best score counts; the faster you unlock, the higher the score.
   </div>
 
+  <!-- BOOT -->
+  <div id="phase-boot" class="card loading">Checking your team's progress…</div>
+
   <!-- SETUP -->
-  <div id="phase-setup" class="card">
+  <div id="phase-setup" class="card hidden">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup">
-      <button id="startBtn">Start camera</button>
+      <button id="startBtn">Start game</button>
     </div>
     <div class="briefing" style="margin-top: 12px; font-size: 13px;">
       Allow camera access when prompted.
@@ -252,7 +251,7 @@
   <!-- ATTEMPT_INTRO -->
   <div id="phase-intro" class="card hidden">
     <h2 style="font-size: 28px; margin-bottom: 8px;">Attempt <span id="introNum">1</span> of 3</h2>
-    <p class="briefing">Memorize the sequence — it flashes one at a time, no replay.</p>
+    <p class="briefing">Memorize the sequence — each gesture flashes once, no replay.</p>
     <button id="introStartBtn" style="margin-top: 16px;">Show sequence</button>
   </div>
 
@@ -280,11 +279,11 @@
         <div class="video-overlay">
           Detected: <span id="currentGesture">—</span>
         </div>
+        <div class="cam-flash" id="camFlash"></div>
       </div>
       <div class="panel">
-        <div class="player-banner">
-          <div class="label">Now showing</div>
-          <div class="name" id="playerName">Take turns</div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center">Hold to lock</div>
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
         </div>
         <div>
@@ -321,9 +320,10 @@
     <div class="score" id="resScore">0</div>
     <div id="saveStatus" class="save-status">SAVING…</div>
     <div class="result-row" style="margin-top: 14px;">
-      <button id="finalPlayAgain">Play again</button>
+      <button id="finalPlayAgain">Restart game</button>
       <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
     </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px">Something went wrong? Restart requires the admin password.</p>
   </div>
 </main>
 
@@ -339,7 +339,7 @@ import { mountTopbar } from '../shared/topbar.js';
 import { resolveSession } from '../shared/lobby.js';
 import { requireAdmin } from '../shared/admin-gate.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getDatabase, ref, update, push } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { getDatabase, ref, update, push, get } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from '../firebase-config.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 
@@ -383,8 +383,10 @@ function $(id) { return document.getElementById(id); }
 
 function goto(phase) {
   if (activeCleanup) { try { activeCleanup(); } catch {} activeCleanup = null; }
+  $('phase-boot').classList.add('hidden');
   for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
   $(`phase-${phase}`).classList.remove('hidden');
+  $('briefing').classList.toggle('hidden', phase !== 'setup');
   const entry = phaseEnter[phase];
   if (entry) entry();
 }
@@ -519,6 +521,15 @@ phaseEnter.recall = () => {
 
   function updateStepBadge() {
     $('stepBadge').textContent = `${Math.min(state.stepIdx + 1, SEQUENCE_LEN)} / ${SEQUENCE_LEN}`;
+    flashCam('👥 Next player — take turns');
+  }
+
+  function flashCam(text) {
+    const el = $('camFlash');
+    el.textContent = text;
+    el.classList.remove('show');
+    void el.offsetWidth; // reflow -> restart animation
+    el.classList.add('show');
   }
 
   function pulseVideo(cls) {
@@ -693,15 +704,37 @@ phaseEnter.final = () => {
     status.textContent = 'FAILED — TAP TO RETRY';
     status.onclick = () => phaseEnter.final();
   });
+  wireRestart();
+};
+
+function wireRestart() {
   $('finalPlayAgain').onclick = async () => {
-    if (!await requireAdmin(session?.lobbyId, { promptText: 'Admin password required to replay:' })) return;
+    if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:' })) return;
     state.attempts = [];
     state.attemptIdx = 0;
     state.sequence = [];
     state.stepIdx = 0;
     goto('setup');
   };
-};
+}
+
+// Already-played view: show saved score + admin-gated restart, without re-submitting.
+function enterAlreadyPlayed(existing) {
+  state.teamId = _session?.teamId ?? 0;
+  $('phase-boot').classList.add('hidden');
+  for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+  $('phase-final').classList.remove('hidden');
+  $('briefing').classList.add('hidden');
+  $('finalTitle').textContent = '✅ Already submitted';
+  $('resTeam').textContent = state.teamId;
+  $('resScore').textContent = existing;
+  const status = $('saveStatus');
+  status.className = 'save-status ok';
+  status.textContent = 'SAVED ✓';
+  status.onclick = null;
+  $('finalReturnLink').href = catalogHref;
+  wireRestart();
+}
 
 let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
@@ -714,7 +747,18 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // Bootstrap
-goto('setup');
+async function boot() {
+  const teamId = _session?.teamId ?? 0;
+  if (session?.lobbyId) {
+    try {
+      const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${teamId}/${GAME_CODE}`));
+      if (snap.exists()) { enterAlreadyPlayed(snap.val()); return; }
+    } catch (e) { console.error('score check failed', e); }
+  }
+  goto('setup');
+}
+for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+boot();
 </script>
 </body>
 </html>

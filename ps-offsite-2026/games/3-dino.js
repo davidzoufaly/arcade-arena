@@ -4,7 +4,7 @@ import { mountTopbar } from '../shared/topbar.js';
 import { resolveSession } from '../shared/lobby.js';
 import { requireAdmin } from '../shared/admin-gate.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getDatabase, ref, update, push } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { getDatabase, ref, update, push, get } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from '../firebase-config.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 import {
@@ -43,8 +43,10 @@ const css = (v) => getComputedStyle(document.body).getPropertyValue(v).trim();
 
 function goto(phase) {
   if (activeCleanup) { try { activeCleanup(); } catch {} activeCleanup = null; }
+  $('phase-boot').classList.add('hidden');
   for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
   $(`phase-${phase}`).classList.remove('hidden');
+  $('briefing').classList.toggle('hidden', phase !== 'setup');
   phaseEnter[phase]?.();
 }
 
@@ -338,13 +340,44 @@ phaseEnter.final = () => {
     status.onclick = () => phaseEnter.final();
   });
 
+  wireRestart();
+};
+
+function wireRestart() {
   $('finalPlayAgain').onclick = async () => {
-    if (!await requireAdmin(session?.lobbyId, { promptText: 'Admin password required to replay:' })) return;
+    if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:' })) return;
     state.attempts = [];
     state.attemptIdx = 0;
     goto('setup');
   };
-};
+}
+
+// Already-played view: show saved score + admin-gated restart, without re-submitting.
+function enterAlreadyPlayed(existing) {
+  $('phase-boot').classList.add('hidden');
+  for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+  $('phase-final').classList.remove('hidden');
+  $('briefing').classList.add('hidden');
+  $('finalTitle').textContent = '✅ Already submitted';
+  $('resTeam').textContent = state.teamId;
+  $('resScore').textContent = existing;
+  const status = $('saveStatus');
+  status.className = 'save-status ok';
+  status.textContent = 'SAVED ✓';
+  status.onclick = null;
+  $('finalReturnLink').href = catalogHref;
+  wireRestart();
+}
 
 // Bootstrap
-goto('setup');
+async function boot() {
+  if (session?.lobbyId) {
+    try {
+      const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${state.teamId}/${GAME_CODE}`));
+      if (snap.exists()) { enterAlreadyPlayed(snap.val()); return; }
+    } catch (e) { console.error('score check failed', e); }
+  }
+  goto('setup');
+}
+for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+boot();

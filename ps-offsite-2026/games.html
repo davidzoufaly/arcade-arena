@@ -44,7 +44,6 @@
     box-shadow: 0 12px 30px rgba(0,0,0,0.35);
   }
   .tile-emoji { font-size: 28px; }
-  .tile-num { font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
   .tile h3 { font-size: 17px; font-weight: 800; }
   .tile-tag {
     align-self: flex-start; margin-top: auto;
@@ -124,7 +123,6 @@ function render(scoresForTeam) {
     const hrefAttr = href ? ` href="${href}"` : '';
     return `${open} class="tile ${g.kind}"${hrefAttr}>
       <div class="tile-emoji">${g.emoji}</div>
-      <div class="tile-num">${key}</div>
       <h3>${esc(g.name)}</h3>
       ${scoreLine}
       ${tag2}

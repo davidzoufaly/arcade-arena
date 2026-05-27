@@ -80,21 +80,6 @@
     color: #001;
   }
   button.danger { color: var(--bad); }
-  .admin-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .admin-chip {
-    background: linear-gradient(135deg, var(--accent-2), #b8008f);
-    color: #fff;
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 1px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    line-height: 1;
-  }
   main { padding: 40px; max-width: 1600px; margin: 0 auto; }
   .matrix-wrap {
     background: var(--card);
@@ -184,6 +169,21 @@
   .cell-game .cell-raw { font-size: 11px; color: var(--muted); line-height: 1.2; }
   .cell-game .cell-pts { font-size: 18px; font-weight: 800; color: var(--text); line-height: 1.1; }
   .cell-game.has { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .cell-game.edit { padding: 0 4px; }
+  .cell-input {
+    width: 100%;
+    background: rgba(0,0,0,0.32);
+    border: 1px solid rgba(0,212,255,0.4);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 4px;
+    font-size: 15px;
+    font-weight: 700;
+    text-align: center;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  .cell-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,0.25); }
   .cell-total {
     text-align: right;
     font-size: 32px;
@@ -228,6 +228,34 @@
   }
   .matrix-head .cell-game.closed { color: var(--good); }
 
+  .live-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--good);
+  }
+  .live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--good);
+    box-shadow: 0 0 0 0 rgba(0,230,118,0.5);
+    animation: livePulse 2s infinite;
+  }
+  @keyframes livePulse {
+    0% { box-shadow: 0 0 0 0 rgba(0,230,118,0.5); }
+    70% { box-shadow: 0 0 0 7px rgba(0,230,118,0); }
+    100% { box-shadow: 0 0 0 0 rgba(0,230,118,0); }
+  }
+  .live-status.offline { color: var(--gold); }
+  .live-status.offline .live-dot {
+    background: var(--gold);
+    animation: none;
+    box-shadow: none;
+  }
+
   .empty {
     padding: 20px 40px;
     text-align: center;
@@ -269,6 +297,10 @@
   <div>
     <h1>Scoreboard</h1>
     <div class="subtitle" id="subtitle">11 games · one winner</div>
+    <div class="live-status" id="liveStatus">
+      <span class="live-dot"></span>
+      <span class="live-text">Live · connecting…</span>
+    </div>
   </div>
   <div class="controls" id="controls"></div>
 </header>
@@ -314,6 +346,9 @@ const db = getDatabase(app);
 
 let state = { teams: [], history: [] };
 let initialized = false;
+let editing = false;
+let lastUpdate = null;
+let connected = true;
 
 function snapshotToState(snap) {
   const root = snap.val() ?? {};
@@ -329,10 +364,18 @@ function snapshotToState(snap) {
 }
 
 onValue(ref(db, LOBBY_PATH), snap => {
+  lastUpdate = Date.now();
+  renderLiveStatus();
   state = snapshotToState(snap);
-  render();
   const leader = computeLeader();
   const leaderId = leader?.id ?? null;
+  // While admin is editing, leave the inputs untouched — refresh once they exit.
+  if (editing) {
+    prevLeaderId = leaderId;
+    initialized = true;
+    return;
+  }
+  render();
   if (initialized && leader && leaderId !== prevLeaderId && state.teams.length > 0) {
     bumpedTeam = { id: leaderId, until: Date.now() + 4000 };
     confetti();
@@ -350,14 +393,70 @@ async function resetAll() {
 }
 
 const adminSession = getSession();
-if (isAdminSession(adminSession) && adminSession.lobbyId === lobbyId) {
+const isAdmin = isAdminSession(adminSession) && adminSession.lobbyId === lobbyId;
+
+function renderControls() {
   const controls = document.getElementById('controls');
-  const resetBtn = document.createElement('button');
-  resetBtn.className = 'admin-btn danger';
-  resetBtn.innerHTML = '<span class="admin-chip">ADMIN</span>Reset';
-  resetBtn.addEventListener('click', resetAll);
-  controls.appendChild(resetBtn);
+  controls.innerHTML = '';
+  if (!isAdmin) return;
+  if (editing) {
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'primary';
+    saveBtn.textContent = 'Save';
+    saveBtn.addEventListener('click', saveEdits);
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', cancelEdits);
+    controls.append(saveBtn, cancelBtn);
+  } else {
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', startEdits);
+    const resetBtn = document.createElement('button');
+    resetBtn.className = 'danger';
+    resetBtn.textContent = 'Reset';
+    resetBtn.addEventListener('click', resetAll);
+    controls.append(editBtn, resetBtn);
+  }
 }
+
+function startEdits() {
+  editing = true;
+  renderControls();
+  render();
+}
+
+function cancelEdits() {
+  editing = false;
+  renderControls();
+  render();
+}
+
+async function saveEdits() {
+  const inputs = document.querySelectorAll('.cell-input');
+  const writes = [];
+  for (const el of inputs) {
+    const teamId = el.dataset.team;
+    const gameKey = el.dataset.game;
+    const team = state.teams.find(t => String(t.id) === teamId);
+    const prev = team?.scores[gameKey];
+    const rawStr = el.value.trim();
+    const path = `${LOBBY_PATH}/scores/${teamId}/${gameKey}`;
+    if (rawStr === '') {
+      if (prev !== undefined) writes.push([path, null]);
+      continue;
+    }
+    const n = Math.max(0, Math.round(Number(rawStr)));
+    if (!Number.isFinite(n) || n === prev) continue;
+    writes.push([path, n]);
+  }
+  for (const [path, val] of writes) await set(ref(db, path), val);
+  editing = false;
+  renderControls();
+  render();
+}
+
+renderControls();
 
 function formatPts(p) {
   if (p === undefined || p === null) return '0';
@@ -443,6 +542,9 @@ function render() {
     const bump = t.id === bumpedTeamId ? 'bump' : '';
     const cells = gameKeys.map(g => {
       const v = t.scores[g];
+      if (editing) {
+        return `<div class="cell-game edit"><input class="cell-input" type="number" min="0" step="1" inputmode="numeric" data-team="${t.id}" data-game="${g}" value="${v ?? ''}" placeholder="-"></div>`;
+      }
       if (v === undefined) {
         return `<div class="cell-game empty">-</div>`;
       }
@@ -466,7 +568,9 @@ function render() {
   }).join('');
 
   list.innerHTML = head + rows;
-  document.getElementById('subtitle').textContent = `Lobby ${lobbyId} · ${state.teams.length} teams · ${state.history.length} submissions`;
+  document.getElementById('subtitle').textContent = editing
+    ? `Editing raw scores · clear a cell to remove · Save to apply`
+    : `Lobby ${lobbyId} · ${state.teams.length} teams · ${state.history.length} submissions`;
 }
 
 function escapeHtml(s) {
@@ -489,6 +593,36 @@ function confetti() {
 
 let bumpedTeam = null;
 let prevLeaderId = null;
+
+function agoText(ms) {
+  const s = Math.floor(ms / 1000);
+  if (s < 5) return 'just now';
+  if (s < 60) return `${s}s ago`;
+  return `${Math.floor(s / 60)}m ago`;
+}
+
+function renderLiveStatus() {
+  const el = document.getElementById('liveStatus');
+  if (!el) return;
+  const textEl = el.querySelector('.live-text');
+  if (!connected) {
+    el.classList.add('offline');
+    textEl.textContent = 'Reconnecting…';
+    return;
+  }
+  el.classList.remove('offline');
+  textEl.textContent = lastUpdate === null
+    ? 'Live · connecting…'
+    : `Live · updated ${agoText(Date.now() - lastUpdate)}`;
+}
+
+onValue(ref(db, '.info/connected'), snap => {
+  connected = snap.val() === true;
+  renderLiveStatus();
+});
+setInterval(renderLiveStatus, 1000);
+renderLiveStatus();
+
 render();
 </script>
 </body>
