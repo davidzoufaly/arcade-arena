@@ -1,7 +1,7 @@
 import { getApps, getApp, initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getDatabase, ref, get } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from '../firebase-config.js';
-import { createLobbyApi } from './lobby.js';
+import { createLobbyApi, getSession, isAdminSession } from './lobby.js';
 
 let cachedApi = null;
 function getApi() {
@@ -24,6 +24,8 @@ function storageKey(lobbyId) {
 
 export async function requireAdmin(lobbyId, { promptText } = {}) {
   if (!lobbyId) return false;
+  const session = getSession();
+  if (isAdminSession(session) && session.lobbyId === lobbyId) return true;
   const api = getApi();
   const key = storageKey(lobbyId);
   let cached = null;
