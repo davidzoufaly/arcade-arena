@@ -22,7 +22,6 @@
     --shadow: 0 8px 32px rgba(0,0,0,0.4);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     background: radial-gradient(circle at 20% 0%, #1f2a4a 0%, var(--bg) 60%);
@@ -95,12 +94,6 @@
     padding: 2px 6px;
     border-radius: 4px;
     line-height: 1;
-  }
-  .matrix-row.missing-cell { box-shadow: inset 0 0 0 1px rgba(255,77,109,0.4); }
-  .cell-game.missing-hl {
-    color: var(--bad) !important;
-    opacity: 1 !important;
-    font-weight: 800 !important;
   }
   main { padding: 40px; max-width: 1600px; margin: 0 auto; }
   .matrix-wrap {
@@ -183,7 +176,6 @@
   }
   .cell-game.empty {
     color: var(--muted);
-    opacity: 0.35;
     font-weight: 500;
   }
   .cell-game.has {
@@ -237,10 +229,7 @@
   .matrix-head .cell-game.closed { color: var(--good); }
 
   .empty {
-    background: var(--card);
-    border: 2px dashed rgba(255,255,255,0.15);
-    border-radius: 20px;
-    padding: 60px 40px;
+    padding: 20px 40px;
     text-align: center;
     color: var(--muted);
   }
@@ -281,10 +270,7 @@
     <h1>Scoreboard</h1>
     <div class="subtitle" id="subtitle">11 games · one winner</div>
   </div>
-  <div class="controls">
-    <button onclick="normalizeBoard()" class="admin-btn"><span class="admin-chip">ADMIN</span>Normalize</button>
-    <button onclick="resetAll()" class="admin-btn danger"><span class="admin-chip">ADMIN</span>Reset</button>
-  </div>
+  <div class="controls" id="controls"></div>
 </header>
 
 <main>
@@ -300,6 +286,7 @@ import { firebaseConfig } from './firebase-config.js';
 import { GAMES, allEnteredKeys } from './shared/games-catalog.js';
 import { rankPointsByTeam } from './shared/ranking.js';
 import { requireAdmin } from './shared/admin-gate.js';
+import { getSession, isAdminSession } from './shared/lobby.js';
 
 const lobbyId = new URLSearchParams(location.search).get('lobby');
 if (!lobbyId) {
@@ -361,37 +348,15 @@ async function resetAll() {
   await set(ref(db, `${LOBBY_PATH}/scores`), null);
   await set(ref(db, `${LOBBY_PATH}/history`), null);
 }
-window.resetAll = resetAll;
 
-async function normalizeBoard() {
-  if (!await requireAdmin(lobbyId)) return;
-  const gameKeys = allEnteredKeys();
-  const missingByTeam = state.teams
-    .map(t => ({
-      id: t.id,
-      name: t.name,
-      missing: gameKeys.filter(g => t.scores[g] === undefined),
-    }))
-    .filter(x => x.missing.length > 0);
-
-  highlightMissing(missingByTeam);
-
-  if (missingByTeam.length === 0) {
-    alert(`All ${state.teams.length} teams have scores for all ${gameKeys.length} games. Board is complete.`);
-    return;
-  }
-  const lines = missingByTeam.map(t =>
-    `• ${t.name} (#${t.id}) — missing: ${t.missing.map(g => GAMES[g].name).join(', ')}`
-  );
-  alert(`Missing scores:\n\n${lines.join('\n')}`);
-}
-window.normalizeBoard = normalizeBoard;
-
-let missingHighlight = null;
-function highlightMissing(missingByTeam) {
-  missingHighlight = new Map(missingByTeam.map(t => [t.id, new Set(t.missing)]));
-  render();
-  setTimeout(() => { missingHighlight = null; render(); }, 8000);
+const adminSession = getSession();
+if (isAdminSession(adminSession) && adminSession.lobbyId === lobbyId) {
+  const controls = document.getElementById('controls');
+  const resetBtn = document.createElement('button');
+  resetBtn.className = 'admin-btn danger';
+  resetBtn.innerHTML = '<span class="admin-chip">ADMIN</span>Reset';
+  resetBtn.addEventListener('click', resetAll);
+  controls.appendChild(resetBtn);
 }
 
 function formatPts(p) {
@@ -476,13 +441,10 @@ function render() {
     const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
     const shine = t.id === bumpedTeamId ? 'shine' : '';
     const bump = t.id === bumpedTeamId ? 'bump' : '';
-    const teamMissing = missingHighlight ? missingHighlight.get(t.id) : null;
-    const rowMissing = teamMissing && teamMissing.size > 0 ? 'missing-cell' : '';
     const cells = gameKeys.map(g => {
       const v = t.scores[g];
       if (v === undefined) {
-        const hl = teamMissing && teamMissing.has(g) ? ' missing-hl' : '';
-        return `<div class="cell-game empty${hl}">—</div>`;
+        return `<div class="cell-game empty">-</div>`;
       }
       const pts = rankByGame[g]?.[t.id];
       return `<div class="cell-game has" title="Raw ${v}; ${formatPts(pts)} rank pts">
@@ -491,7 +453,7 @@ function render() {
   </div>`;
     }).join('');
     return `
-      <div class="matrix-row team ${rankClass} ${shine} ${rowMissing}">
+      <div class="matrix-row team ${rankClass} ${shine}">
         <div class="cell-rank">${i + 1}</div>
         <div>
           <div class="cell-team-name">${escapeHtml(t.name)}</div>
