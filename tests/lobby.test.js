@@ -72,8 +72,9 @@ function mockLocalStorage() {
 describe('session helpers', () => {
   it('round-trips a session', () => {
     mockLocalStorage();
-    setSession({ lobbyId: 'PS-7K2X', teamId: 3, teamPwd: 'ABCDEF' });
-    expect(getSession()).toEqual({ lobbyId: 'PS-7K2X', teamId: 3, teamPwd: 'ABCDEF' });
+    setSession({ lobbyId: 'PS-7K2X', teamId: 3 });
+    expect(getSession()).toEqual({ lobbyId: 'PS-7K2X', teamId: 3 });
+    expect(globalThis.localStorage.getItem(SESSION_KEY)).not.toContain('Pwd');
   });
   it('returns null when nothing stored', () => {
     mockLocalStorage();
@@ -303,27 +304,22 @@ describe('resolveSession', () => {
 });
 
 describe('getSession admin shape', () => {
-  it('round-trips an admin session', () => {
+  it('round-trips an admin session without storing a password', () => {
     mockLocalStorage();
-    setSession({ lobbyId: 'PS-7K2X', role: 'admin', adminPwd: 'ABCDEF' });
-    expect(getSession()).toEqual({ lobbyId: 'PS-7K2X', role: 'admin', adminPwd: 'ABCDEF' });
-  });
-  it('rejects an admin session with no adminPwd and clears it', () => {
-    mockLocalStorage();
-    globalThis.localStorage.setItem(SESSION_KEY, JSON.stringify({ lobbyId: 'PS-7K2X', role: 'admin' }));
-    expect(getSession()).toBeNull();
-    expect(globalThis.localStorage.getItem(SESSION_KEY)).toBeNull();
+    setSession({ lobbyId: 'PS-7K2X', role: 'admin' });
+    expect(getSession()).toEqual({ lobbyId: 'PS-7K2X', role: 'admin' });
+    expect(globalThis.localStorage.getItem(SESSION_KEY)).not.toContain('adminPwd');
   });
   it('still accepts a team session', () => {
     mockLocalStorage();
-    setSession({ lobbyId: 'PS-7K2X', teamId: 2, teamPwd: 'X' });
-    expect(getSession()).toEqual({ lobbyId: 'PS-7K2X', teamId: 2, teamPwd: 'X' });
+    setSession({ lobbyId: 'PS-7K2X', teamId: 2 });
+    expect(getSession()).toEqual({ lobbyId: 'PS-7K2X', teamId: 2 });
   });
 });
 
 describe('isAdminSession', () => {
   it('is true for an admin session', () => {
-    expect(isAdminSession({ lobbyId: 'PS-7K2X', role: 'admin', adminPwd: 'X' })).toBe(true);
+    expect(isAdminSession({ lobbyId: 'PS-7K2X', role: 'admin' })).toBe(true);
   });
   it('is false for a team session', () => {
     expect(isAdminSession({ lobbyId: 'PS-7K2X', teamId: 1, teamPwd: 'X' })).toBe(false);
@@ -338,7 +334,7 @@ describe('resolveSession admin', () => {
     mockLocation('');
     mockLocalStorage();
     const mod = await import('../ps-offsite-2026/shared/lobby.js');
-    mod.setSession({ lobbyId: 'PS-AAAA', role: 'admin', adminPwd: 'X' });
+    mod.setSession({ lobbyId: 'PS-AAAA', role: 'admin' });
     expect(mod.resolveSession()).toEqual({ lobbyId: 'PS-AAAA', role: 'admin' });
   });
 });

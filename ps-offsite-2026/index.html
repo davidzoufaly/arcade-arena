@@ -238,14 +238,14 @@ async function doJoin(lobbyId) {
   if (radio.value === '__admin__') {
     const ok = await api.verifyAdminPwd(lobbyId, pwd);
     if (!ok) { showErr('joinErr', 'Wrong admin password.'); return; }
-    setSession({ lobbyId, role: 'admin', adminPwd: pwd });
+    setSession({ lobbyId, role: 'admin' });
     location.href = `scoreboard.html?lobby=${encodeURIComponent(lobbyId)}`;
     return;
   }
   const teamId = parseInt(radio.value, 10);
   const ok = await api.verifyTeamPwd(lobbyId, teamId, pwd);
   if (!ok) { showErr('joinErr', 'Wrong password.'); return; }
-  setSession({ lobbyId, teamId, teamPwd: pwd });
+  setSession({ lobbyId, teamId });
   location.href = `games.html?lobby=${encodeURIComponent(lobbyId)}&team=${teamId}`;
 }
 

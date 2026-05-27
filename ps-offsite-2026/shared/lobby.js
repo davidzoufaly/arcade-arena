@@ -36,10 +36,12 @@ export function getSession() {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed.lobbyId === 'string') {
-      if (parsed.role === 'admin' && typeof parsed.adminPwd === 'string') {
+      // Admin sessions carry no password — the admin gate re-verifies via sessionStorage.
+      if (parsed.role === 'admin') {
         return parsed;
       }
-      if (Number.isInteger(parsed.teamId) && typeof parsed.teamPwd === 'string') {
+      // Team sessions carry no password either — pwd verified once at join time.
+      if (Number.isInteger(parsed.teamId)) {
         return parsed;
       }
     }
