@@ -12,6 +12,7 @@ import {
   MAX_PIPES, ATTEMPT_CAP_S, GAIN, GRAVITY,
   ampToThrust, scoreAttempt, finalScore,
 } from '../shared/flappy-logic.js';
+import { warmupSecondsLeft } from '../shared/warmup-logic.js';
 
 mountTopbar({ activePage: 'games' });
 const session = resolveSession();
@@ -103,7 +104,7 @@ phaseEnter.play = () => {
     y: CANVAS_H / 2, vy: 0, score: 0,
     pipes: [], spawnTimer: 0, worldX: 0,
     floor: 0, calibrating: true, calibStart: performance.now(), calibSamples: [],
-    startMs: 0,
+    warming: true, warmStartMs: 0, startMs: 0,
   };
 
   let rafId = null, cancelled = false, prevTs = performance.now(), hiddenAt = 0;
@@ -117,7 +118,8 @@ phaseEnter.play = () => {
     else if (hiddenAt) {
       const delta = performance.now() - hiddenAt;
       if (g.calibrating) g.calibStart += delta;
-      else if (g.startMs) g.startMs += delta;
+      else if (g.warming) g.warmStartMs += delta;   // pause the warmup countdown
+      else if (g.startMs) g.startMs += delta;       // pause the scored clock
       prevTs = performance.now();
       hiddenAt = 0;
     }
@@ -163,8 +165,10 @@ phaseEnter.play = () => {
 
     const speed = Math.min(6, 3 + g.score * 0.12);
     g.worldX += speed * dt;
-    g.spawnTimer -= dt;
-    if (g.spawnTimer <= 0) { spawnPipe(); g.spawnTimer = Math.max(100, 160 - g.score * 2); }
+    if (!g.warming) {
+      g.spawnTimer -= dt;
+      if (g.spawnTimer <= 0) { spawnPipe(); g.spawnTimer = Math.max(100, 160 - g.score * 2); }
+    }
 
     for (const p of g.pipes) {
       p.x -= speed * dt;
@@ -204,6 +208,18 @@ phaseEnter.play = () => {
     ctx.fill();
   }
 
+  function drawWarmupBanner(secondsLeft) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = css('--accent');
+    ctx.font = 'bold 34px system-ui, sans-serif';
+    ctx.fillText('WARM UP · practice!', CANVAS_W / 2, 70);
+    ctx.fillStyle = css('--text');
+    ctx.font = '22px system-ui, sans-serif';
+    ctx.fillText(`obstacles in ${secondsLeft}`, CANVAS_W / 2, 104);
+    ctx.restore();
+  }
+
   function loop() {
     if (cancelled) return;
     const now = performance.now();
@@ -216,7 +232,8 @@ phaseEnter.play = () => {
         g.calibSamples.sort((a, b) => a - b);
         g.floor = g.calibSamples[Math.floor(g.calibSamples.length / 2)] || 0;
         g.calibrating = false;
-        g.startMs = now;
+        g.warming = true;
+        g.warmStartMs = now;
         prevTs = now;
         calibOverlay.classList.add('hidden');
       }
@@ -231,6 +248,24 @@ phaseEnter.play = () => {
       fpsFrames = 0; fpsLast = now;
       if (fps < 40) { slowTicks++; if (slowTicks >= 3) { showToast('Low frame rate — moves may feel slow'); slowTicks = 0; } }
       else slowTicks = 0;
+    }
+
+    if (g.warming) {
+      const left = warmupSecondsLeft((now - g.warmStartMs) / 1000);
+      if (left <= 0) {
+        // Transition to live play this same frame; falls through below.
+        g.warming = false;
+        g.startMs = now;
+        g.spawnTimer = 0;
+      } else {
+        $('timerLabel').textContent = 'WARM UP';
+        step(dt);
+        if (cancelled) return;
+        draw();
+        drawWarmupBanner(left);
+        rafId = requestAnimationFrame(loop);
+        return;
+      }
     }
 
     const elapsed = (now - g.startMs) / 1000;
