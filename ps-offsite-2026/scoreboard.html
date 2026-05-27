@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PS Offsite 2026 — Scoreboard</title>
+<title>Scoreboard</title>
 <style>
   :root {
     --bg: #0a0e1a;
@@ -37,7 +37,7 @@
     justify-content: space-between;
     border-bottom: 1px solid rgba(255,255,255,0.08);
     backdrop-filter: blur(8px);
-    position: sticky; top: 0; z-index: 10;
+    position: sticky; top: 56px; z-index: 10;
     background: rgba(10,14,26,0.85);
   }
   header h1 {
@@ -81,68 +81,128 @@
     color: #001;
   }
   button.danger { color: var(--bad); }
-  main { padding: 40px; max-width: 1600px; margin: 0 auto; }
-  .layout {
-    display: grid;
-    grid-template-columns: 1fr 380px;
-    gap: 32px;
-  }
-  @media (max-width: 1100px) {
-    .layout { grid-template-columns: 1fr; }
-  }
-  .leaderboard {
-    display: grid;
-    gap: 12px;
-  }
-  .row {
-    display: grid;
-    grid-template-columns: 80px 1fr 200px 140px;
+  .admin-btn {
+    display: inline-flex;
     align-items: center;
+    gap: 8px;
+  }
+  .admin-chip {
+    background: linear-gradient(135deg, var(--accent-2), #b8008f);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+  .matrix-row.missing-cell { box-shadow: inset 0 0 0 1px rgba(255,77,109,0.4); }
+  .cell-game.missing-hl {
+    color: var(--bad) !important;
+    opacity: 1 !important;
+    font-weight: 800 !important;
+  }
+  main { padding: 40px; max-width: 1600px; margin: 0 auto; }
+  .matrix-wrap {
     background: var(--card);
-    padding: 20px 24px;
     border-radius: 16px;
     border: 1px solid rgba(255,255,255,0.06);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-x: auto;
+  }
+  .matrix {
+    min-width: 720px;
+  }
+  .matrix-row {
+    display: grid;
+    grid-template-columns: 56px minmax(180px, 1fr) repeat(10, 84px) 132px;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
   }
-  .row.shine::before {
+  .matrix-row:last-child { border-bottom: none; }
+  .matrix-row.shine::before {
     content: '';
     position: absolute;
     inset: 0;
     background: linear-gradient(90deg, transparent, rgba(0,212,255,0.15), transparent);
     animation: shine 1.5s ease-out;
+    pointer-events: none;
   }
   @keyframes shine {
     from { transform: translateX(-100%); }
     to { transform: translateX(100%); }
   }
-  .row .rank {
-    font-size: 36px;
+  .matrix-head {
+    background: rgba(0,0,0,0.28);
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 700;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .matrix-head .cell-game,
+  .matrix-head .cell-total { color: var(--text); }
+  .matrix-head .cell-game {
+    font-size: 11px;
+    line-height: 1.25;
+    white-space: normal;
+    word-break: break-word;
+    hyphens: auto;
+  }
+  .matrix-row.team:hover { background: rgba(255,255,255,0.02); }
+  .matrix-row.top1 { background: linear-gradient(90deg, rgba(255,216,77,0.08), transparent 70%); }
+  .matrix-row.top1 .cell-rank { color: var(--gold); }
+  .matrix-row.top2 .cell-rank { color: var(--silver); }
+  .matrix-row.top3 .cell-rank { color: var(--bronze); }
+  .cell-rank {
+    font-size: 26px;
     font-weight: 900;
     color: var(--muted);
     text-align: center;
+    font-variant-numeric: tabular-nums;
   }
-  .row.top1 { border-color: var(--gold); box-shadow: 0 0 24px rgba(255,216,77,0.15); }
-  .row.top1 .rank { color: var(--gold); }
-  .row.top2 { border-color: var(--silver); }
-  .row.top2 .rank { color: var(--silver); }
-  .row.top3 { border-color: var(--bronze); }
-  .row.top3 .rank { color: var(--bronze); }
-  .team-name {
-    font-size: 22px;
+  .cell-team-name {
+    font-size: 18px;
     font-weight: 700;
   }
-  .team-meta {
-    font-size: 12px;
+  .cell-team-meta {
+    font-size: 11px;
     color: var(--muted);
-    margin-top: 4px;
+    margin-top: 2px;
   }
-  .station-pills {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
+  .cell-game {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
+  .cell-game.empty {
+    color: var(--muted);
+    opacity: 0.35;
+    font-weight: 500;
+  }
+  .cell-game.has {
+    color: var(--good);
+  }
+  .cell-game .cell-raw { font-size: 11px; color: var(--muted); line-height: 1.2; }
+  .cell-game .cell-pts { font-size: 18px; font-weight: 800; color: var(--text); line-height: 1.1; }
+  .cell-game.has { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .cell-total {
+    text-align: right;
+    font-size: 32px;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-variant-numeric: tabular-nums;
+  }
+  .cell-total.bump { animation: pulse 0.6s cubic-bezier(0.4, 0, 0.2, 1); display: inline-block; }
   .pill {
     background: rgba(255,255,255,0.06);
     color: var(--muted);
@@ -152,124 +212,29 @@
     font-weight: 600;
     letter-spacing: 0.3px;
   }
-  .pill.done {
-    background: rgba(0,230,118,0.15);
-    color: var(--good);
-  }
-  .total-score {
-    font-size: 42px;
-    font-weight: 900;
-    text-align: right;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    font-variant-numeric: tabular-nums;
-  }
 
-  aside {
-    background: var(--card);
-    border-radius: 20px;
-    padding: 28px;
-    border: 1px solid rgba(255,255,255,0.06);
-    height: fit-content;
-    position: sticky;
-    top: 100px;
-  }
-  aside h2 {
-    font-size: 18px;
-    margin-bottom: 16px;
-    color: var(--text);
-  }
-  .submit-form {
-    display: grid;
-    gap: 12px;
-  }
-  input {
-    background: var(--bg-2);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: var(--text);
-    padding: 14px 16px;
-    border-radius: 10px;
-    font-size: 16px;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    letter-spacing: 1.5px;
+  .game-status {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 9px;
+    letter-spacing: 1px;
     text-transform: uppercase;
-    width: 100%;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-weight: 800;
+    line-height: 1;
   }
-  input:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(0,212,255,0.15);
+  .game-status.open {
+    background: rgba(0,212,255,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(0,212,255,0.35);
   }
-  .hint {
-    font-size: 12px;
-    color: var(--muted);
-    line-height: 1.5;
-  }
-  .feedback {
-    padding: 12px 16px;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    min-height: 0;
-    transition: all 0.2s;
-  }
-  .feedback.ok {
+  .game-status.closed {
     background: rgba(0,230,118,0.15);
     color: var(--good);
-    border: 1px solid rgba(0,230,118,0.3);
+    border: 1px solid rgba(0,230,118,0.35);
   }
-  .feedback.err {
-    background: rgba(255,77,109,0.15);
-    color: var(--bad);
-    border: 1px solid rgba(255,77,109,0.3);
-  }
-  .stations-legend {
-    margin-top: 24px;
-    padding-top: 24px;
-    border-top: 1px solid rgba(255,255,255,0.08);
-  }
-  .stations-legend .pill { font-family: ui-monospace, monospace; }
-  .legend-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    font-size: 13px;
-    color: var(--muted);
-  }
-  .legend-link {
-    text-decoration: none;
-    border-radius: 8px;
-    padding: 8px 10px;
-    margin: 0 -10px;
-    transition: background 0.15s, color 0.15s;
-  }
-  .legend-link:hover {
-    background: var(--bg-2);
-    color: var(--text);
-  }
-  .legend-link span:first-child {
-    display: flex; align-items: center; gap: 8px;
-  }
-  .legend-arrow {
-    color: var(--muted);
-    font-size: 14px;
-    opacity: 0.6;
-    transition: opacity 0.15s, transform 0.15s;
-  }
-  .legend-link:hover .legend-arrow {
-    opacity: 1;
-    transform: translate(2px, -2px);
-    color: var(--accent);
-  }
-  .actions-row {
-    display: flex;
-    gap: 8px;
-    margin-top: 20px;
-    flex-wrap: wrap;
-  }
-  .actions-row button { flex: 1; min-width: 100px; }
+  .matrix-head .cell-game.closed { color: var(--good); }
 
   .empty {
     background: var(--card);
@@ -286,7 +251,6 @@
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.08); }
   }
-  .total-score.bump { animation: pulse 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
 
   .confetti {
     position: fixed;
@@ -305,75 +269,37 @@
     to { transform: translateY(110vh) rotate(720deg); }
   }
 </style>
+<link rel="stylesheet" href="./shared/topbar.css">
+<script type="module">
+  import { mountTopbar } from './shared/topbar.js';
+  mountTopbar({ activePage: 'scoreboard' });
+</script>
 </head>
 <body>
 <header>
   <div>
-    <h1>PS Offsite 2026 — Scoreboard</h1>
-    <div class="subtitle" id="subtitle">10 teams, 2 stations, one winner</div>
+    <h1>Scoreboard</h1>
+    <div class="subtitle" id="subtitle">11 games · one winner</div>
   </div>
   <div class="controls">
-    <button onclick="addTeam()">+ Add team</button>
-    <button onclick="resetAll()" class="danger">Reset</button>
+    <button onclick="normalizeBoard()" class="admin-btn"><span class="admin-chip">ADMIN</span>Normalize</button>
+    <button onclick="resetAll()" class="admin-btn danger"><span class="admin-chip">ADMIN</span>Reset</button>
   </div>
 </header>
 
 <main>
-  <div class="layout">
-    <div>
-      <div class="leaderboard" id="leaderboard"></div>
-    </div>
-
-    <aside>
-      <h2>Submit a score</h2>
-      <form class="submit-form" onsubmit="submitCode(event)">
-        <input type="text" id="codeInput" placeholder="GZ-7-85" autocomplete="off" maxlength="9" autofocus>
-        <div class="hint">Format: <strong>STATION-TEAM-SCORE</strong><br>e.g. <code>GZ-7-85</code> = Gesture Lock, team 7, 85 points. Stations: GZ, PM, DN, FL.</div>
-        <button type="submit" class="primary">Submit</button>
-        <div class="feedback" id="feedback" style="display:none"></div>
-      </form>
-
-      <div class="stations-legend">
-        <h2 style="font-size:14px; margin-bottom:8px">Open station</h2>
-        <a class="legend-row legend-link" href="stations/1-gesture-lock.html" target="_blank" rel="noopener">
-          <span><span class="pill">GZ</span> Gesture Lock</span><span class="legend-arrow">↗</span>
-        </a>
-        <a class="legend-row legend-link" href="stations/2-pantomime.html" target="_blank" rel="noopener">
-          <span><span class="pill">PM</span> CV Pantomime</span><span class="legend-arrow">↗</span>
-        </a>
-        <a class="legend-row legend-link" href="dino/index.html" target="_blank" rel="noopener">
-          <span><span class="pill">DN</span> Pipeline Dash</span><span class="legend-arrow">↗</span>
-        </a>
-        <a class="legend-row legend-link" href="flappy/index.html" target="_blank" rel="noopener">
-          <span><span class="pill">FL</span> Insight Monitor</span><span class="legend-arrow">↗</span>
-        </a>
-        <a class="legend-row legend-link" href="index.html" target="_blank" rel="noopener" style="margin-top: 8px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
-          <span><span class="pill" style="background: rgba(255,0,170,0.15); color: var(--accent-2);">QR</span> Hub & QR generator</span><span class="legend-arrow">↗</span>
-        </a>
-      </div>
-
-      <div class="actions-row">
-        <button onclick="exportData()">Export JSON</button>
-        <button onclick="document.getElementById('importInput').click()">Import JSON</button>
-        <input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)">
-      </div>
-    </aside>
-  </div>
+  <div class="matrix-wrap"><div class="matrix" id="leaderboard"></div></div>
 </main>
 
 <div class="confetti" id="confetti"></div>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getDatabase, ref, set, update, remove, push, onValue, get } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from './firebase-config.js';
-
-const STATIONS = {
-  GZ: 'Gesture Lock',
-  PM: 'CV Pantomime',
-  DN: 'Pipeline Dash',
-  FL: 'Insight Monitor',
-};
+import { GAMES, allEnteredKeys } from './shared/games-catalog.js';
+import { rankPointsByTeam } from './shared/ranking.js';
+import { requireAdmin } from './shared/admin-gate.js';
 
 const lobbyId = new URLSearchParams(location.search).get('lobby');
 if (!lobbyId) {
@@ -418,101 +344,79 @@ function snapshotToState(snap) {
 onValue(ref(db, LOBBY_PATH), snap => {
   state = snapshotToState(snap);
   render();
+  const leader = computeLeader();
+  const leaderId = leader?.id ?? null;
+  if (initialized && leader && leaderId !== prevLeaderId && state.teams.length > 0) {
+    bumpedTeam = { id: leaderId, until: Date.now() + 4000 };
+    confetti();
+    render();
+  }
+  prevLeaderId = leaderId;
   initialized = true;
 });
 
-async function addTeam() {
-  const nextId = Math.max(0, ...state.teams.map(t => t.id)) + 1;
-  const name = prompt('Team name:', `Team ${nextId}`);
-  if (!name) return;
-  await update(ref(db, `${LOBBY_PATH}/teams/${nextId}`), { id: nextId, name });
-}
-window.addTeam = addTeam;
-
-async function renameTeam(id) {
-  const t = state.teams.find(x => x.id === id);
-  if (!t) return;
-  const name = prompt('New name:', t.name);
-  if (name && name.trim()) {
-    await update(ref(db, `${LOBBY_PATH}/teams/${id}`), { name: name.trim() });
-  }
-}
-window.renameTeam = renameTeam;
-
-async function removeTeam(id) {
-  if (!confirm('Remove this team?')) return;
-  await remove(ref(db, `${LOBBY_PATH}/teams/${id}`));
-  await remove(ref(db, `${LOBBY_PATH}/scores/${id}`));
-}
-window.removeTeam = removeTeam;
-
 async function resetAll() {
+  if (!await requireAdmin(lobbyId)) return;
   if (!confirm(`Wipe scores and history for lobby ${lobbyId}? Teams are kept. This affects everyone in this lobby.`)) return;
   await set(ref(db, `${LOBBY_PATH}/scores`), null);
   await set(ref(db, `${LOBBY_PATH}/history`), null);
 }
 window.resetAll = resetAll;
 
-function parseCode(raw) {
-  const code = raw.trim().toUpperCase().replace(/\s+/g, '');
-  const m = code.match(/^([A-Z]{2})-?(\d{1,2})-?(\d{1,3})$/);
-  if (!m) return null;
-  const [, station, teamStr, scoreStr] = m;
-  if (!STATIONS[station]) return null;
-  const teamId = parseInt(teamStr, 10);
-  const score = parseInt(scoreStr, 10);
-  if (score < 0 || score > 100) return null;
-  return { station, teamId, score };
+async function normalizeBoard() {
+  if (!await requireAdmin(lobbyId)) return;
+  const gameKeys = allEnteredKeys();
+  const missingByTeam = state.teams
+    .map(t => ({
+      id: t.id,
+      name: t.name,
+      missing: gameKeys.filter(g => t.scores[g] === undefined),
+    }))
+    .filter(x => x.missing.length > 0);
+
+  highlightMissing(missingByTeam);
+
+  if (missingByTeam.length === 0) {
+    alert(`All ${state.teams.length} teams have scores for all ${gameKeys.length} games. Board is complete.`);
+    return;
+  }
+  const lines = missingByTeam.map(t =>
+    `• ${t.name} (#${t.id}) — missing: ${t.missing.map(g => GAMES[g].name).join(', ')}`
+  );
+  alert(`Missing scores:\n\n${lines.join('\n')}`);
 }
+window.normalizeBoard = normalizeBoard;
 
-async function submitCode(e) {
-  e.preventDefault();
-  const input = document.getElementById('codeInput');
-  const fb = document.getElementById('feedback');
-  const parsed = parseCode(input.value);
-
-  if (!parsed) {
-    fb.style.display = 'block';
-    fb.className = 'feedback err';
-    fb.textContent = 'Invalid code. Format: GZ-7-85 (2-letter station, team 1–10, score 0–100).';
-    return;
-  }
-
-  const team = state.teams.find(t => t.id === parsed.teamId);
-  if (!team) {
-    fb.style.display = 'block';
-    fb.className = 'feedback err';
-    fb.textContent = `Team ${parsed.teamId} doesn't exist. Click "+ Add team" first.`;
-    return;
-  }
-
-  const previousLeader = computeLeader();
-  const codeRaw = input.value.toUpperCase();
-
-  await update(ref(db, `${LOBBY_PATH}/scores/${parsed.teamId}`), { [parsed.station]: parsed.score });
-  await push(ref(db, `${LOBBY_PATH}/history`), { ts: Date.now(), code: codeRaw, station: parsed.station, teamId: parsed.teamId, score: parsed.score });
-
-  fb.style.display = 'block';
-  fb.className = 'feedback ok';
-  fb.textContent = `✓ ${team.name} — ${STATIONS[parsed.station]}: ${parsed.score} pts`;
-  input.value = '';
-  input.focus();
-
-  bumpedTeam = { id: parsed.teamId, until: Date.now() + 1500 };
+let missingHighlight = null;
+function highlightMissing(missingByTeam) {
+  missingHighlight = new Map(missingByTeam.map(t => [t.id, new Set(t.missing)]));
   render();
-
-  const newLeader = computeLeader();
-  if (newLeader && newLeader.id !== (previousLeader && previousLeader.id)) {
-    confetti();
-  }
-
-  setTimeout(() => { fb.style.display = 'none'; }, 4000);
+  setTimeout(() => { missingHighlight = null; render(); }, 8000);
 }
-window.submitCode = submitCode;
+
+function formatPts(p) {
+  if (p === undefined || p === null) return '0';
+  return Number.isInteger(p) ? String(p) : p.toFixed(1);
+}
 
 function computeLeader() {
+  const gameKeys = allEnteredKeys();
+  const teamCount = state.teams.length;
+  const rankByGame = {};
+  for (const g of gameKeys) {
+    const raw = {};
+    for (const t of state.teams) {
+      const v = t.scores[g];
+      if (typeof v === 'number') raw[t.id] = v;
+    }
+    rankByGame[g] = rankPointsByTeam({ teamCount, raw });
+  }
   const sorted = [...state.teams]
-    .map(t => ({ ...t, total: Object.values(t.scores).reduce((a, b) => a + b, 0) }))
+    .map(t => {
+      let total = 0;
+      for (const g of gameKeys) total += rankByGame[g]?.[t.id] ?? 0;
+      return { ...t, total };
+    })
     .sort((a, b) => b.total - a.total);
   return sorted[0];
 }
@@ -520,37 +424,86 @@ function computeLeader() {
 function render() {
   const list = document.getElementById('leaderboard');
   if (state.teams.length === 0) {
-    list.innerHTML = '<div class="empty"><h3>No teams yet</h3><p>Click "+ Add team" at the top to start adding participants.</p></div>';
+    list.innerHTML = '<div class="empty"><h3>No teams yet</h3><p>Create a lobby from the join page to add teams.</p></div>';
     return;
   }
   const bumpedTeamId = bumpedTeam && bumpedTeam.until > Date.now() ? bumpedTeam.id : null;
+  const gameKeys = allEnteredKeys();
+  const teamCount = state.teams.length;
+  const rankByGame = {};
+  for (const g of gameKeys) {
+    const raw = {};
+    for (const t of state.teams) {
+      const v = t.scores[g];
+      if (typeof v === 'number') raw[t.id] = v;
+    }
+    rankByGame[g] = rankPointsByTeam({ teamCount, raw });
+  }
   const sorted = [...state.teams]
-    .map(t => ({ ...t, total: Object.values(t.scores).reduce((a, b) => a + b, 0), stationCount: Object.keys(t.scores).length }))
+    .map(t => {
+      let total = 0;
+      for (const g of gameKeys) total += rankByGame[g]?.[t.id] ?? 0;
+      return {
+        ...t,
+        total,
+        gameCount: Object.keys(t.scores).length,
+      };
+    })
     .sort((a, b) => b.total - a.total || a.id - b.id);
 
-  list.innerHTML = sorted.map((t, i) => {
+  const submittedByGame = {};
+  for (const g of gameKeys) {
+    let n = 0;
+    for (const t of state.teams) if (typeof t.scores[g] === 'number') n++;
+    submittedByGame[g] = n;
+  }
+  const headCells = gameKeys.map(g => {
+    const closed = submittedByGame[g] === teamCount && teamCount > 0;
+    const cls = closed ? 'closed' : 'open';
+    const label = closed ? 'closed' : `open ${submittedByGame[g]}/${teamCount}`;
+    return `<div class="cell-game ${cls}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span></div>`;
+  }).join('');
+  const head = `
+    <div class="matrix-row matrix-head">
+      <div class="cell-rank">#</div>
+      <div>Team</div>
+      ${headCells}
+      <div class="cell-total">Total</div>
+    </div>
+  `;
+
+  const rows = sorted.map((t, i) => {
     const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
-    const pills = Object.keys(STATIONS).map(s => {
-      const has = t.scores[s] !== undefined;
-      const cls = has ? 'pill done' : 'pill';
-      const label = has ? `${s} ${t.scores[s]}` : s;
-      return `<span class="${cls}">${label}</span>`;
-    }).join('');
-    const bump = t.id === bumpedTeamId ? 'bump' : '';
     const shine = t.id === bumpedTeamId ? 'shine' : '';
+    const bump = t.id === bumpedTeamId ? 'bump' : '';
+    const teamMissing = missingHighlight ? missingHighlight.get(t.id) : null;
+    const rowMissing = teamMissing && teamMissing.size > 0 ? 'missing-cell' : '';
+    const cells = gameKeys.map(g => {
+      const v = t.scores[g];
+      if (v === undefined) {
+        const hl = teamMissing && teamMissing.has(g) ? ' missing-hl' : '';
+        return `<div class="cell-game empty${hl}">—</div>`;
+      }
+      const pts = rankByGame[g]?.[t.id];
+      return `<div class="cell-game has" title="Raw ${v}; ${formatPts(pts)} rank pts">
+    <div class="cell-raw">${v}</div>
+    <div class="cell-pts">${formatPts(pts)}</div>
+  </div>`;
+    }).join('');
     return `
-      <div class="row ${rankClass} ${shine}" ondblclick="renameTeam(${t.id})" oncontextmenu="event.preventDefault(); removeTeam(${t.id})">
-        <div class="rank">${i + 1}</div>
+      <div class="matrix-row team ${rankClass} ${shine} ${rowMissing}">
+        <div class="cell-rank">${i + 1}</div>
         <div>
-          <div class="team-name">${escapeHtml(t.name)}</div>
-          <div class="team-meta">${t.stationCount}/${Object.keys(STATIONS).length} stations · double-click to rename · right-click to remove</div>
+          <div class="cell-team-name">${escapeHtml(t.name)}</div>
+          <div class="cell-team-meta">${t.gameCount}/${gameKeys.length} games</div>
         </div>
-        <div class="station-pills">${pills}</div>
-        <div class="total-score ${bump}">${t.total}</div>
+        ${cells}
+        <div class="cell-total ${bump}">${formatPts(t.total)}</div>
       </div>
     `;
   }).join('');
 
+  list.innerHTML = head + rows;
   document.getElementById('subtitle').textContent = `Lobby ${lobbyId} · ${state.teams.length} teams · ${state.history.length} submissions`;
 }
 
@@ -572,56 +525,9 @@ function confetti() {
   }
 }
 
-function exportData() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `ps-offsite-scores-${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importData(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async ev => {
-    try {
-      const data = JSON.parse(ev.target.result);
-      if (!data.teams || !Array.isArray(data.teams)) throw new Error('bad shape');
-      // Convert exported array shape back into RTDB object shape
-      const teamsObj = {};
-      const scoresObj = {};
-      for (const t of data.teams) {
-        teamsObj[t.id] = { id: t.id, name: t.name };
-        if (t.scores) scoresObj[t.id] = t.scores;
-      }
-      const historyObj = {};
-      if (Array.isArray(data.history)) {
-        for (const h of data.history) {
-          const k = push(ref(db, `${LOBBY_PATH}/history`)).key;
-          historyObj[k] = h;
-        }
-      }
-      await set(ref(db, LOBBY_PATH), { teams: teamsObj, scores: scoresObj, history: historyObj });
-      alert('Imported.');
-    } catch (err) {
-      alert('Invalid file format.');
-    }
-  };
-  reader.readAsText(file);
-  e.target.value = '';
-}
-window.exportData = exportData;
-window.importData = importData;
-
 let bumpedTeam = null;
+let prevLeaderId = null;
 render();
-
-document.getElementById('codeInput').addEventListener('input', e => {
-  e.target.value = e.target.value.toUpperCase();
-});
 </script>
 </body>
 </html>

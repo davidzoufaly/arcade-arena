@@ -1,0 +1,117 @@
+.ps-topbar {
+  --tb-bg: rgba(10, 14, 26, 0.92);
+  --tb-border: rgba(255, 255, 255, 0.08);
+  --tb-text: #f5f7fb;
+  --tb-muted: #8b95b5;
+  --tb-accent: #00d4ff;
+  --tb-accent-2: #ff00aa;
+  --tb-bad: #ff4d6d;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  background: var(--tb-bg);
+  border-bottom: 1px solid var(--tb-border);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  color: var(--tb-text);
+  backdrop-filter: blur(8px);
+}
+
+.ps-topbar-brand {
+  font-weight: 800;
+  font-size: 16px;
+  text-decoration: none;
+  background: linear-gradient(90deg, var(--tb-accent), var(--tb-accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.ps-topbar-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.ps-topbar-nav a {
+  color: var(--tb-muted);
+  text-decoration: none;
+  padding: 8px 12px;
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+}
+
+.ps-topbar-nav a:hover {
+  color: var(--tb-text);
+}
+
+.ps-topbar-nav a[aria-current="page"] {
+  color: var(--tb-accent);
+  border-bottom-color: var(--tb-accent);
+}
+
+.ps-topbar-info {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--tb-muted);
+}
+
+.ps-topbar-info code {
+  color: var(--tb-accent);
+  font-family: ui-monospace, monospace;
+}
+
+.ps-topbar-info strong {
+  color: var(--tb-text);
+}
+
+.ps-topbar-leave {
+  background: transparent;
+  border: 1px solid var(--tb-bad);
+  color: var(--tb-bad);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.ps-topbar-leave:hover {
+  background: rgba(255, 77, 109, 0.08);
+}
+
+body.ps-topbar-host {
+  padding-top: 56px;
+}
+
+@media (max-width: 640px) {
+  .ps-topbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 56px;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .ps-topbar-brand {
+    display: none;
+  }
+  .ps-topbar-nav a {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  .ps-topbar-info {
+    font-size: 12px;
+    margin-left: 0;
+    width: 100%;
+    order: 99;
+  }
+  body.ps-topbar-host {
+    padding-top: 96px;
+  }
+}

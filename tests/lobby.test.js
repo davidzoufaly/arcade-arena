@@ -200,6 +200,27 @@ describe('createLobbyApi.loadLobbyTeams', () => {
   });
 });
 
+describe('createLobbyApi.verifyAdminPwd', () => {
+  it('returns true on match', async () => {
+    const a = fakeAdapter();
+    const api = createLobbyApi(a);
+    const { lobbyId, adminPwd } = await api.createLobby(2);
+    expect(await api.verifyAdminPwd(lobbyId, adminPwd)).toBe(true);
+  });
+
+  it('returns false on wrong pwd', async () => {
+    const a = fakeAdapter();
+    const api = createLobbyApi(a);
+    const { lobbyId } = await api.createLobby(2);
+    expect(await api.verifyAdminPwd(lobbyId, 'WRONG1')).toBe(false);
+  });
+
+  it('returns false when lobby missing', async () => {
+    const api = createLobbyApi(fakeAdapter());
+    expect(await api.verifyAdminPwd('PS-AAAA', 'X')).toBe(false);
+  });
+});
+
 describe('createLobbyApi.verifyTeamPwd', () => {
   it('returns true on match', async () => {
     const a = fakeAdapter();
@@ -226,5 +247,57 @@ describe('createLobbyApi.verifyTeamPwd', () => {
   it('returns false when lobby missing', async () => {
     const api = createLobbyApi(fakeAdapter());
     expect(await api.verifyTeamPwd('PS-AAAA', 1, 'X')).toBe(false);
+  });
+});
+
+function mockLocation(search = '') {
+  globalThis.location = { search, pathname: '/test/', replace: () => {}, href: '' };
+}
+
+describe('resolveSession', () => {
+  it('returns URL params when both are valid', async () => {
+    mockLocation('?lobby=PS-7K2X&team=3');
+    mockLocalStorage();
+    const { resolveSession } = await import('../ps-offsite-2026/shared/lobby.js');
+    expect(resolveSession()).toEqual({ lobbyId: 'PS-7K2X', teamId: 3 });
+  });
+
+  it('falls back to session when URL lobby is invalid', async () => {
+    mockLocation('?lobby=ps-bad&team=3');
+    mockLocalStorage();
+    const mod = await import('../ps-offsite-2026/shared/lobby.js');
+    mod.setSession({ lobbyId: 'PS-AAAA', teamId: 5, teamPwd: 'X' });
+    expect(mod.resolveSession()).toEqual({ lobbyId: 'PS-AAAA', teamId: 5 });
+  });
+
+  it('falls back to session when URL team is missing', async () => {
+    mockLocation('?lobby=PS-7K2X');
+    mockLocalStorage();
+    const mod = await import('../ps-offsite-2026/shared/lobby.js');
+    mod.setSession({ lobbyId: 'PS-AAAA', teamId: 9, teamPwd: 'X' });
+    expect(mod.resolveSession()).toEqual({ lobbyId: 'PS-AAAA', teamId: 9 });
+  });
+
+  it('falls back to session when URL team is non-numeric', async () => {
+    mockLocation('?lobby=PS-7K2X&team=abc');
+    mockLocalStorage();
+    const mod = await import('../ps-offsite-2026/shared/lobby.js');
+    mod.setSession({ lobbyId: 'PS-AAAA', teamId: 2, teamPwd: 'X' });
+    expect(mod.resolveSession()).toEqual({ lobbyId: 'PS-AAAA', teamId: 2 });
+  });
+
+  it('falls back to session when URL team is <= 0', async () => {
+    mockLocation('?lobby=PS-7K2X&team=0');
+    mockLocalStorage();
+    const mod = await import('../ps-offsite-2026/shared/lobby.js');
+    mod.setSession({ lobbyId: 'PS-AAAA', teamId: 1, teamPwd: 'X' });
+    expect(mod.resolveSession()).toEqual({ lobbyId: 'PS-AAAA', teamId: 1 });
+  });
+
+  it('returns null when neither URL nor session has data', async () => {
+    mockLocation('');
+    mockLocalStorage();
+    const { resolveSession } = await import('../ps-offsite-2026/shared/lobby.js');
+    expect(resolveSession()).toBeNull();
   });
 });

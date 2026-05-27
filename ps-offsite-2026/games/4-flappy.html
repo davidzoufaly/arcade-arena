@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game 4 — Flappy Voice</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-2: #131a2e;
+    --card: #1b2540;
+    --text: #f5f7fb;
+    --muted: #8b95b5;
+    --accent: #00d4ff;
+    --good: #00e676;
+    --bad: #ff4d6d;
+    --gold: #ffd84d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 20% 0%, #1f2a4a 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  header {
+    padding: 20px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  header h1 { font-size: 22px; font-weight: 800; }
+  header .game-badge {
+    background: var(--accent); color: #001;
+    padding: 4px 10px; border-radius: 6px;
+    font-size: 12px; font-weight: 800; letter-spacing: 0.5px; margin-right: 12px;
+  }
+  main { max-width: 1200px; margin: 0 auto; padding: 32px; }
+  .card {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 28px;
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 20px;
+  }
+  .briefing { font-size: 15px; line-height: 1.6; color: var(--muted); }
+  .briefing strong { color: var(--text); }
+  .setup { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  input, select {
+    background: var(--bg-2);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-family: inherit;
+  }
+  button {
+    background: linear-gradient(135deg, var(--accent), #0099cc);
+    border: none; color: #001;
+    padding: 12px 24px; border-radius: 10px;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+  }
+
+  .video-wrap {
+    position: relative; background: #000;
+    border-radius: 20px; overflow: hidden; aspect-ratio: 4/3;
+    box-shadow: 0 0 0 0 rgba(0,230,118,0);
+    transition: box-shadow 0.15s ease-out;
+  }
+  .video-wrap.match-pulse {
+    animation: match-pulse 0.6s ease-out;
+  }
+  .video-wrap.wrong-flash {
+    animation: wrong-flash 0.45s ease-out;
+  }
+  @keyframes match-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(0,230,118,0.9), inset 0 0 0 6px rgba(0,230,118,0.0); }
+    30%  { box-shadow: 0 0 32px 8px rgba(0,230,118,0.65), inset 0 0 0 6px rgba(0,230,118,0.85); }
+    100% { box-shadow: 0 0 0 0 rgba(0,230,118,0),   inset 0 0 0 6px rgba(0,230,118,0.0); }
+  }
+  @keyframes wrong-flash {
+    0%, 100% { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.0); }
+    50%      { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.9); }
+  }
+  .step-badge {
+    position: absolute; top: 16px; right: 16px;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    padding: 8px 14px; border-radius: 999px;
+    font-size: 14px; font-weight: 800; letter-spacing: 0.5px;
+    color: var(--accent);
+  }
+  video, canvas {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
+  canvas { position: absolute; inset: 0; pointer-events: none; }
+  .video-overlay {
+    position: absolute; bottom: 16px; left: 16px;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+    padding: 8px 14px; border-radius: 10px;
+    font-size: 14px; font-family: ui-monospace, monospace;
+  }
+  .game { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
+  @media (max-width: 900px) { .game { grid-template-columns: 1fr; } }
+
+  .panel { display: flex; flex-direction: column; gap: 16px; }
+
+  .player-banner {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 24px;
+    text-align: center;
+    border: 2px solid var(--accent);
+  }
+  .player-banner .label {
+    font-size: 12px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .player-banner .name {
+    font-size: 36px; font-weight: 900; margin-top: 4px;
+  }
+
+  .progress-dots {
+    display: flex; gap: 8px; justify-content: center; margin-top: 8px;
+  }
+  .dot {
+    flex: 1; aspect-ratio: 1;
+    background: var(--bg-2);
+    border: 2px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    transition: all 0.2s;
+  }
+  .dot.done {
+    background: rgba(0,230,118,0.18);
+    border-color: var(--good);
+  }
+  .dot.flashing {
+    border-color: var(--accent);
+    box-shadow: 0 0 24px rgba(0,212,255,0.5);
+  }
+
+  .progress-bar {
+    height: 6px; background: rgba(255,255,255,0.08);
+    border-radius: 999px; overflow: hidden; margin-top: 16px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--good));
+    width: 0%; transition: width 0.1s linear;
+  }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat {
+    background: var(--bg-2); padding: 16px;
+    border-radius: 12px; text-align: center;
+  }
+  .stat .value { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+  .big-flash {
+    text-align: center;
+    padding: 40px 24px;
+  }
+  .big-flash .emoji { font-size: 160px; line-height: 1; }
+  .big-flash .name { font-size: 22px; color: var(--muted); margin-top: 12px; }
+
+  .countdown {
+    text-align: center;
+    padding: 60px 24px;
+  }
+  .countdown .num {
+    font-size: 180px; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--gold));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    line-height: 1;
+  }
+
+  .result { text-align: center; padding: 32px; }
+  .result h2 { font-size: 32px; margin-bottom: 8px; }
+  .result .score {
+    font-size: 72px; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--gold));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin: 16px 0;
+  }
+  .submit-code {
+    background: var(--bg-2); padding: 16px 24px;
+    border-radius: 12px; font-family: ui-monospace, monospace;
+    font-size: 28px; font-weight: 800; letter-spacing: 4px;
+    display: inline-block; margin: 20px 0;
+    border: 2px dashed var(--accent); color: var(--accent);
+  }
+  .save-status {
+    display: inline-block; margin-top: 14px;
+    font-size: 12px; font-weight: 800; letter-spacing: 1.5px;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(255,255,255,0.08); color: var(--text);
+  }
+  .save-status.ok  { background: rgba(0,230,118,0.18); color: #00e676; }
+  .save-status.bad { background: rgba(255,77,109,0.18); color: #ff4d6d; cursor: pointer; }
+  .secondary-link {
+    color: var(--accent); text-decoration: none; font-weight: 700; font-size: 14px;
+    align-self: center; padding: 8px 14px;
+  }
+  .result-row {
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+  }
+  .hidden { display: none !important; }
+  .loading { text-align: center; color: var(--muted); padding: 40px; }
+
+  /* flappy-specific */
+  #flappyCanvas {
+    width: 100%; max-width: 960px; aspect-ratio: 16 / 9;
+    background: var(--bg); border-radius: 16px; display: block;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .voice-meter {
+    width: 28px; height: 220px; margin: 0 auto; position: relative;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(0,212,255,0.4);
+    border-radius: 14px; overflow: hidden;
+  }
+  .voice-meter .fill {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 0%;
+    background: linear-gradient(0deg, var(--accent), var(--good)); transition: height 0.04s linear;
+  }
+  .voice-meter .floor-line {
+    position: absolute; left: -4px; right: -4px; height: 1px; background: var(--muted);
+  }
+  .toast {
+    position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%);
+    background: var(--card); color: var(--text); padding: 12px 20px;
+    border-radius: 10px; border: 1px solid var(--bad); z-index: 50; font-size: 14px;
+  }
+  .calib-overlay {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(10,14,26,0.85); border-radius: 16px; font-size: 22px; font-weight: 800;
+    color: var(--accent); text-align: center;
+  }
+  .canvas-wrap { position: relative; }
+</style>
+<link rel="stylesheet" href="../shared/topbar.css">
+</head>
+<body>
+<header>
+  <h1><span class="game-badge">FL</span>Flappy Voice</h1>
+</header>
+
+<main>
+  <div class="card briefing">
+    <strong>Goal:</strong> The whole team yells to keep the orb flying through gaps. <strong>Louder = higher.</strong> Pass 20 gates. <strong>3 attempts</strong>, best score counts; faster clears earn a bonus.
+  </div>
+
+  <div id="phase-setup" class="card">
+    <h3 style="margin-bottom: 12px">Get ready</h3>
+    <div class="setup"><button id="startBtn">Start microphone</button></div>
+    <div class="briefing" style="margin-top: 12px; font-size: 13px;">Allow microphone access when prompted.</div>
+  </div>
+
+  <div id="phase-loading" class="card loading hidden">Starting microphone…</div>
+
+  <div id="phase-intro" class="card hidden">
+    <h2 style="font-size: 28px; margin-bottom: 8px;">Attempt <span id="introNum">1</span> of 3</h2>
+    <p class="briefing">When the run starts, the team yells to fly. We measure the room's quiet level first — stay quiet for a moment.</p>
+    <button id="introStartBtn" style="margin-top: 16px;">Start run</button>
+  </div>
+
+  <div id="phase-play" class="hidden">
+    <div class="game">
+      <div class="canvas-wrap">
+        <canvas id="flappyCanvas"></canvas>
+        <div id="calibOverlay" class="calib-overlay hidden">Calibrating… stay quiet</div>
+      </div>
+      <div class="panel">
+        <div class="player-banner">
+          <div class="label">Score</div>
+          <div class="name"><span id="scoreLabel">0 / 20</span></div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center">Team volume</div>
+          <div class="voice-meter"><div class="fill" id="voiceFill"></div><div class="floor-line" id="floorLine" style="bottom:0%"></div></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="value" id="timerLabel">0.0</div><div class="label">Time (s)</div></div>
+          <div class="stat"><div class="value" id="attemptLabel">1 / 3</div><div class="label">Attempt</div></div>
+        </div>
+        <button class="secondary" id="playAbort">Abort attempt</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="phase-attempt-end" class="card hidden">
+    <h2 id="attemptResultTitle" style="font-size: 28px; margin-bottom: 12px;">Attempt complete</h2>
+    <p class="briefing">Cleared <strong id="attemptCompleted">0</strong> / 20 · time <strong id="attemptTime">0</strong> s · attempt score <strong id="attemptScoreVal">0</strong></p>
+    <div class="result-row" style="margin-top: 20px;">
+      <button id="attemptTryAgain">Try again</button>
+      <button class="secondary" id="attemptFinish">Finish</button>
+    </div>
+  </div>
+
+  <div id="phase-final" class="card result hidden">
+    <h2 id="finalTitle">Run complete</h2>
+    <p style="color:var(--muted)">Team <strong id="resTeam"></strong></p>
+    <div class="score" id="resScore">0</div>
+    <div id="saveStatus" class="save-status">SAVING…</div>
+    <div class="result-row" style="margin-top: 14px;">
+      <button id="finalPlayAgain">Play again</button>
+      <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
+    </div>
+  </div>
+</main>
+
+<script type="module" src="./4-flappy.js"></script>
+</body>
+</html>

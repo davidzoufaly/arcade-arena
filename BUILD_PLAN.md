@@ -11,40 +11,49 @@
         - there should be preset of gestures team has to do in 
         - jeden hráč jedno gesto -> všichni in view
         - 3 retries only best core counts
-    - [] Pantomime
-        - [] odebrat CV
-        - [] sjednotit s logikou Gesture logu
-    - [] Dino a Flappy
-        - [] překopat grafiku pryč s tou cyberpunk arcade verzí
-        - [] introduce retries apod.
-        - [] make it more stable and playable
+    - [x] Pantomime
+        - [x] odebrat CV
+        - [x] sjednotit s logikou Gesture logu
+    - [x] Dino a Flappy
+        - [x] překopat grafiku pryč s tou cyberpunk arcade verzí
+        - [x] introduce retries apod.
+        - [x] make it more stable and playable
     - [] add backup game dance freeze game? 
-- [] better ui navigace
-    - [] top bar
-        - [] dashboard + scoreboard
-        - [] lobby id + team number
-        - [] leave lobby -> redirect to landingpage (create lobby)
-- [] password protected teams picking
-- [] scoreboard admin funkce
-    - [] můžeš udělat normalizaci -> check jestli jsou všechny hry a týmy vyplněné
-    - [] můžeš resetovat scoreboard
-    - [] po kliknutí na admin akci to chce admin heslo -> vrátí se vygenerované při vytváření lobby
-- [] počet hráčů v týmu už se ve hrách nenastavuje (hry by měli být univerzální pro 4 i 8 hráčů)
+- [x] better ui navigace
+    - [x] top bar
+        - [x] dashboard + scoreboard
+        - [x] lobby id + team number
+        - [x] leave lobby -> redirect to landingpage (create lobby)
+- [x] password protected teams picking
+- [x] scoreboard admin funkce
+    - [x] můžeš udělat normalizaci -> check jestli jsou všechny hry a týmy vyplněné
+    - [x] můžeš resetovat scoreboard
+    - [x] po kliknutí na admin akci to chce admin heslo -> vrátí se vygenerované při vytváření lobby
+    - [x] tyhle akce musí být označený admin labelem
+- [x] počet hráčů v týmu už se ve hrách nenastavuje (hry by měli být univerzální pro 4 i 8 hráčů)
 - [x] screen intro -> create lobby / join lobby -> create nastavíš počet týmů -> něco jako vytvoření lobby v DB a poté se do lobby joinuješ -> vytvoření lobby ti vrátí ID, které používáš do join lobby -> v create lobby akorát nastavíš počet týmů -> kromě join lobby se ti vrátí i heslo pro každý tým -> ten distribuješ ostatním týmům (aby se nedaly přepisovat výsledky)
 - [x] po join lobby vybereš tým a připojíš se heslem
-- [] scoreboard matice -> vidíš týmy x hry a body v cells
-- [] games catalog
-    - [] obsahuje všechny hry
-    - [] vidíš jestli je hra už hraná (má odeslané skóre nebo ne) -> UI fajfka apod
-    - [] non playable games jen vysvětli pravidla a umožní zadat počet bodů
+- [x] scoreboard matice -> vidíš týmy x hry a body v cells
+- [x] games catalog page
+    - [x] introduce top bar menu 
+    - [x] remove lobby row 
+    - [x] games description is up-to-date
+    - [x] tiles obsahují všechny hry
+    - [x] 4 tiles playable
+    - [x] the rest can be displayed but contains only games rules and input for score submission
+    - [x] non-playable games currently contains lorem imsum description + rules
+    - [x] pub-quiz is still open do not invest in it now
+    - [x] vidíš jestli je hra už hraná (má odeslané skóre nebo ne) -> UI fajfka apod
+    - [x] non playable games jen vysvětli pravidla a umožní zadat počet bodů
         - Math Without a Brain
         - Math With a Bigger Brain
         - Šifra
-        - Pantomime
-        - Gesture Lock
-        - Voice Arena - flappy
-        - Gesture Arena - dino
+        - Pantomime - playable
+        - Gesture Lock - playable
+        - Voice Arena - flappy - playable
+        - Gesture Arena - dino - playable
         - Gandalf
         - The Hidden Document race
         - Draw and guess
         - Pub quiz -> interaktivní? 
+- [x] rename stations to games

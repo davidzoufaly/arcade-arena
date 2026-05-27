@@ -1,17 +1,17 @@
 # PS Offsite 2026 — Computer Vision Game
 
-A two-station computer-vision team game for **10 teams × 4 people**. Pure browser, no installs, no Python, no backend. Each station is a self-contained HTML page accessed via a QR code; scores are entered manually into a central scoreboard.
+A two-game computer-vision team competition for **10 teams × 4 people**. Pure browser, no installs, no Python, no backend. Each game is a self-contained HTML page accessed via a QR code; scores are entered manually into a central scoreboard.
 
 ---
 
-## Stations
+## Games
 
-| # | Station | What the team does | Tech | Time |
+| # | Game | What the team does | Tech | Time |
 |---|---|---|---|---|
 | 1 | **Gesture Lock** | Unlock the vault with a 6-gesture random sequence drawn from a pool of 7 (open palm, fist, thumbs up/down, victory, point, ASL "I love you"). 35 s hard limit, every wrong gesture resets the sequence. | MediaPipe Hand Gesture Recognizer | 5–8 min |
-| 2 | **CV Pantomime** | Match 12 escalating poses (T-pose → Tree → Karate Kick → Arabesque) to a ghost skeleton overlay. Each pose has multiple geometric checks. Stability check — wobbling resets the hold. Tight per-pose timeouts. | MediaPipe Pose Landmarker | 12–15 min |
+| 2 | **Pantomime** | Match 12 escalating poses (T-pose → Tree → Karate Kick → Arabesque) to a ghost skeleton overlay. Each pose has multiple geometric checks. Stability check — wobbling resets the hold. Tight per-pose timeouts. | MediaPipe Pose Landmarker | 12–15 min |
 
-Both stations award **0–100 points** and emit a 6-character "submit code" (e.g. `GZ-7-85`) that the team takes to the central scoreboard.
+Both games award **0–100 points** and emit a 6-character "submit code" (e.g. `GZ-7-85`) that the team takes to the central scoreboard.
 
 ---
 
@@ -36,10 +36,10 @@ Exact URLs used:
 **Why CDN instead of bundling the model files?**
 
 - Model weights (~14 MB total) would bloat the repo every time Google ships a fresh version.
-- The browser caches them after the first load — opening any station a second time skips the download.
+- The browser caches them after the first load — opening any game a second time skips the download.
 - Google's CDN is faster and more reliable than GitHub Pages or Netlify Drop for binary blobs.
 
-**If you want a fully offline / self-hosted version**, download the two `.task` files and the `vision_bundle.mjs` + `wasm/` directory from the URLs above into the repo (e.g. into a `vendor/` folder), then change the import URLs in `stations/1-gesture-lock.html` and `stations/2-pantomime.html` accordingly. The whole bundle weighs ~16 MB.
+**If you want a fully offline / self-hosted version**, download the two `.task` files and the `vision_bundle.mjs` + `wasm/` directory from the URLs above into the repo (e.g. into a `vendor/` folder), then change the import URLs in `games/1-gesture-lock.html` and `games/2-pantomime.html` accordingly. The whole bundle weighs ~16 MB.
 
 ### Hardware requirements per team laptop
 
@@ -47,7 +47,7 @@ Exact URLs used:
 - Browser: **Chrome / Edge / Safari / Firefox**, current version.
 - 4 GB RAM minimum.
 - Built-in or USB webcam.
-- Stable internet only for the **first** load (~15 MB total per laptop). After that, the models are cached and stations work even if WiFi dies.
+- Stable internet only for the **first** load (~15 MB total per laptop). After that, the models are cached and games work even if WiFi dies.
 
 Real-world frame rate on a typical 2020+ ThinkPad / MacBook Air with integrated GPU: gestures ~30 fps, pose ~25–30 fps. Memory per browser tab: ~200–400 MB.
 
@@ -57,18 +57,18 @@ Real-world frame rate on a typical 2020+ ThinkPad / MacBook Air with integrated 
 
 ### Self-paced
 
-Teams move freely between the two stations. After each one they get a "submit code" they take to the central scoreboard.
+Teams move freely between the two games. After each one they get a "submit code" they take to the central scoreboard.
 
 - **Duration:** 30–45 min total
-- **Stations:** 2, one instance each
+- **Games:** 2, one instance each
 - **Capacity:** 1 team at a time
 - **Scoreboard:** projector / large TV + laptop near the bar / entrance
 
 ### Submit codes
 
-After each station the team sees a 6-character code on the screen, e.g. `GZ-7-85`:
+After each game the team sees a 6-character code on the screen, e.g. `GZ-7-85`:
 
-- **GZ** = station (GZ Gesture Lock, PM Pantomime)
+- **GZ** = game (GZ Gesture Lock, PM Pantomime)
 - **7** = team number (1–10)
 - **85** = score 0–100
 
@@ -78,7 +78,7 @@ Team brings the code to the scoreboard, organizer types it in, scoreboard parses
 
 ## Running locally
 
-Stations need camera access, which Chrome blocks on `file://`. Run a local server:
+Games need camera access, which Chrome blocks on `file://`. Run a local server:
 
 ```bash
 git clone git@github.com:janpansky/ps-offsite-2026.git
@@ -97,14 +97,15 @@ For mobile / tablet testing on the same WiFi, deploy to **Netlify Drop** (drag &
 ```
 ps-offsite-2026/
 ├── README.md                       ← you are here
-├── index.html                      ← navigation hub + QR generator
+├── index.html                      ← lobby create / join
+├── games.html                      ← games catalog (main page post-join)
 ├── scoreboard.html                 ← central scoreboard for the host laptop
-└── stations/
+└── games/
     ├── 1-gesture-lock.html
     └── 2-pantomime.html
 ```
 
-Open `index.html` for navigation. Open `scoreboard.html` on the host laptop. Stations open via QR codes on team laptops.
+Open `index.html` to create or join a lobby; you land on `games.html` afterwards. Open `scoreboard.html` on the host laptop.
 
 ---
 

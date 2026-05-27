@@ -1,0 +1,168 @@
+<!-- ps-offsite-2026/games/manual.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PS Offsite 2026 — Manual Game</title>
+<link rel="stylesheet" href="../shared/topbar.css">
+<style>
+  :root {
+    --bg: #0a0e1a; --bg-2: #131a2e; --card: #1b2540;
+    --text: #f5f7fb; --muted: #8b95b5;
+    --accent: #00d4ff; --accent-2: #ff00aa; --good: #00e676; --bad: #ff4d6d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #1f2a4a 0%, var(--bg) 60%);
+    color: var(--text); min-height: 100vh;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 40px; }
+  .head { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+  .head .emoji { font-size: 48px; }
+  h1 { font-size: 32px; font-weight: 900; letter-spacing: -1px; }
+  .rules {
+    background: var(--card); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px; padding: 20px; margin-bottom: 24px;
+    line-height: 1.65; color: #d8def0; font-size: 14px;
+  }
+  .rules p { margin-bottom: 10px; }
+  .rules ul { margin: 6px 0 6px 22px; }
+  .panel {
+    background: var(--card); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px; padding: 22px;
+  }
+  .panel label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 8px; }
+  .panel input[type=number] {
+    background: var(--bg-2); color: var(--text);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+    padding: 14px 16px; font-size: 22px; font-weight: 800; font-family: inherit;
+    width: 100%; margin-bottom: 14px;
+  }
+  .panel button {
+    background: linear-gradient(135deg, var(--accent), #0099cc);
+    border: none; color: #001; font-weight: 800; font-size: 15px;
+    padding: 12px 18px; border-radius: 10px; cursor: pointer; font-family: inherit;
+  }
+  .panel button:disabled { opacity: 0.5; cursor: default; }
+  .panel .current { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  .panel .current strong { color: var(--good); }
+  .banner {
+    margin-top: 12px; padding: 10px 14px; border-radius: 10px;
+    font-size: 13px; font-weight: 700;
+  }
+  .banner.ok  { background: rgba(0,230,118,0.12); color: var(--good); }
+  .banner.bad { background: rgba(255,77,109,0.12); color: var(--bad); }
+  .back-link { display: inline-block; margin-top: 14px; color: var(--accent); text-decoration: none; font-weight: 700; font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <div id="container">Loading…</div>
+</main>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getDatabase, ref, get, update, push } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { firebaseConfig } from '../firebase-config.js';
+import { resolveSession } from '../shared/lobby.js';
+import { mountTopbar } from '../shared/topbar.js';
+import { getGame } from '../shared/games-catalog.js';
+import { submitScore, firebaseWriter } from '../shared/score-submit.js';
+
+const session = resolveSession();
+if (!session) {
+  location.replace('../index.html');
+  throw new Error('no session');
+}
+mountTopbar({ activePage: 'games' });
+
+const params = new URLSearchParams(location.search);
+const key = params.get('key');
+const game = getGame(key);
+
+const container = document.getElementById('container');
+const catalogHref = `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+if (!game || game.kind !== 'manual') {
+  container.innerHTML = `
+    <h1>Unknown game</h1>
+    <p style="color:#8b95b5;margin-top:10px">No manual game registered for key <code>${esc(key ?? '(none)')}</code>.</p>
+    <a class="back-link" href="${catalogHref}">← Back to catalog</a>
+  `;
+  throw new Error('unknown manual game');
+}
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const writer = firebaseWriter({ db, ref, update, push });
+
+function renderRules(text) {
+  const blocks = String(text || '').split(/\n\s*\n/);
+  return blocks.map(b => {
+    const lines = b.split('\n');
+    if (lines.every(l => l.startsWith('- '))) {
+      return `<ul>${lines.map(l => `<li>${esc(l.slice(2))}</li>`).join('')}</ul>`;
+    }
+    return `<p>${esc(b.replace(/\n/g, ' '))}</p>`;
+  }).join('');
+}
+
+async function render() {
+  const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${session.teamId}/${key}`));
+  const current = snap.exists() ? snap.val() : null;
+
+  container.innerHTML = `
+    <div class="head">
+      <div class="emoji">${game.emoji}</div>
+      <h1>${esc(game.name)}</h1>
+    </div>
+    <div class="rules">${renderRules(game.rules)}</div>
+    <div class="panel">
+      ${current !== null ? `<div class="current">Currently submitted: <strong>${esc(String(current))}</strong> pts</div>` : ''}
+      <label for="score">${current !== null ? 'Resubmit raw score' : 'Raw score'}</label>
+      <input id="score" type="number" min="0" step="1" inputmode="numeric" value="${current !== null ? esc(String(current)) : ''}" />
+      <button id="submitBtn">${current !== null ? 'Resubmit' : 'Submit score'}</button>
+      <div id="banner"></div>
+      <a class="back-link" href="${catalogHref}">← Back to catalog</a>
+    </div>
+  `;
+
+  const input = document.getElementById('score');
+  const btn = document.getElementById('submitBtn');
+  const banner = document.getElementById('banner');
+
+  btn.addEventListener('click', async () => {
+    const raw = parseInt(input.value, 10);
+    if (!Number.isFinite(raw) || raw < 0) {
+      banner.className = 'banner bad';
+      banner.textContent = 'Enter a non-negative integer.';
+      return;
+    }
+    btn.disabled = true;
+    banner.className = '';
+    banner.textContent = '';
+    try {
+      const saved = await submitScore({
+        writer, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: key, score: raw,
+      });
+      banner.className = 'banner ok';
+      banner.innerHTML = `Saved <strong>${esc(String(saved))}</strong> pts. <a class="back-link" style="margin:0" href="${catalogHref}">Return to catalog →</a>`;
+    } catch (e) {
+      banner.className = 'banner bad';
+      banner.textContent = 'Save failed: ' + (e.message || 'unknown error');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+render();
+</script>
+</body>
+</html>
