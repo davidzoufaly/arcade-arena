@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   generateLobbyId, generatePwd, isValidLobbyId, ALPHABET,
   getSession, setSession, clearSession, SESSION_KEY, LEGACY_TEAM_KEY,
-  createLobbyApi,
+  createLobbyApi, isAdminSession,
 } from '../ps-offsite-2026/shared/lobby.js';
 
 describe('ALPHABET', () => {
@@ -299,5 +299,46 @@ describe('resolveSession', () => {
     mockLocalStorage();
     const { resolveSession } = await import('../ps-offsite-2026/shared/lobby.js');
     expect(resolveSession()).toBeNull();
+  });
+});
+
+describe('getSession admin shape', () => {
+  it('round-trips an admin session', () => {
+    mockLocalStorage();
+    setSession({ lobbyId: 'PS-7K2X', role: 'admin', adminPwd: 'ABCDEF' });
+    expect(getSession()).toEqual({ lobbyId: 'PS-7K2X', role: 'admin', adminPwd: 'ABCDEF' });
+  });
+  it('rejects an admin session with no adminPwd and clears it', () => {
+    mockLocalStorage();
+    globalThis.localStorage.setItem(SESSION_KEY, JSON.stringify({ lobbyId: 'PS-7K2X', role: 'admin' }));
+    expect(getSession()).toBeNull();
+    expect(globalThis.localStorage.getItem(SESSION_KEY)).toBeNull();
+  });
+  it('still accepts a team session', () => {
+    mockLocalStorage();
+    setSession({ lobbyId: 'PS-7K2X', teamId: 2, teamPwd: 'X' });
+    expect(getSession()).toEqual({ lobbyId: 'PS-7K2X', teamId: 2, teamPwd: 'X' });
+  });
+});
+
+describe('isAdminSession', () => {
+  it('is true for an admin session', () => {
+    expect(isAdminSession({ lobbyId: 'PS-7K2X', role: 'admin', adminPwd: 'X' })).toBe(true);
+  });
+  it('is false for a team session', () => {
+    expect(isAdminSession({ lobbyId: 'PS-7K2X', teamId: 1, teamPwd: 'X' })).toBe(false);
+  });
+  it('is false for null', () => {
+    expect(isAdminSession(null)).toBe(false);
+  });
+});
+
+describe('resolveSession admin', () => {
+  it('returns admin context from a stored admin session', async () => {
+    mockLocation('');
+    mockLocalStorage();
+    const mod = await import('../ps-offsite-2026/shared/lobby.js');
+    mod.setSession({ lobbyId: 'PS-AAAA', role: 'admin', adminPwd: 'X' });
+    expect(mod.resolveSession()).toEqual({ lobbyId: 'PS-AAAA', role: 'admin' });
   });
 });

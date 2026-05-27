@@ -35,13 +35,13 @@ export function getSession() {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (
-      parsed &&
-      typeof parsed.lobbyId === 'string' &&
-      Number.isInteger(parsed.teamId) &&
-      typeof parsed.teamPwd === 'string'
-    ) {
-      return parsed;
+    if (parsed && typeof parsed.lobbyId === 'string') {
+      if (parsed.role === 'admin' && typeof parsed.adminPwd === 'string') {
+        return parsed;
+      }
+      if (Number.isInteger(parsed.teamId) && typeof parsed.teamPwd === 'string') {
+        return parsed;
+      }
     }
     localStorage.removeItem(SESSION_KEY);
     return null;
@@ -49,6 +49,10 @@ export function getSession() {
     try { localStorage.removeItem(SESSION_KEY); } catch {}
     return null;
   }
+}
+
+export function isAdminSession(s) {
+  return !!s && s.role === 'admin';
 }
 
 export function setSession(s) {
@@ -125,6 +129,7 @@ export function resolveSession() {
     }
   }
   const s = getSession();
-  if (s) return { lobbyId: s.lobbyId, teamId: s.teamId };
-  return null;
+  if (!s) return null;
+  if (isAdminSession(s)) return { lobbyId: s.lobbyId, role: 'admin' };
+  return { lobbyId: s.lobbyId, teamId: s.teamId };
 }
