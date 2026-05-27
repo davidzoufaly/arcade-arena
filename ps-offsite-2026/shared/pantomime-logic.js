@@ -691,7 +691,7 @@ export const POSE_POOL = [
         const sideA = Math.sign(sa.raised.x - sa.shMidX);
         const sideB = Math.sign(sb.raised.x - sb.shMidX);
         // Binary by design: raised arms must be on opposite sides (true mirror) or this gates the pose.
-        return (sideA !== 0 && sideA === -sideB) ? 1 : 0;
+        return (sideA !== 0 && sideB !== 0 && sideA === -sideB) ? 1 : 0;
       }},
     ],
   },

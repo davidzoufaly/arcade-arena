@@ -313,6 +313,14 @@ describe('Human Arch checks', () => {
     const leftArms = arch().checks[0].fn(a, b); // "Left person arms overhead"
     expect(leftArms).toBeLessThan(0.3);
   });
+
+  it('arms-overhead check is low when the right person\'s arms are down', () => {
+    const [a, b] = good();
+    b[LM.L_WRIST] = { x: 0.70, y: 0.55, visibility: 1 };
+    b[LM.R_WRIST] = { x: 0.80, y: 0.55, visibility: 1 };
+    const rightArms = getPose('arch').checks[1].fn(a, b); // "Right person arms overhead"
+    expect(rightArms).toBeLessThan(0.3);
+  });
 });
 
 describe('Mirror Twins checks', () => {
@@ -357,5 +365,13 @@ describe('Mirror Twins checks', () => {
     a[LM.R_WRIST] = { x: 0.28, y: 0.55, visibility: 1 };
     const shapeLeft = twins().checks[0].fn(a, b); // "Left person: one arm up, one out"
     expect(shapeLeft).toBeLessThan(0.4);
+  });
+
+  it('right-person shape check scores low when both arms are down', () => {
+    const [a, b] = good();
+    b[LM.L_WRIST] = { x: 0.72, y: 0.55, visibility: 1 };
+    b[LM.R_WRIST] = { x: 0.78, y: 0.55, visibility: 1 };
+    const shapeRight = getPose('twins').checks[1].fn(a, b); // "Right person: one arm up, one out"
+    expect(shapeRight).toBeLessThan(0.4);
   });
 });
