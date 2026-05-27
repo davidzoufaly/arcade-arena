@@ -241,7 +241,7 @@
 
 <main>
   <div class="card briefing" id="briefing">
-    <strong>Goal:</strong> Watch a 16-gesture sequence flash by once, then unlock the vault by repeating it from memory. <strong>Take turns — a new player does each gesture.</strong> One wrong move locks you out, and each gesture has a <strong>10 s timer</strong> — run out and the attempt fails. Go in order. <strong>3 attempts</strong>, best score counts; the faster you unlock, the higher the score.
+    <strong>Goal:</strong> Watch a 16-gesture sequence flash by once, then unlock the vault by repeating it from memory. <strong>Who performs each gesture is your team's call — split the sequence however your strategy works best.</strong> One wrong move locks you out, and each gesture has a <strong>10 s timer</strong> — run out and the attempt fails. Go in order. <strong>3 attempts</strong>, best score counts; the faster you unlock, the higher the score.
   </div>
 
   <!-- BOOT -->
@@ -543,7 +543,7 @@ phaseEnter.recall = () => {
 
   function updateStepBadge() {
     $('stepBadge').textContent = `${Math.min(state.stepIdx + 1, SEQUENCE_LEN)} / ${SEQUENCE_LEN}`;
-    flashCam('👥 Next player — take turns');
+    flashCam('👥 Next gesture — your team decides who');
   }
 
   function flashCam(text) {

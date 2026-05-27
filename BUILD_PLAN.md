@@ -1,8 +1,9 @@
 - [] napsat, že chci doručit pravidla ke všem hrám, či pokiny koho se zeptat, kde co najít
 - [] pub quizz sync
 - [] v češtině popsat jak celá appka a jednotlivé věci fungují
-- [] unlocking games by admin for specific team -> verify
-- [] gesture lock -> more rounds
+- [x] gesture lock -> remove "take turns" it should be up to team strategy -> so teas this in the game rules
+- [x] unlocking games by admin for specific team -> verify
+- [x] gesture lock -> more rounds
 - [x] double length of hand gesture + countdown 10s per gesture
 - [x] pantomine -> remove pink skeleton from camera overlay
 - [x] pantomine is buggy
