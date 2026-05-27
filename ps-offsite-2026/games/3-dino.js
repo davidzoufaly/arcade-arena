@@ -56,6 +56,15 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 3000);
 }
 
+// Solo-dev debug: with ?debug in the URL, hold keys 0-8 to force palm count
+// (keyup clears it, so each press re-triggers a jump like raising/lowering hands).
+const DEBUG = new URLSearchParams(location.search).has('debug');
+let debugPalms = null;
+if (DEBUG) {
+  window.addEventListener('keydown', (e) => { if (e.key >= '0' && e.key <= '8') debugPalms = Number(e.key); });
+  window.addEventListener('keyup', (e) => { if (e.key >= '0' && e.key <= '8') debugPalms = null; });
+}
+
 // Pre-build 8 palm pips
 const palmDotsEl = $('palmDots');
 for (let i = 0; i < 8; i++) {
@@ -139,7 +148,7 @@ phaseEnter.play = () => {
     const palms = hands.filter(isPalmOpen).length;
     g.palmWindow.push(palms);
     if (g.palmWindow.length > PALM_COUNT_WINDOW) g.palmWindow.shift();
-    const eff = Math.max(0, ...g.palmWindow);
+    const eff = (DEBUG && debugPalms !== null) ? debugPalms : Math.max(0, ...g.palmWindow);
     const fist = hands.some(isFist);
     updatePalmHud(eff);
     return { eff, fist };
