@@ -12,6 +12,7 @@ import {
   MAX_OBSTACLES, ATTEMPT_CAP_S, PALM_COUNT_WINDOW,
   palmCountToJumpStrength, scoreAttempt, finalScore,
 } from '../shared/dino-logic.js';
+import { warmupSecondsLeft } from '../shared/warmup-logic.js';
 
 mountTopbar({ activePage: 'games' });
 const session = resolveSession();
@@ -130,7 +131,8 @@ phaseEnter.play = () => {
   const g = {
     y: GROUND_Y - RUNNER_H, vy: 0, ducking: false,
     meters: 0, score: 0, obs: [], spawnTimer: 0, runPhase: 0,
-    palmWindow: [], lastEff: 0, startMs: performance.now(),
+    palmWindow: [], lastEff: 0,
+    warming: true, warmStartMs: performance.now(), startMs: 0,
   };
 
   let rafId = null, cancelled = false, prevTs = performance.now(), hiddenAt = 0;
@@ -142,7 +144,13 @@ phaseEnter.play = () => {
 
   const onVis = () => {
     if (document.hidden) hiddenAt = performance.now();
-    else if (hiddenAt) { g.startMs += performance.now() - hiddenAt; hiddenAt = 0; prevTs = performance.now(); }
+    else if (hiddenAt) {
+      const delta = performance.now() - hiddenAt;
+      if (g.warming) g.warmStartMs += delta;   // pause the warmup countdown
+      else g.startMs += delta;                 // pause the scored clock
+      hiddenAt = 0;
+      prevTs = performance.now();
+    }
   };
   document.addEventListener('visibilitychange', onVis);
 
@@ -173,7 +181,7 @@ phaseEnter.play = () => {
     if (rafId) cancelAnimationFrame(rafId);
     track?.removeEventListener('ended', onEnded);
     document.removeEventListener('visibilitychange', onVis);
-    const timeSec = (performance.now() - g.startMs) / 1000;
+    const timeSec = g.startMs ? (performance.now() - g.startMs) / 1000 : 0;
     const score = scoreAttempt({ completed: g.score, timeSec });
     state.attempts.push({ score, completed: g.score, timeSec, died, msg });
     goto('attempt-end');
@@ -190,13 +198,15 @@ phaseEnter.play = () => {
     if (g.y + RUNNER_H > GROUND_Y) { g.y = GROUND_Y - RUNNER_H; g.vy = 0; }
 
     const speed = Math.min(9, 4 + g.meters * 0.02);
-    g.meters += speed * 0.06 * dt;
+    if (!g.warming) g.meters += speed * 0.06 * dt;
     g.runPhase += 0.3 * dt;
 
-    g.spawnTimer -= dt;
-    if (g.spawnTimer <= 0) {
-      spawnObstacle();
-      g.spawnTimer = Math.max(60, 110 - g.meters * 0.3) + Math.random() * 30;
+    if (!g.warming) {
+      g.spawnTimer -= dt;
+      if (g.spawnTimer <= 0) {
+        spawnObstacle();
+        g.spawnTimer = Math.max(60, 110 - g.meters * 0.3) + Math.random() * 30;
+      }
     }
 
     for (const o of g.obs) {
@@ -261,6 +271,18 @@ phaseEnter.play = () => {
     drawRunner();
   }
 
+  function drawWarmupBanner(secondsLeft) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = css('--accent');
+    ctx.font = 'bold 34px system-ui, sans-serif';
+    ctx.fillText('WARM UP · practice!', CANVAS_W / 2, 70);
+    ctx.fillStyle = css('--text');
+    ctx.font = '22px system-ui, sans-serif';
+    ctx.fillText(`obstacles in ${secondsLeft}`, CANVAS_W / 2, 104);
+    ctx.restore();
+  }
+
   function loop() {
     if (cancelled) return;
     const now = performance.now();
@@ -273,6 +295,24 @@ phaseEnter.play = () => {
       fpsFrames = 0; fpsLast = now;
       if (fps < 40) { slowTicks++; if (slowTicks >= 3) { showToast('Low frame rate — moves may feel slow'); slowTicks = 0; } }
       else slowTicks = 0;
+    }
+
+    if (g.warming) {
+      const left = warmupSecondsLeft((now - g.warmStartMs) / 1000);
+      if (left <= 0) {
+        // Transition to live play this same frame; falls through below.
+        g.warming = false;
+        g.startMs = now;
+        g.spawnTimer = 0;
+      } else {
+        $('timerLabel').textContent = 'WARM UP';
+        step(dt);
+        if (cancelled) return;
+        draw();
+        drawWarmupBanner(left);
+        rafId = requestAnimationFrame(loop);
+        return;
+      }
     }
 
     const elapsed = (now - g.startMs) / 1000;
