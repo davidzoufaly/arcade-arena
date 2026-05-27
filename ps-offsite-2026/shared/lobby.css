@@ -164,21 +164,22 @@
   gap: 16px;
 }
 .team-picker {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 8px;
 }
 .team-picker label.team-option {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 8px;
+  padding: 8px 12px;
   background: var(--bg-2);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 10px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   text-transform: none;
   letter-spacing: 0;
 }
 .team-picker label.team-option input { width: auto; }
+.team-picker label.team-admin-option { grid-column: 1 / -1; }

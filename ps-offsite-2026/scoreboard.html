@@ -48,10 +48,15 @@
     background-clip: text;
     color: transparent;
   }
+  .head-left {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+  }
   header .subtitle {
     font-size: 13px;
     color: var(--muted);
-    margin-top: 2px;
   }
   .controls {
     display: flex;
@@ -92,7 +97,7 @@
   }
   .matrix-row {
     display: grid;
-    grid-template-columns: 56px minmax(180px, 1fr) repeat(10, 84px) 132px;
+    grid-template-columns: 56px minmax(120px, 0.6fr) repeat(10, 84px) 132px;
     align-items: center;
     padding: 14px 20px;
     border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -232,7 +237,6 @@
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    margin-top: 6px;
     font-size: 12px;
     font-weight: 600;
     color: var(--good);
@@ -257,7 +261,7 @@
   }
 
   .empty {
-    padding: 20px 40px;
+    padding: 10px 40px;
     text-align: center;
     color: var(--muted);
   }
@@ -294,7 +298,7 @@
 </head>
 <body>
 <header>
-  <div>
+  <div class="head-left">
     <h1>Scoreboard</h1>
     <div class="subtitle" id="subtitle">11 games · one winner</div>
     <div class="live-status" id="liveStatus">

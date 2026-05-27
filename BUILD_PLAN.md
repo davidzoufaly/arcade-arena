@@ -1,7 +1,7 @@
-- [] pantomine is buggy
 - [] v češtině popsat jak celá appka a jednotlivé věci fungují
-- [] add some dry run to flappy and dino -> just test the mechanics -> no barriers 
 - [] unlocking games by admin for specific team -> verify
+- [] gesture lock -> more rounds
+- [x] pantomine is buggy
 - [x] move our two games to ps-offsite-2026 (files and folders)
 - [x] through our existing git repo, use only the fork repo
 - [x] plug it into UI
