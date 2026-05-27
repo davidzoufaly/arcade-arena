@@ -293,7 +293,7 @@
 
 <main>
   <div class="card briefing" id="briefing">
-    <strong>Goal:</strong> Match each target pose with your body. The system overlays a <strong>ghost skeleton</strong> on the video so you can see what to aim for. Each pose has multiple checks — get every check above 85 %, then <strong>hold the pose still</strong> for the required time (1.2 s easy, 1.5 s medium, 2 s hard). Wobbling resets the hold timer.
+    <strong>Goal:</strong> Match each target pose with your body. The <strong>reference pose</strong> is shown beside the video so you can see what to aim for. Each pose has multiple checks — get every check above 85 %, then <strong>hold the pose still</strong> for the required time (1.2 s easy, 1.5 s medium, 2 s hard). Wobbling resets the hold timer.
     <br><br>
     <strong>8 poses per run — the last 2 need a partner</strong> (two people in frame). 25 s per pose. Run out of time = pose is skipped (zero points). Players take turns — one person poses each round, the rest direct.
   </div>
@@ -476,27 +476,6 @@ function renderRefSvg(pose) {
   svg.innerHTML = refToSvg(ref, idMap, idMap);
 }
 
-function drawGhostOverlay(ref) {
-  const canvas = document.getElementById('overlay');
-  const ctx = canvas.getContext('2d');
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255, 0, 170, 0.7)';
-  ctx.lineWidth = 5;
-  ctx.lineCap = 'round';
-  for (const [a, b] of SKEL_LINES) {
-    const pa = ref[a], pb = ref[b];
-    ctx.beginPath();
-    ctx.moveTo(pa.x * canvas.width, pa.y * canvas.height);
-    ctx.lineTo(pb.x * canvas.width, pb.y * canvas.height);
-    ctx.stroke();
-  }
-  const head = ref.nose;
-  ctx.beginPath();
-  ctx.arc(head.x * canvas.width, head.y * canvas.height - 14, 18, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-}
-
 const HOLD_MS_BY_DIFFICULTY = { easy: 1200, medium: 1500, hard: 2000, duo: 1500 };
 const SIM_THRESHOLD = 0.85; // tighter than before
 const STABILITY_MAX_DRIFT = 0.025; // max landmark drift over recent window — anything more = wobble
@@ -665,10 +644,6 @@ function drawSkeleton(result) {
   const canvas = document.getElementById('overlay');
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (stepIndex < POSES.length && (POSES[stepIndex].people ?? 1) === 1) {
-    drawGhostOverlay(POSES[stepIndex].ref);
-  }
 
   if (!result.landmarks || !result.landmarks[0]) return;
   const drawingUtils = new DrawingUtils(ctx);
