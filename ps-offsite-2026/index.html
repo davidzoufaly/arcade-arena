@@ -219,6 +219,7 @@ async function revealTeamPicker(lobbyId) {
       const isAdmin = document.querySelector('input[name="teamPick"]:checked')?.value === '__admin__';
       $('joinPwdLabel').textContent = isAdmin ? 'Admin password' : 'Team password';
     };
+    $('joinPwdLabel').textContent = 'Team password';
     $('teamPicker').hidden = false;
     $('joinFinalBtn').onclick = () => doJoin(lobbyId);
   } catch (e) {
