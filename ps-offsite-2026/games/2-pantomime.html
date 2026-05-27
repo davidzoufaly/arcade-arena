@@ -401,6 +401,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/fireba
 import { getDatabase, ref, update, push, get } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from '../firebase-config.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
+import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 
 mountTopbar({ activePage: 'games' });
 const _session = resolveSession();
@@ -833,13 +834,24 @@ phaseEnter.final = () => {
   link.href = catalogHref;
   status.className = 'save-status';
   status.textContent = 'SAVING…';
-  const attempt = () => submitScore({
-    writer, lobbyId: session.lobbyId, teamId, gameKey: GAME_CODE, score: final,
-  });
+  const attempt = async () => {
+    if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId, gameKey: GAME_CODE })) {
+      const err = new Error('locked'); err.locked = true; throw err;
+    }
+    return submitScore({
+      writer, lobbyId: session.lobbyId, teamId, gameKey: GAME_CODE, score: final,
+    });
+  };
   attempt().then(() => {
     status.className = 'save-status ok';
     status.textContent = 'SAVED ✓';
   }).catch(e => {
+    if (e.locked) {
+      status.className = 'save-status bad';
+      status.textContent = 'LOCKED — score not saved';
+      status.onclick = null;
+      return;
+    }
     console.error('submit failed', e);
     status.className = 'save-status bad';
     status.textContent = 'FAILED — TAP TO RETRY';
@@ -895,6 +907,10 @@ async function boot() {
       const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${teamId}/${GAME_CODE}`));
       if (snap.exists()) { enterAlreadyPlayed(snap.val()); return; }
     } catch (e) { console.error('score check failed', e); }
+    if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId, gameKey: GAME_CODE })) {
+      renderLockedScreen(catalogHref);
+      return;
+    }
   }
   goto('setup');
 }

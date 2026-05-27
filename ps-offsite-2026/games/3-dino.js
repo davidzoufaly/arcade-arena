@@ -7,6 +7,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/fireba
 import { getDatabase, ref, update, push, get } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from '../firebase-config.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
+import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import {
   MAX_OBSTACLES, ATTEMPT_CAP_S, PALM_COUNT_WINDOW,
   palmCountToJumpStrength, scoreAttempt, finalScore,
@@ -327,13 +328,24 @@ phaseEnter.final = () => {
   $('finalReturnLink').href = catalogHref;
   status.className = 'save-status';
   status.textContent = 'SAVING…';
-  const trySubmit = () => submitScore({
-    writer, lobbyId: session?.lobbyId, teamId: state.teamId, gameKey: GAME_CODE, score,
-  });
+  const trySubmit = async () => {
+    if (await isGameLockedFor({ db, ref, get, lobbyId: session?.lobbyId, teamId: state.teamId, gameKey: GAME_CODE })) {
+      const err = new Error('locked'); err.locked = true; throw err;
+    }
+    return submitScore({
+      writer, lobbyId: session?.lobbyId, teamId: state.teamId, gameKey: GAME_CODE, score,
+    });
+  };
   trySubmit().then(() => {
     status.className = 'save-status ok';
     status.textContent = 'SAVED ✓';
   }).catch(e => {
+    if (e.locked) {
+      status.className = 'save-status bad';
+      status.textContent = 'LOCKED — score not saved';
+      status.onclick = null;
+      return;
+    }
     console.error('submit failed', e);
     status.className = 'save-status bad';
     status.textContent = 'FAILED — TAP TO RETRY';
@@ -376,6 +388,10 @@ async function boot() {
       const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${state.teamId}/${GAME_CODE}`));
       if (snap.exists()) { enterAlreadyPlayed(snap.val()); return; }
     } catch (e) { console.error('score check failed', e); }
+    if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId: state.teamId, gameKey: GAME_CODE })) {
+      renderLockedScreen(catalogHref);
+      return;
+    }
   }
   goto('setup');
 }

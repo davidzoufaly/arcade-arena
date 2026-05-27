@@ -67,6 +67,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/fireba
 import { getDatabase, ref, get, update, push } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from '../firebase-config.js';
 import { resolveSession } from '../shared/lobby.js';
+import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import { mountTopbar } from '../shared/topbar.js';
 import { getGame } from '../shared/games-catalog.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
@@ -148,6 +149,11 @@ async function render() {
     banner.className = '';
     banner.textContent = '';
     try {
+      if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: key })) {
+        banner.className = 'banner bad';
+        banner.textContent = 'Locked — score not saved.';
+        return;
+      }
       const saved = await submitScore({
         writer, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: key, score: raw,
       });
@@ -162,7 +168,13 @@ async function render() {
   });
 }
 
-render();
+(async () => {
+  if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: key })) {
+    renderLockedScreen(catalogHref);
+    return;
+  }
+  render();
+})();
 </script>
 </body>
 </html>
