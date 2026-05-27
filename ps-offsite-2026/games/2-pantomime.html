@@ -712,6 +712,9 @@ function handlePose(result) {
     const lm = primaryBody(bodies);
     if (!bodyVisible(lm)) {
       document.getElementById('hint').textContent = 'Move so your full body is visible';
+      document.getElementById('simFill').style.width = '0%';
+      document.getElementById('simText').textContent = '—';
+      holdStart = 0;
       return;
     }
     document.getElementById('hint').textContent = '✓ Full body detected';
