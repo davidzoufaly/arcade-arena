@@ -142,14 +142,29 @@ describe('POSE_POOL', () => {
 import { samplePoses } from '../ps-offsite-2026/shared/pantomime-logic.js';
 
 describe('samplePoses', () => {
-  it('default mix returns 7 poses (2 easy + 3 medium + 2 hard)', () => {
+  it('default mix returns 8 poses (2 easy + 2 medium + 2 hard + 2 duo)', () => {
     const sample = samplePoses(POSE_POOL);
-    expect(sample).toHaveLength(7);
+    expect(sample).toHaveLength(8);
     const tiers = sample.reduce((acc, p) => {
       acc[p.difficulty] = (acc[p.difficulty] || 0) + 1;
       return acc;
     }, {});
-    expect(tiers).toEqual({ easy: 2, medium: 3, hard: 2 });
+    expect(tiers).toEqual({ easy: 2, medium: 2, hard: 2, duo: 2 });
+  });
+
+  it('the two duo poses are always last', () => {
+    for (let i = 0; i < 10; i++) {
+      const sample = samplePoses(POSE_POOL);
+      expect(sample[6].people).toBe(2);
+      expect(sample[7].people).toBe(2);
+      // all earlier poses are solo
+      for (let k = 0; k < 6; k++) expect(sample[k].people ?? 1).toBe(1);
+    }
+  });
+
+  it('throws if duo tier under-resourced', () => {
+    expect(() => samplePoses(POSE_POOL, { easy: 1, medium: 1, hard: 1, duo: 5 }))
+      .toThrow(/not enough duo poses/);
   });
 
   it('custom mix returns matching counts', () => {

@@ -706,10 +706,11 @@ function shuffle(arr) {
   return copy;
 }
 
-export function samplePoses(pool, mix = { easy: 2, medium: 3, hard: 2 }) {
+export function samplePoses(pool, mix = { easy: 2, medium: 2, hard: 2, duo: 2 }) {
   const byTier = { easy: [], medium: [], hard: [], duo: [] };
   for (const p of pool) byTier[p.difficulty].push(p);
   const out = [];
+  // Solo tiers first, in escalating order.
   for (const tier of ['easy', 'medium', 'hard']) {
     const n = mix[tier] || 0;
     if (byTier[tier].length < n) {
@@ -717,6 +718,12 @@ export function samplePoses(pool, mix = { easy: 2, medium: 3, hard: 2 }) {
     }
     out.push(...shuffle(byTier[tier]).slice(0, n));
   }
+  // Duo poses appended last (the climax).
+  const nDuo = mix.duo || 0;
+  if (byTier.duo.length < nDuo) {
+    throw new Error(`not enough duo poses: have ${byTier.duo.length}, need ${nDuo}`);
+  }
+  out.push(...shuffle(byTier.duo).slice(0, nDuo));
   return out;
 }
 
