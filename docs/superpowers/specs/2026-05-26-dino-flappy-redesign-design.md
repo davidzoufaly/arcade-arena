@@ -27,7 +27,6 @@ Bring Dino + Flappy in line with the gesture-lock / pantomime platform pattern:
 - `ps-offsite-2026/shared/games-catalog.js` — repoint dino + flappy entries to new paths
 - `ps-offsite-2026/games/manual.html` — update any references to old paths
 - `ps-offsite-2026/shared/vision.js` — see "vision.js changes" below
-- `ps-offsite-2026/shared/audio.js` — see "audio.js changes" below
 - `BUILD_PLAN.md` — tick the "Dino a Flappy" bullet + sub-bullets (line number may drift; locate by text)
 
 ### Deleted (after verification)
@@ -37,6 +36,7 @@ Bring Dino + Flappy in line with the gesture-lock / pantomime platform pattern:
 
 ### Retained (unchanged)
 - `ps-offsite-2026/shared/admin-gate.js`, `lobby.js`, `topbar.js`, `score-submit.js`
+- `ps-offsite-2026/shared/audio.js` (already parameterised — flappy passes `{ smoothing: 0.7 }`)
 - `ps-offsite-2026/shared/perms.js` (new dino imports `showDenialModal` from here — NOT vision.js / audio.js)
 
 ### vision.js changes
@@ -46,8 +46,8 @@ Current `createHandTracker` is hardcoded `numHands: 4` and an internal 33ms thro
 - Replace `ts - lastTs > 33` with `ts - lastTs >= minRunMs` (default `0` = every RAF). Existing call sites pass no options → unchanged behaviour. New dino passes `{ numHands: 8, minRunMs: 0 }`.
 - `createCamStream` likewise accepts `{ width, height }` (defaults 640x480 — current). Dino passes `{ width: 480, height: 360 }`.
 
-### audio.js changes
-- `createAudioInput` accepts higher `smoothing` (default stays 0.4). Flappy passes `smoothing: 0.7` (less lag, slightly noisier). No other call-site changes.
+### audio.js — no change needed
+`createAudioInput` already accepts `{ smoothing = 0.4 }` (audio.js:41). Flappy just calls `createAudioInput({ smoothing: 0.7 })`. No edit to audio.js.
 
 ## Phase Machine (both games)
 
@@ -83,8 +83,9 @@ Cam/mic stream opened once in `loading`, persisted across attempts. Released onl
 All games must handle (modelled on gesture-lock `1-gesture-lock.html:707`):
 
 - **`visibilitychange`**: when `document.hidden` becomes true during `play`, pause the RAF + freeze the attempt timer; resume on return. Mirror gesture-lock's `hiddenAt` pattern.
-- **Mic / cam stream ends mid-game** (`stream.getTracks()[0].onended`): treat as instant attempt-end with `died: true`, completed = current score, advance to `attempt-end` with a "Camera/microphone disconnected" message in `attemptResultTitle`.
-- **Permission revoked mid-game**: same as stream-ended.
+- **Cam stream ends mid-game** (dino): `stream.getVideoTracks()[0].addEventListener('ended', …)` → instant attempt-end with `died: true`, completed = current score, "📷 Camera disconnected" in `attemptResultTitle`.
+- **Mic stream ends mid-game** (flappy): `createAudioInput` does not expose the underlying track and we're not changing audio.js, so there is no explicit `ended` hook. This degrades gracefully on its own: amplitude reads 0 → orb sinks → hits the floor → normal crash ends the attempt. No hang. Acceptable; documented rather than handled explicitly.
+- **Permission revoked mid-game**: dino → same as cam-ended; flappy → same as mic-ended (graceful sink).
 - **Low FPS fallback**: a 1Hz EMA of frame-time runs continuously during `play`. If the EMA exceeds 25ms (i.e. < 40 FPS) for 3 consecutive ticks, log a warning to console and surface a "Low frame rate — moves may feel slow" toast. Mid-game `numHands` swap is OUT OF SCOPE for this pass (requires re-creating the tracker which is expensive). Document as a follow-up.
 
 These handlers live in the page module, not in `dino-logic.js` / `flappy-logic.js` (which stay pure).
