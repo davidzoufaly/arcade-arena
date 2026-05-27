@@ -189,6 +189,17 @@
     font-variant-numeric: tabular-nums;
   }
   .cell-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,0.25); }
+  .lock-btn {
+    background: transparent; border: none; cursor: pointer;
+    font-size: 14px; line-height: 1; padding: 2px 4px; margin-top: 4px;
+    opacity: 0.85;
+  }
+  .lock-btn:hover { opacity: 1; transform: scale(1.12); }
+  .cell-game.edit.locked .cell-input { border-color: rgba(255,77,109,0.6); box-shadow: inset 0 0 0 1px rgba(255,77,109,0.22); }
+  .cell-game.edit.unlocked .cell-input { border-color: rgba(0,230,118,0.55); }
+  .matrix-head .cell-game.lk-locked { color: #ff4d6d; }
+  .matrix-head .cell-game.lk-unlocked { color: var(--good); }
+  .lock-all { white-space: nowrap; }
   .cell-total {
     text-align: right;
     font-size: 32px;
@@ -323,6 +334,10 @@ import { GAMES, allEnteredKeys } from './shared/games-catalog.js';
 import { rankPointsByTeam } from './shared/ranking.js';
 import { requireAdmin } from './shared/admin-gate.js';
 import { getSession, isAdminSession } from './shared/lobby.js';
+import {
+  resolveLock, resolveGameLock, resolveAllLock,
+  toggleAll, toggleGame, toggleCell,
+} from './shared/game-lock.js';
 
 const lobbyId = new URLSearchParams(location.search).get('lobby');
 if (!lobbyId) {
@@ -353,6 +368,10 @@ let initialized = false;
 let editing = false;
 let lastUpdate = null;
 let connected = true;
+let locks = null;            // latest live lock node
+let lockDraft = null;        // editable clone while editing
+let pendingScores = null;    // {teamId: {gameKey: typedValue}} preserved across re-renders
+let locksDirty = false;      // only write /locks on Save if a toggle changed it
 
 function snapshotToState(snap) {
   const root = snap.val() ?? {};
@@ -370,6 +389,7 @@ function snapshotToState(snap) {
 onValue(ref(db, LOBBY_PATH), snap => {
   lastUpdate = Date.now();
   renderLiveStatus();
+  locks = snap.val()?.locks ?? null;
   state = snapshotToState(snap);
   const leader = computeLeader();
   const leaderId = leader?.id ?? null;
@@ -411,29 +431,67 @@ function renderControls() {
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = 'Cancel';
     cancelBtn.addEventListener('click', cancelEdits);
-    controls.append(saveBtn, cancelBtn);
-  } else {
-    const editBtn = document.createElement('button');
-    editBtn.textContent = 'Edit';
-    editBtn.addEventListener('click', startEdits);
+    const allBtn = document.createElement('button');
+    allBtn.className = 'lock-all';
+    allBtn.textContent = resolveAllLock(lockDraft) === 'locked' ? 'Unlock all' : 'Lock all';
+    allBtn.addEventListener('click', () => {
+      captureScoreInputs();
+      toggleAll(lockDraft);
+      locksDirty = true;
+      renderControls();
+      render();
+    });
     const resetBtn = document.createElement('button');
     resetBtn.className = 'danger';
     resetBtn.textContent = 'Reset';
     resetBtn.addEventListener('click', resetAll);
-    controls.append(editBtn, resetBtn);
+    controls.append(saveBtn, cancelBtn, allBtn, resetBtn);
+  } else {
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', startEdits);
+    controls.append(editBtn);
   }
 }
 
 function startEdits() {
   editing = true;
+  lockDraft = locks ? JSON.parse(JSON.stringify(locks)) : {};
+  pendingScores = {};
+  locksDirty = false;
   renderControls();
   render();
 }
 
 function cancelEdits() {
   editing = false;
+  lockDraft = null;
+  pendingScores = null;
+  locksDirty = false;
   renderControls();
   render();
+}
+
+// Snapshot current score inputs so a lock-toggle re-render doesn't lose typing.
+function captureScoreInputs() {
+  pendingScores ??= {};
+  for (const el of document.querySelectorAll('.cell-input')) {
+    (pendingScores[el.dataset.team] ??= {})[el.dataset.game] = el.value;
+  }
+}
+
+// Wire lock toggle buttons after each editing render (innerHTML wipes listeners).
+function wireLockButtons() {
+  for (const btn of document.querySelectorAll('.lock-btn')) {
+    btn.addEventListener('click', () => {
+      captureScoreInputs();
+      const g = btn.dataset.game;
+      if (btn.dataset.team !== undefined) toggleCell(lockDraft, g, Number(btn.dataset.team));
+      else toggleGame(lockDraft, g);
+      locksDirty = true;
+      render();
+    });
+  }
 }
 
 async function saveEdits() {
@@ -455,7 +513,11 @@ async function saveEdits() {
     writes.push([path, n]);
   }
   for (const [path, val] of writes) await set(ref(db, path), val);
+  if (locksDirty) await set(ref(db, `${LOBBY_PATH}/locks`), lockDraft);
   editing = false;
+  lockDraft = null;
+  pendingScores = null;
+  locksDirty = false;
   renderControls();
   render();
 }
@@ -529,6 +591,12 @@ function render() {
     const closed = submittedByGame[g] === teamCount && teamCount > 0;
     const cls = closed ? 'closed' : 'open';
     const label = closed ? 'closed' : `open ${submittedByGame[g]}/${teamCount}`;
+    if (editing) {
+      const gs = resolveGameLock(lockDraft, g);
+      const icon = gs === 'locked' ? '🔒' : '🔓';
+      const title = gs === 'locked' ? 'Locked for all teams — click to unlock' : 'Unlocked for all teams — click to lock';
+      return `<div class="cell-game ${cls} lk-${gs}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span><br><button class="lock-btn" data-game="${g}" title="${title}">${icon}</button></div>`;
+    }
     return `<div class="cell-game ${cls}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span></div>`;
   }).join('');
   const head = `
@@ -547,7 +615,12 @@ function render() {
     const cells = gameKeys.map(g => {
       const v = t.scores[g];
       if (editing) {
-        return `<div class="cell-game edit"><input class="cell-input" type="number" min="0" step="1" inputmode="numeric" data-team="${t.id}" data-game="${g}" value="${v ?? ''}" placeholder="-"></div>`;
+        const cs = resolveLock(lockDraft, g, t.id);
+        const icon = cs === 'locked' ? '🔒' : '🔓';
+        const title = cs === 'locked' ? 'Locked for this team — click to unlock' : 'Unlocked for this team — click to lock';
+        const typed = pendingScores?.[String(t.id)]?.[g];
+        const val = typed !== undefined ? typed : (v ?? '');
+        return `<div class="cell-game edit ${cs}"><input class="cell-input" type="number" min="0" step="1" inputmode="numeric" data-team="${t.id}" data-game="${g}" value="${val}" placeholder="-"><button class="lock-btn" data-game="${g}" data-team="${t.id}" title="${title}">${icon}</button></div>`;
       }
       if (v === undefined) {
         return `<div class="cell-game empty">-</div>`;
@@ -572,6 +645,7 @@ function render() {
   }).join('');
 
   list.innerHTML = head + rows;
+  if (editing) wireLockButtons();
   document.getElementById('subtitle').textContent = editing
     ? `Editing raw scores · clear a cell to remove · Save to apply`
     : `Lobby ${lobbyId} · ${state.teams.length} teams · ${state.history.length} submissions`;
