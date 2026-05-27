@@ -109,6 +109,19 @@ export function isFist(hand) {
   return tips.every((t, i) => hand[t].y > hand[pips[i]].y);
 }
 
+// The resting "ready" pose: a victory / V sign ✌️ — index + middle extended,
+// ring + pinky curled. Same crisp tip-vs-knuckle y-test as palm/fist, so it
+// reads reliably (unlike a foreshortened hand pointed at the lens). Mutually
+// exclusive with palm (ring/pinky must be down) and fist (index/middle must be
+// up). Disarms the jump (not an open palm) without ducking (not a fist).
+export function isVictorySign(hand) {
+  if (!hand) return false;
+  const up = [[8, 6], [12, 10]];     // index, middle: tip above pip
+  const down = [[16, 14], [20, 18]]; // ring, pinky: tip below pip
+  return up.every(([t, p]) => hand[t].y < hand[p].y)
+      && down.every(([t, p]) => hand[t].y > hand[p].y);
+}
+
 export function isArmOverhead(hand) {
   if (!hand || !hand[0]) return false;
   return hand[0].y < 0.3; // wrist in upper third of frame

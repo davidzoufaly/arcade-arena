@@ -1,4 +1,4 @@
-import { createCamStream, createHandTracker, isPalmOpen, isFist } from '../shared/vision.js';
+import { createCamStream, createHandTracker, isPalmOpen, isFist, isVictorySign } from '../shared/vision.js';
 import { showDenialModal } from '../shared/perms.js';
 import { mountTopbar } from '../shared/topbar.js';
 import { resolveSession } from '../shared/lobby.js';
@@ -9,8 +9,9 @@ import { firebaseConfig } from '../firebase-config.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import {
-  MAX_OBSTACLES, ATTEMPT_CAP_S, PALM_COUNT_WINDOW,
+  PALM_COUNT_WINDOW,
   palmCountToJumpStrength, scoreAttempt, finalScore,
+  runSpeed, spawnIntervalFrames, highObstacleProb,
 } from '../shared/dino-logic.js';
 import { warmupSecondsLeft } from '../shared/warmup-logic.js';
 
@@ -27,7 +28,7 @@ const GAME_CODE = 'DN';
 const MAX_ATTEMPTS = 3;
 const CANVAS_W = 960, CANVAS_H = 540;
 const GROUND_Y = Math.round(CANVAS_H * 0.78);
-const RUNNER_X = 240, RUNNER_W = 30, RUNNER_H = 60;
+const RUNNER_X = 240, RUNNER_W = 30, RUNNER_H = 60, LEG_LEN = 10;
 const GRAVITY = 0.8;
 
 const PHASES = ['setup', 'loading', 'intro', 'play', 'attempt-end', 'final'];
@@ -82,6 +83,16 @@ function updatePalmHud(n) {
   $('jumpFill').style.width = `${(palmCountToJumpStrength(n) / 20) * 100}%`;
 }
 
+// Live control-state chip so players see jump-armed vs ducking vs ready.
+function updatePoseHud(eff, fist, ready) {
+  const el = $('poseState');
+  if (!el) return;
+  if (fist) { el.textContent = '✊ DUCK'; el.className = 'pose-state duck'; }
+  else if (eff > 0) { el.textContent = `✋ JUMP ×${eff}`; el.className = 'pose-state jump'; }
+  else if (ready) { el.textContent = '✌️ READY'; el.className = 'pose-state ready'; }
+  else { el.textContent = 'SHOW HANDS'; el.className = 'pose-state'; }
+}
+
 // SETUP
 $('startBtn').addEventListener('click', () => {
   state.attempts = [];
@@ -119,20 +130,35 @@ phaseEnter.intro = () => {
 // PLAY
 phaseEnter.play = () => {
   const canvas = $('dinoCanvas');
-  canvas.width = CANVAS_W;
-  canvas.height = CANVAS_H;
   const ctx = canvas.getContext('2d');
+  // Size the backing store to the on-screen size × DPR so the canvas stays
+  // crisp on HiDPI / upscaled displays, then scale the context so all drawing
+  // keeps using the 960×540 logical coordinate space.
+  (function sizeCanvas() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.round((rect.width || CANVAS_W) * dpr);
+    canvas.height = Math.round((rect.height || CANVAS_H) * dpr);
+    ctx.setTransform(canvas.width / CANVAS_W, 0, 0, canvas.height / CANVAS_H, 0, 0);
+  })();
   $('camPreview').srcObject = state.stream;
 
-  $('scoreLabel').textContent = `0 / ${MAX_OBSTACLES}`;
+  $('scoreLabel').textContent = '0';
   $('attemptLabel').textContent = `${state.attemptIdx + 1} / ${MAX_ATTEMPTS}`;
   $('timerLabel').textContent = '0.0';
 
   const g = {
     y: GROUND_Y - RUNNER_H, vy: 0, ducking: false,
-    meters: 0, score: 0, obs: [], spawnTimer: 0, runPhase: 0,
+    score: 0, obs: [], spawnTimer: 0, runPhase: 0,
     palmWindow: [], lastEff: 0,
     warming: true, warmStartMs: performance.now(), startMs: 0,
+    // Parallax speck field — scrolls with run speed so forward motion reads
+    // even in warmup (no obstacles yet). z = depth → speed, size, brightness.
+    particles: Array.from({ length: 28 }, () => ({
+      x: Math.random() * CANVAS_W,
+      y: Math.random() * GROUND_Y,
+      z: 0.35 + Math.random() * 0.65,
+    })),
   };
 
   let rafId = null, cancelled = false, prevTs = performance.now(), hiddenAt = 0;
@@ -159,14 +185,16 @@ phaseEnter.play = () => {
     const palms = hands.filter(isPalmOpen).length;
     g.palmWindow.push(palms);
     if (g.palmWindow.length > PALM_COUNT_WINDOW) g.palmWindow.shift();
-    const eff = (DEBUG && debugPalms !== null) ? debugPalms : Math.max(0, ...g.palmWindow);
+    const eff = DEBUG ? (debugPalms ?? 0) : Math.max(0, ...g.palmWindow);
     const fist = hands.some(isFist);
+    const ready = hands.some(isVictorySign);
     updatePalmHud(eff);
+    updatePoseHud(eff, fist, ready);
     return { eff, fist };
   }
 
-  function spawnObstacle() {
-    const high = g.score >= 4 && Math.random() < 0.4;
+  function spawnObstacle(elapsedSec) {
+    const high = Math.random() < highObstacleProb(elapsedSec);
     if (high) g.obs.push({ x: CANVAS_W, y: GROUND_Y - 90, w: 36, h: 45, type: 'high' });
     else g.obs.push({ x: CANVAS_W, y: GROUND_Y - 30, w: 28, h: 30, type: 'low' });
   }
@@ -182,12 +210,12 @@ phaseEnter.play = () => {
     track?.removeEventListener('ended', onEnded);
     document.removeEventListener('visibilitychange', onVis);
     const timeSec = g.startMs ? (performance.now() - g.startMs) / 1000 : 0;
-    const score = scoreAttempt({ completed: g.score, timeSec });
+    const score = scoreAttempt({ completed: g.score });
     state.attempts.push({ score, completed: g.score, timeSec, died, msg });
     goto('attempt-end');
   }
 
-  function step(dt) {
+  function step(dt, elapsedSec) {
     const { eff, fist } = readInput();
     const onGround = g.y + RUNNER_H >= GROUND_Y - 0.5;
     if (onGround && eff > 0 && g.lastEff === 0) g.vy = -palmCountToJumpStrength(eff);
@@ -197,15 +225,19 @@ phaseEnter.play = () => {
     g.y += g.vy * dt;
     if (g.y + RUNNER_H > GROUND_Y) { g.y = GROUND_Y - RUNNER_H; g.vy = 0; }
 
-    const speed = Math.min(9, 4 + g.meters * 0.02);
-    if (!g.warming) g.meters += speed * 0.06 * dt;
+    const speed = runSpeed(elapsedSec);
     g.runPhase += 0.3 * dt;
+
+    for (const p of g.particles) {
+      p.x -= speed * p.z * dt;
+      if (p.x < -2) { p.x = CANVAS_W + Math.random() * 40; p.y = Math.random() * GROUND_Y; }
+    }
 
     if (!g.warming) {
       g.spawnTimer -= dt;
       if (g.spawnTimer <= 0) {
-        spawnObstacle();
-        g.spawnTimer = Math.max(60, 110 - g.meters * 0.3) + Math.random() * 30;
+        spawnObstacle(elapsedSec);
+        g.spawnTimer = spawnIntervalFrames(elapsedSec) + Math.random() * 30;
       }
     }
 
@@ -213,9 +245,8 @@ phaseEnter.play = () => {
       o.x -= speed * dt;
       if (!o.passed && o.x + o.w < RUNNER_X) {
         o.passed = true;
-        g.score = Math.min(MAX_OBSTACLES, g.score + 1);
-        $('scoreLabel').textContent = `${g.score} / ${MAX_OBSTACLES}`;
-        if (g.score >= MAX_OBSTACLES) { endAttempt(false); return; }
+        g.score += 1;
+        $('scoreLabel').textContent = `${g.score}`;
       }
     }
     g.obs = g.obs.filter(o => o.x + o.w > 0);
@@ -228,9 +259,13 @@ phaseEnter.play = () => {
   function drawRunner() {
     const kh = g.ducking ? RUNNER_H * 0.55 : RUNNER_H;
     const top = g.y + (RUNNER_H - kh);
+    // Legs occupy the bottom LEG_LEN of the silhouette so the feet land on
+    // GROUND_Y instead of dangling below it. Ducking = tucked, no legs.
+    const bodyH = g.ducking ? kh : kh - LEG_LEN;
+    const footY = top + kh;
     ctx.fillStyle = css('--text');
     ctx.beginPath();
-    ctx.roundRect(RUNNER_X, top, RUNNER_W, kh, 6);
+    ctx.roundRect(RUNNER_X, top, RUNNER_W, bodyH, 6);
     ctx.fill();
     ctx.fillStyle = css('--accent');
     ctx.beginPath();
@@ -242,17 +277,28 @@ phaseEnter.play = () => {
       ctx.lineWidth = 4;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(RUNNER_X + 8, top + kh);
-      ctx.lineTo(RUNNER_X + 8 - swing, top + kh + 10);
-      ctx.moveTo(RUNNER_X + RUNNER_W - 8, top + kh);
-      ctx.lineTo(RUNNER_X + RUNNER_W - 8 + swing, top + kh + 10);
+      ctx.moveTo(RUNNER_X + 8, top + bodyH);
+      ctx.lineTo(RUNNER_X + 8 - swing, footY);
+      ctx.moveTo(RUNNER_X + RUNNER_W - 8, top + bodyH);
+      ctx.lineTo(RUNNER_X + RUNNER_W - 8 + swing, footY);
       ctx.stroke();
     }
+  }
+
+  function drawParticles() {
+    ctx.fillStyle = css('--accent');
+    for (const p of g.particles) {
+      ctx.globalAlpha = 0.08 + p.z * 0.16;
+      const s = 1 + p.z * 2;
+      ctx.fillRect(p.x, p.y, s, s);
+    }
+    ctx.globalAlpha = 1;
   }
 
   function draw() {
     ctx.fillStyle = css('--bg');
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    drawParticles();
     ctx.strokeStyle = css('--accent');
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -306,7 +352,7 @@ phaseEnter.play = () => {
         g.spawnTimer = 0;
       } else {
         $('timerLabel').textContent = 'WARM UP';
-        step(dt);
+        step(dt, 0);
         if (cancelled) return;
         draw();
         drawWarmupBanner(left);
@@ -317,15 +363,13 @@ phaseEnter.play = () => {
 
     const elapsed = (now - g.startMs) / 1000;
     $('timerLabel').textContent = elapsed.toFixed(1);
-    if (elapsed > ATTEMPT_CAP_S) { endAttempt(false); return; }
 
-    step(dt);
+    step(dt, elapsed);
     if (cancelled) return;
     draw();
     rafId = requestAnimationFrame(loop);
   }
 
-  $('playAbort').onclick = () => endAttempt(true, 'Aborted');
   rafId = requestAnimationFrame(loop);
 
   activeCleanup = () => {
@@ -339,13 +383,9 @@ phaseEnter.play = () => {
 // ATTEMPT-END
 phaseEnter['attempt-end'] = () => {
   const last = state.attempts[state.attempts.length - 1];
-  $('attemptResultTitle').textContent =
-    last.msg ? last.msg
-    : last.completed >= MAX_OBSTACLES ? '🏁 Course cleared!'
-    : '💥 Crashed';
+  $('attemptResultTitle').textContent = last.msg || '💥 Crashed';
   $('attemptCompleted').textContent = last.completed;
   $('attemptTime').textContent = last.timeSec.toFixed(1);
-  $('attemptScoreVal').textContent = last.score;
 
   const attemptsLeft = MAX_ATTEMPTS - state.attempts.length;
   const tryAgain = $('attemptTryAgain');
@@ -360,7 +400,7 @@ phaseEnter.final = () => {
   if (state.tracker) { try { state.tracker.stop(); } catch {} state.tracker = null; }
 
   const score = finalScore(state.attempts);
-  $('finalTitle').textContent = score >= 100 ? '🏆 Perfect run!' : '🏁 Run complete';
+  $('finalTitle').textContent = '🏁 Run complete';
   $('resTeam').textContent = state.teamId;
   $('resScore').textContent = score;
 

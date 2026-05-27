@@ -9,8 +9,9 @@ import { firebaseConfig } from '../firebase-config.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import {
-  MAX_PIPES, ATTEMPT_CAP_S, GAIN, GRAVITY,
-  ampToThrust, scoreAttempt, finalScore,
+  METER_MAX,
+  nextVelocity, scoreAttempt, finalScore,
+  pipeSpeed, pipeSpawnFrames, pipeGap,
 } from '../shared/flappy-logic.js';
 import { warmupSecondsLeft } from '../shared/warmup-logic.js';
 
@@ -26,8 +27,7 @@ const catalogHref = session
 const GAME_CODE = 'FL';
 const MAX_ATTEMPTS = 3;
 const CANVAS_W = 960, CANVAS_H = 540;
-const PIPE_W = 80, GAP_H = 240, ORB_R = 18, ORB_X = 220;
-const METER_MAX = 0.30;
+const PIPE_W = 80, ORB_R = 18, ORB_X = 220;
 const CALIB_MS = 1500;
 
 const PHASES = ['setup', 'loading', 'intro', 'play', 'attempt-end', 'final'];
@@ -70,7 +70,7 @@ $('startBtn').addEventListener('click', () => {
 // LOADING
 phaseEnter.loading = async () => {
   try {
-    if (!state.audio) state.audio = await createAudioInput({ smoothing: 0.7 });
+    if (!state.audio) state.audio = await createAudioInput({ smoothing: 0.85 });
   } catch (e) {
     if (e && (e.name === 'NotAllowedError' || e.name === 'NotFoundError' || e.name === 'NotReadableError')) {
       showDenialModal('microphone');
@@ -92,11 +92,19 @@ phaseEnter.intro = () => {
 // PLAY
 phaseEnter.play = () => {
   const canvas = $('flappyCanvas');
-  canvas.width = CANVAS_W;
-  canvas.height = CANVAS_H;
   const ctx = canvas.getContext('2d');
+  // Size the backing store to the on-screen size × DPR so the canvas stays
+  // crisp on HiDPI / upscaled displays, then scale the context so all drawing
+  // keeps using the 960×540 logical coordinate space.
+  (function sizeCanvas() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.round((rect.width || CANVAS_W) * dpr);
+    canvas.height = Math.round((rect.height || CANVAS_H) * dpr);
+    ctx.setTransform(canvas.width / CANVAS_W, 0, 0, canvas.height / CANVAS_H, 0, 0);
+  })();
 
-  $('scoreLabel').textContent = `0 / ${MAX_PIPES}`;
+  $('scoreLabel').textContent = '0';
   $('attemptLabel').textContent = `${state.attemptIdx + 1} / ${MAX_ATTEMPTS}`;
   $('timerLabel').textContent = '0.0';
 
@@ -137,55 +145,54 @@ phaseEnter.play = () => {
     goto('attempt-end');
   }
 
-  function spawnPipe() {
+  function spawnPipe(elapsedSec) {
+    const gap = pipeGap(elapsedSec);
     const minY = 80;
-    const maxY = CANVAS_H - 80 - GAP_H;
+    const maxY = CANVAS_H - 80 - gap;
     const topH = minY + Math.random() * (maxY - minY);
-    g.pipes.push({ x: CANVAS_W + PIPE_W, topH, passed: false });
+    g.pipes.push({ x: CANVAS_W + PIPE_W, topH, gap, passed: false });
   }
 
   function updateMeter(amp) {
     const pct = Math.max(0, Math.min(100, (amp / METER_MAX) * 100));
-    $('voiceFill').style.height = `${pct}%`;
-    $('floorLine').style.bottom = `${Math.min(100, (g.floor / METER_MAX) * 100)}%`;
+    $('voiceFill').style.width = `${pct}%`;
+    $('floorLine').style.left = `${Math.min(100, (g.floor / METER_MAX) * 100)}%`;
   }
 
-  function step(dt) {
+  function step(dt, elapsedSec) {
     const amp = state.audio.amplitude();
     updateMeter(amp);
-    const thrust = ampToThrust(amp, g.floor);
-    g.vy += GRAVITY * dt;
-    g.vy -= thrust * dt;
-    g.vy = Math.max(-10, Math.min(10, g.vy));
+    // Real-time control: vy chases a sound-driven target speed (no momentum coast).
+    g.vy = nextVelocity(g.vy, amp, g.floor, dt);
     g.y += g.vy * dt;
     // Clamp to the play area: the orb gets stuck against the top/bottom edge
     // instead of failing the attempt. Pipe collisions still end it.
     if (g.y < ORB_R) { g.y = ORB_R; if (g.vy < 0) g.vy = 0; }
     else if (g.y > CANVAS_H - ORB_R) { g.y = CANVAS_H - ORB_R; if (g.vy > 0) g.vy = 0; }
 
-    const speed = Math.min(6, 3 + g.score * 0.12);
+    // Endless difficulty ramps with elapsed time (mirrors dino).
+    const speed = pipeSpeed(elapsedSec);
     g.worldX += speed * dt;
     if (!g.warming) {
       g.spawnTimer -= dt;
-      if (g.spawnTimer <= 0) { spawnPipe(); g.spawnTimer = Math.max(100, 160 - g.score * 2); }
+      if (g.spawnTimer <= 0) { spawnPipe(elapsedSec); g.spawnTimer = pipeSpawnFrames(elapsedSec); }
     }
 
     for (const p of g.pipes) {
       p.x -= speed * dt;
       if (!p.passed && p.x + PIPE_W < ORB_X) {
         p.passed = true;
-        g.score = Math.min(MAX_PIPES, g.score + 1);
-        $('scoreLabel').textContent = `${g.score} / ${MAX_PIPES}`;
-        if (g.score >= MAX_PIPES) { endAttempt(false); return; }
+        g.score += 1;
+        $('scoreLabel').textContent = `${g.score}`;
       }
       const inX = ORB_X + ORB_R > p.x && ORB_X - ORB_R < p.x + PIPE_W;
       if (inX) {
-        const inGap = g.y - ORB_R > p.topH && g.y + ORB_R < p.topH + GAP_H;
+        const inGap = g.y - ORB_R > p.topH && g.y + ORB_R < p.topH + p.gap;
         if (!inGap) { endAttempt(true); return; }
       }
     }
     g.pipes = g.pipes.filter(p => p.x + PIPE_W > 0);
-    g._thrusting = thrust > 0;
+    g._thrusting = g.vy < 0;  // rising → orb pulses bigger
   }
 
   function draw() {
@@ -197,7 +204,7 @@ phaseEnter.play = () => {
       ctx.lineWidth = 2;
       ctx.fillRect(p.x, 0, PIPE_W, p.topH);
       ctx.strokeRect(p.x, 0, PIPE_W, p.topH);
-      const by = p.topH + GAP_H;
+      const by = p.topH + p.gap;
       ctx.fillRect(p.x, by, PIPE_W, CANVAS_H - by);
       ctx.strokeRect(p.x, by, PIPE_W, CANVAS_H - by);
     }
@@ -259,7 +266,7 @@ phaseEnter.play = () => {
         g.spawnTimer = 0;
       } else {
         $('timerLabel').textContent = 'WARM UP';
-        step(dt);
+        step(dt, 0);
         if (cancelled) return;
         draw();
         drawWarmupBanner(left);
@@ -270,15 +277,13 @@ phaseEnter.play = () => {
 
     const elapsed = (now - g.startMs) / 1000;
     $('timerLabel').textContent = elapsed.toFixed(1);
-    if (elapsed > ATTEMPT_CAP_S) { endAttempt(false); return; }
 
-    step(dt);
+    step(dt, elapsed);
     if (cancelled) return;
     draw();
     rafId = requestAnimationFrame(loop);
   }
 
-  $('playAbort').onclick = () => endAttempt(true, 'Aborted');
   rafId = requestAnimationFrame(loop);
 
   activeCleanup = () => {
@@ -292,13 +297,9 @@ phaseEnter.play = () => {
 // ATTEMPT-END
 phaseEnter['attempt-end'] = () => {
   const last = state.attempts[state.attempts.length - 1];
-  $('attemptResultTitle').textContent =
-    last.msg ? last.msg
-    : last.completed >= MAX_PIPES ? '🏁 All gates cleared!'
-    : '💥 Crashed';
+  $('attemptResultTitle').textContent = last.msg ? last.msg : '💥 Crashed';
   $('attemptCompleted').textContent = last.completed;
   $('attemptTime').textContent = last.timeSec.toFixed(1);
-  $('attemptScoreVal').textContent = last.score;
 
   const attemptsLeft = MAX_ATTEMPTS - state.attempts.length;
   const tryAgain = $('attemptTryAgain');
@@ -312,7 +313,7 @@ phaseEnter.final = () => {
   if (state.audio) { try { state.audio.stop(); } catch {} state.audio = null; }
 
   const score = finalScore(state.attempts);
-  $('finalTitle').textContent = score >= 100 ? '🏆 Perfect run!' : '🏁 Run complete';
+  $('finalTitle').textContent = '🏁 Run complete';
   $('resTeam').textContent = state.teamId;
   $('resScore').textContent = score;
 

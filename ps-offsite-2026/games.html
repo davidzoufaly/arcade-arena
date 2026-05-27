@@ -125,7 +125,7 @@ function render() {
     const score = scoresForTeam?.[key];
     const tick = score !== undefined ? '<div class="check" title="Submitted">✓</div>' : '';
     const scoreLine = score !== undefined
-      ? `<div class="score-line">Raw: <strong>${esc(String(score))}</strong></div>`
+      ? `<div class="score-line">Score: <strong>${esc(String(score))}</strong></div>`
       : '';
     const lockBadge = lockedTile ? '<div class="lock-badge" title="Locked by host">🔒</div>' : '';
     const tag2 = `<span class="tile-tag">${tag}</span>`;
