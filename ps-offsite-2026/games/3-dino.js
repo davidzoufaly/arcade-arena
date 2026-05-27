@@ -147,7 +147,7 @@ phaseEnter.play = () => {
 
   function spawnObstacle() {
     const high = g.score >= 4 && Math.random() < 0.4;
-    if (high) g.obs.push({ x: CANVAS_W, y: GROUND_Y - 75, w: 36, h: 45, type: 'high' });
+    if (high) g.obs.push({ x: CANVAS_W, y: GROUND_Y - 90, w: 36, h: 45, type: 'high' });
     else g.obs.push({ x: CANVAS_W, y: GROUND_Y - 30, w: 28, h: 30, type: 'low' });
   }
 

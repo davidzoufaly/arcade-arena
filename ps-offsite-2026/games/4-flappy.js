@@ -113,7 +113,8 @@ phaseEnter.play = () => {
     if (document.hidden) hiddenAt = performance.now();
     else if (hiddenAt) {
       const delta = performance.now() - hiddenAt;
-      if (g.startMs) g.startMs += delta;
+      if (g.calibrating) g.calibStart += delta;
+      else if (g.startMs) g.startMs += delta;
       prevTs = performance.now();
       hiddenAt = 0;
     }
