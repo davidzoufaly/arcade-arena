@@ -146,6 +146,7 @@
   .difficulty.easy { background: rgba(0,230,118,0.15); color: var(--easy); }
   .difficulty.medium { background: rgba(255,216,77,0.15); color: var(--medium); }
   .difficulty.hard { background: rgba(255,77,109,0.15); color: var(--hard); }
+  .difficulty.duo { background: rgba(0,212,255,0.15); color: var(--accent-2); }
 
   .pose-card .name { font-size: 24px; font-weight: 800; margin: 6px 0; }
   .pose-card .desc { font-size: 13px; color: var(--muted); margin: 8px 0 16px; line-height: 1.4; }
@@ -294,7 +295,7 @@
   <div class="card briefing" id="briefing">
     <strong>Goal:</strong> Match each target pose with your body. The system overlays a <strong>ghost skeleton</strong> on the video so you can see what to aim for. Each pose has multiple checks — get every check above 85 %, then <strong>hold the pose still</strong> for the required time (1.2 s easy, 1.5 s medium, 2 s hard). Wobbling resets the hold timer.
     <br><br>
-    <strong>7 poses per run, escalating difficulty.</strong> 25 s per pose. Run out of time = pose is skipped (zero points). Players take turns — one person poses each round, the rest direct.
+    <strong>8 poses per run — the last 2 need a partner</strong> (two people in frame). 25 s per pose. Run out of time = pose is skipped (zero points). Players take turns — one person poses each round, the rest direct.
   </div>
 
   <div id="phase-boot" class="card">
@@ -330,7 +331,7 @@
         <div class="video-wrap" id="videoWrap">
           <video id="video" playsinline autoplay muted></video>
           <canvas id="overlay" class="skel-overlay-canvas"></canvas>
-          <div class="step-badge" id="stepBadge">1 / 7</div>
+          <div class="step-badge" id="stepBadge">1 / 8</div>
           <div class="video-overlay" id="hint">Stand in front of the camera</div>
           <div class="cam-countdown hidden" id="camCountdown"></div>
           <div class="cam-flash" id="camFlash"></div>
@@ -432,30 +433,46 @@ const GAME_CODE = 'PM';
 
 let POSES = [];
 
-function renderRefSvg(ref) {
-  const W = 200, H = 200;
-  const svg = document.getElementById('poseRefSvg');
-  const linesHtml = SKEL_LINES.map(([a, b]) => {
+function refToSvg(ref, mapX, mapY) {
+  const lines = SKEL_LINES.map(([a, b]) => {
     const pa = ref[a], pb = ref[b];
-    return `<line x1="${pa.x * W}" y1="${pa.y * H}" x2="${pb.x * W}" y2="${pb.y * H}" stroke="#ff00aa" stroke-width="3" stroke-linecap="round" />`;
+    return `<line x1="${mapX(pa.x)}" y1="${mapY(pa.y)}" x2="${mapX(pb.x)}" y2="${mapY(pb.y)}" stroke="#ff00aa" stroke-width="3" stroke-linecap="round" />`;
   }).join('');
-  const pointsHtml = Object.values(ref).map(p =>
-    `<circle cx="${p.x * W}" cy="${p.y * H}" r="3.5" fill="#00d4ff" />`
+  const points = Object.values(ref).map(p =>
+    `<circle cx="${mapX(p.x)}" cy="${mapY(p.y)}" r="3.5" fill="#00d4ff" />`
   ).join('');
   const head = ref.nose;
-  const headCircle = `<circle cx="${head.x * W}" cy="${head.y * H - 6}" r="10" fill="none" stroke="#ff00aa" stroke-width="3" />`;
-  // Expand viewBox to contain joints/head that fall outside the 0–200 frame
-  // (raised arms, off-frame poses) so the skeleton never spills onto the
-  // meters below. In-frame poses keep the default 0 0 200 200 framing.
+  const headCircle = `<circle cx="${mapX(head.x)}" cy="${mapY(head.y) - 6}" r="10" fill="none" stroke="#ff00aa" stroke-width="3" />`;
+  return headCircle + lines + points;
+}
+
+function renderRefSvg(pose) {
+  const W = 200, H = 200;
+  const svg = document.getElementById('poseRefSvg');
+
+  // Duo: two figures, each in its half of a fixed padded viewBox.
+  if ((pose.people ?? 1) === 2 && Array.isArray(pose.refs)) {
+    const yMap = y => 14 + y * (H - 28);
+    const leftMap = x => 8 + x * 86;     // [8, 94]
+    const rightMap = x => 106 + x * 86;  // [106, 192]
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = refToSvg(pose.refs[0], leftMap, yMap) + refToSvg(pose.refs[1], rightMap, yMap);
+    return;
+  }
+
+  // Solo: single figure with auto-expanding viewBox (raised arms can spill above).
+  const ref = pose.ref;
+  const idMap = v => v * W; // x and y share scale at W===H
+  const head = ref.nose;
   let minX = 0, minY = 0, maxX = W, maxY = H;
   for (const p of Object.values(ref)) {
     minX = Math.min(minX, p.x * W - 4); maxX = Math.max(maxX, p.x * W + 4);
     minY = Math.min(minY, p.y * H - 4); maxY = Math.max(maxY, p.y * H + 4);
   }
-  minY = Math.min(minY, head.y * H - 16); // head circle (r10, 6px above nose)
+  minY = Math.min(minY, head.y * H - 16);
   minX = Math.min(minX, head.x * W - 10); maxX = Math.max(maxX, head.x * W + 10);
   svg.setAttribute('viewBox', `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
-  svg.innerHTML = headCircle + linesHtml + pointsHtml;
+  svg.innerHTML = refToSvg(ref, idMap, idMap);
 }
 
 function drawGhostOverlay(ref) {
@@ -572,11 +589,11 @@ function startStep() {
   document.getElementById('poseIdx').textContent = `${stepIndex + 1}/${POSES.length}`;
   document.getElementById('totalScore').textContent = scores.reduce((a, b) => a + b, 0);
   document.getElementById('diffBadge').innerHTML = `<span class="difficulty ${pose.difficulty}">${pose.difficulty}</span>`;
-  renderRefSvg(pose.ref);
+  renderRefSvg(pose);
   renderPoseList();
   document.getElementById('camCountdown').classList.add('hidden');
   lastCamCount = -1;
-  flashCam('👥 Next player — take turns');
+  flashCam((pose.people ?? 1) === 2 ? '👥👥 Grab a partner!' : '👥 Next player — take turns');
 }
 
 function flashCam(text) {
@@ -648,7 +665,7 @@ function drawSkeleton(result) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  if (stepIndex < POSES.length) {
+  if (stepIndex < POSES.length && (POSES[stepIndex].people ?? 1) === 1) {
     drawGhostOverlay(POSES[stepIndex].ref);
   }
 
