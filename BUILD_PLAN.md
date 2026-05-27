@@ -13,11 +13,11 @@
         - 3 retries only best core counts
     - [x] Pantomime
         - [x] odebrat CV
-        - []x sjednotit s logikou Gesture logu
-    - [] Dino a Flappy
-        - [] překopat grafiku pryč s tou cyberpunk arcade verzí
-        - [] introduce retries apod.
-        - [] make it more stable and playable
+        - [x] sjednotit s logikou Gesture logu
+    - [x] Dino a Flappy
+        - [x] překopat grafiku pryč s tou cyberpunk arcade verzí
+        - [x] introduce retries apod.
+        - [x] make it more stable and playable
     - [] add backup game dance freeze game? 
 - [x] better ui navigace
     - [x] top bar
