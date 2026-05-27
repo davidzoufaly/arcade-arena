@@ -106,7 +106,12 @@ export function createLobbyApi({ get, set }) {
     return typeof stored === 'string' && stored === pwd;
   }
 
-  return { createLobby, loadLobbyTeams, verifyTeamPwd };
+  async function verifyAdminPwd(lobbyId, pwd) {
+    const stored = await get(`lobbies/${lobbyId}/meta/adminPwd`);
+    return typeof stored === 'string' && stored === pwd;
+  }
+
+  return { createLobby, loadLobbyTeams, verifyTeamPwd, verifyAdminPwd };
 }
 
 export function resolveSession() {

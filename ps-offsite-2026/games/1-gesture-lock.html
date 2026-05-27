@@ -337,6 +337,7 @@ import {
 } from '../shared/gesture-lock-logic.js';
 import { mountTopbar } from '../shared/topbar.js';
 import { resolveSession } from '../shared/lobby.js';
+import { requireAdmin } from '../shared/admin-gate.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getDatabase, ref, update, push } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from '../firebase-config.js';
@@ -692,7 +693,8 @@ phaseEnter.final = () => {
     status.textContent = 'FAILED — TAP TO RETRY';
     status.onclick = () => phaseEnter.final();
   });
-  $('finalPlayAgain').onclick = () => {
+  $('finalPlayAgain').onclick = async () => {
+    if (!await requireAdmin(session?.lobbyId, { promptText: 'Admin password required to replay:' })) return;
     state.attempts = [];
     state.attemptIdx = 0;
     state.sequence = [];

@@ -348,7 +348,7 @@
     <div class="breakdown" id="resBreakdown"></div>
     <div id="saveStatus" class="save-status">SAVING…</div>
     <div class="result-row" style="margin-top: 14px;">
-      <button onclick="resetGame()">Play again</button>
+      <button onclick="replayFromFinal()">Play again</button>
       <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
     </div>
   </div>
@@ -366,6 +366,7 @@ import {
 } from '../shared/pantomime-logic.js';
 import { mountTopbar } from '../shared/topbar.js';
 import { resolveSession } from '../shared/lobby.js';
+import { requireAdmin } from '../shared/admin-gate.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getDatabase, ref, update, push } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from '../firebase-config.js';
@@ -732,6 +733,11 @@ window.resetGame = function() {
   scores = []; stepIndex = 0;
   POSES = [];
   goto('setup');
+};
+
+window.replayFromFinal = async function() {
+  if (!await requireAdmin(session?.lobbyId, { promptText: 'Admin password required to replay:' })) return;
+  window.resetGame();
 };
 
 let hiddenAt = 0;

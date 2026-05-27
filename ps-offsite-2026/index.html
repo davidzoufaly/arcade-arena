@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PS Offsite 2026 — Hub</title>
+<title>PS Offsite 2026</title>
 <style>
   :root {
     --bg: #0a0e1a;
@@ -27,59 +27,6 @@
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   .subtitle { color: var(--muted); font-size: 16px; margin-bottom: 40px; }
-  .qr-section {
-    margin-top: 40px; padding-top: 32px;
-    border-top: 1px solid rgba(255,255,255,0.08);
-  }
-  .qr-section h2 { font-size: 20px; margin-bottom: 12px; }
-  .qr-section p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
-  .qr-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 16px;
-  }
-  .qr-tile {
-    background: var(--card); border-radius: 12px; padding: 16px; text-align: center;
-    border: 1px solid rgba(255,255,255,0.06);
-  }
-  .qr-tile img {
-    width: 100%; max-width: 160px; height: auto;
-    background: white; border-radius: 8px; padding: 8px;
-  }
-  .qr-tile .label { font-size: 13px; font-weight: 700; margin-top: 8px; }
-  .qr-tile .url { font-size: 11px; color: var(--muted); word-break: break-all; margin-top: 4px; }
-  input.base-url {
-    background: var(--bg-2); border: 1px solid rgba(255,255,255,0.1);
-    color: var(--text); padding: 12px 16px; border-radius: 10px;
-    font-size: 14px; font-family: ui-monospace, monospace; width: 100%;
-    margin-bottom: 20px;
-  }
-  .team-row {
-    display: flex; align-items: center; gap: 16px;
-    background: var(--card); border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;
-  }
-  .team-row label { font-size: 13px; font-weight: 700; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; }
-  .team-row select {
-    background: var(--bg-2); border: 1px solid rgba(255,255,255,0.15);
-    color: var(--text); padding: 10px 14px; border-radius: 8px;
-    font-size: 16px; font-weight: 700; font-family: inherit;
-    min-width: 140px;
-  }
-  .team-row select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,0.15); }
-  .team-row .team-note { font-size: 12px; color: var(--muted); margin-left: auto; }
-  .host-banner {
-    background: linear-gradient(135deg, #1b2540 0%, #2a1a3a 100%);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 16px; padding: 24px; margin-bottom: 32px;
-  }
-  .host-banner h2 { font-size: 22px; margin-bottom: 6px; }
-  .host-banner p { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
-  .open-catalog {
-    display: inline-block;
-    background: linear-gradient(135deg, var(--accent), #0099cc);
-    color: #001; font-weight: 800; font-size: 14px;
-    padding: 10px 16px; border-radius: 10px; text-decoration: none;
-  }
 </style>
 <link rel="stylesheet" href="shared/lobby.css">
 </head>
@@ -112,6 +59,13 @@
           <button id="joinFinalBtn">Join</button>
         </div>
       </div>
+      <div class="lobby-card">
+        <h2>View scoreboard</h2>
+        <label for="spectateLobbyId">Lobby ID</label>
+        <input id="spectateLobbyId" type="text" placeholder="PS-XXXX" maxlength="7" autocomplete="off">
+        <button id="spectateBtn">View scoreboard</button>
+        <div id="spectateErr" class="lobby-banner err" hidden></div>
+      </div>
     </div>
   </section>
 
@@ -140,21 +94,6 @@
     </div>
   </section>
 
-  <!-- ============== VIEW: hub ============== -->
-  <section id="view-hub" hidden>
-    <div class="host-banner">
-      <h2>Host view</h2>
-      <p>Share these QR codes with the teams. Players use the <strong>Games</strong> catalog from their phone.</p>
-      <a class="open-catalog" id="openCatalogBtn" href="#">Open Games catalog →</a>
-    </div>
-
-    <div class="qr-section">
-      <h2>QR codes</h2>
-      <p>Paste your deploy URL and QR codes generate for each surface, scoped to this lobby and team.</p>
-      <input class="base-url" id="baseUrl" type="url" placeholder="https://ps-offsite-2026.netlify.app/">
-      <div class="qr-grid" id="qrGrid"></div>
-    </div>
-  </section>
 </main>
 
 <script type="module">
@@ -163,9 +102,8 @@ import { getDatabase, ref, get, set } from 'https://www.gstatic.com/firebasejs/1
 import { firebaseConfig } from './firebase-config.js';
 import {
   createLobbyApi, isValidLobbyId,
-  getSession, setSession, clearSession,
+  getSession, setSession,
 } from './shared/lobby.js';
-import { mountTopbar } from './shared/topbar.js';
 
 if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
   document.body.innerHTML = '<div style="max-width:640px;margin:80px auto;padding:32px;background:#1b2540;border-radius:16px;color:#f5f7fb;font-family:system-ui">Firebase config missing. See SETUP.md.</div>';
@@ -186,7 +124,7 @@ const api = createLobbyApi({
 
 const $ = id => document.getElementById(id);
 function show(id) {
-  for (const v of ['view-create-join', 'view-credentials', 'view-hub']) {
+  for (const v of ['view-create-join', 'view-credentials']) {
     $(v).hidden = (v !== id);
   }
 }
@@ -249,6 +187,29 @@ function renderCredentials({ lobbyId, adminPwd, teams }) {
   });
 }
 
+// ---------- spectator flow ----------
+$('spectateLobbyId').addEventListener('input', e => {
+  e.target.value = e.target.value.toUpperCase();
+});
+$('spectateBtn').addEventListener('click', async () => {
+  hideErr('spectateErr');
+  const id = $('spectateLobbyId').value.trim();
+  if (!isValidLobbyId(id)) {
+    showErr('spectateErr', 'Lobby ID format: PS-XXXX (uppercase, no 0/O/1/I).');
+    return;
+  }
+  $('spectateBtn').disabled = true;
+  try {
+    await api.loadLobbyTeams(id);
+    location.href = `scoreboard.html?lobby=${encodeURIComponent(id)}`;
+  } catch (e) {
+    if (e.code === 'NOT_FOUND') showErr('spectateErr', 'Lobby not found. Check the ID.');
+    else showErr('spectateErr', e.message || 'Failed to load lobby.');
+  } finally {
+    $('spectateBtn').disabled = false;
+  }
+});
+
 // ---------- join flow ----------
 $('joinLobbyId').addEventListener('input', e => {
   e.target.value = e.target.value.toUpperCase();
@@ -268,6 +229,11 @@ async function revealTeamPicker(lobbyId) {
   hideErr('joinErr');
   try {
     const teams = await api.loadLobbyTeams(lobbyId);
+    if (!teams.length) {
+      $('teamPicker').hidden = true;
+      showErr('joinErr', 'Lobby has no teams yet.');
+      return;
+    }
     const list = $('teamPickerList');
     list.innerHTML = teams.map((t, i) => `
       <label class="team-option">
@@ -297,49 +263,10 @@ async function doJoin(lobbyId) {
   location.href = `games.html?lobby=${encodeURIComponent(lobbyId)}&team=${teamId}`;
 }
 
-// ---------- hub ----------
-function renderHub(session) {
-  const q = `?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
-  $('openCatalogBtn').href = `games.html${q}`;
-  mountTopbar({ activePage: 'hub' });
-  $('baseUrl').addEventListener('input', renderQRs);
-  renderQRs();
-}
-
-function renderQRs() {
-  const session = getSession();
-  let base = $('baseUrl').value.trim();
-  if (base && !base.endsWith('/')) base += '/';
-  const grid = $('qrGrid');
-  if (!base) {
-    grid.innerHTML = '<div style="color:var(--muted); font-size:13px;">↑ Enter a URL to generate QR codes.</div>';
-    return;
-  }
-  const q = `?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
-  const games = [
-    { name: 'Games catalog', file: 'games.html' },
-    { name: 'Scoreboard', file: 'scoreboard.html' },
-    { name: '1 · Gesture Lock', file: 'games/1-gesture-lock.html' },
-    { name: '2 · Pantomime', file: 'games/2-pantomime.html' },
-    { name: '3 · Pipeline Dash', file: 'dino/index.html' },
-    { name: '4 · Insight Monitor', file: 'flappy/index.html' },
-  ];
-  grid.innerHTML = games.map(s => {
-    const url = base + s.file + q;
-    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
-    return `<div class="qr-tile">
-      <img src="${qr}" alt="QR ${s.name}" />
-      <div class="label">${s.name}</div>
-      <div class="url">${url}</div>
-    </div>`;
-  }).join('');
-}
-
 // ---------- bootstrap ----------
 const session = getSession();
 if (session) {
-  renderHub(session);
-  show('view-hub');
+  location.replace(`games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`);
 } else {
   show('view-create-join');
 }

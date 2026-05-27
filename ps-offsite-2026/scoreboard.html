@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PS Offsite 2026 — Scoreboard</title>
+<title>Scoreboard</title>
 <style>
   :root {
     --bg: #0a0e1a;
@@ -103,14 +103,6 @@
     font-weight: 800 !important;
   }
   main { padding: 40px; max-width: 1600px; margin: 0 auto; }
-  .layout {
-    display: grid;
-    grid-template-columns: 1fr 380px;
-    gap: 32px;
-  }
-  @media (max-width: 1100px) {
-    .layout { grid-template-columns: 1fr; }
-  }
   .matrix-wrap {
     background: var(--card);
     border-radius: 16px;
@@ -155,15 +147,12 @@
   }
   .matrix-head .cell-game,
   .matrix-head .cell-total { color: var(--text); }
-  .matrix-head .cell-game a {
-    color: inherit;
-    text-decoration: none;
-    border-bottom: 1px dashed rgba(255,255,255,0.15);
-    padding-bottom: 1px;
-  }
-  .matrix-head .cell-game a:hover {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
+  .matrix-head .cell-game {
+    font-size: 11px;
+    line-height: 1.25;
+    white-space: normal;
+    word-break: break-word;
+    hyphens: auto;
   }
   .matrix-row.team:hover { background: rgba(255,255,255,0.02); }
   .matrix-row.top1 { background: linear-gradient(90deg, rgba(255,216,77,0.08), transparent 70%); }
@@ -224,64 +213,28 @@
     letter-spacing: 0.3px;
   }
 
-  aside {
-    background: var(--card);
-    border-radius: 20px;
-    padding: 28px;
-    border: 1px solid rgba(255,255,255,0.06);
-    height: fit-content;
-    position: sticky;
-    top: 100px;
+  .game-status {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-weight: 800;
+    line-height: 1;
   }
-  aside h2 {
-    font-size: 18px;
-    margin-bottom: 16px;
-    color: var(--text);
-  }
-  .games-legend {
-    padding-top: 0;
-    border-top: none;
-  }
-  .games-legend .pill { font-family: ui-monospace, monospace; }
-  .legend-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    font-size: 13px;
-    color: var(--muted);
-  }
-  .legend-link {
-    text-decoration: none;
-    border-radius: 8px;
-    padding: 8px 10px;
-    margin: 0 -10px;
-    transition: background 0.15s, color 0.15s;
-  }
-  .legend-link:hover {
-    background: var(--bg-2);
-    color: var(--text);
-  }
-  .legend-link span:first-child {
-    display: flex; align-items: center; gap: 8px;
-  }
-  .legend-arrow {
-    color: var(--muted);
-    font-size: 14px;
-    opacity: 0.6;
-    transition: opacity 0.15s, transform 0.15s;
-  }
-  .legend-link:hover .legend-arrow {
-    opacity: 1;
-    transform: translate(2px, -2px);
+  .game-status.open {
+    background: rgba(0,212,255,0.15);
     color: var(--accent);
+    border: 1px solid rgba(0,212,255,0.35);
   }
-  .actions-row {
-    display: flex;
-    gap: 8px;
-    margin-top: 20px;
-    flex-wrap: wrap;
+  .game-status.closed {
+    background: rgba(0,230,118,0.15);
+    color: var(--good);
+    border: 1px solid rgba(0,230,118,0.35);
   }
-  .actions-row button { flex: 1; min-width: 100px; }
+  .matrix-head .cell-game.closed { color: var(--good); }
 
   .empty {
     background: var(--card);
@@ -325,60 +278,28 @@
 <body>
 <header>
   <div>
-    <h1>PS Offsite 2026 — Scoreboard</h1>
+    <h1>Scoreboard</h1>
     <div class="subtitle" id="subtitle">11 games · one winner</div>
   </div>
   <div class="controls">
-    <button onclick="addTeam()">+ Add team</button>
     <button onclick="normalizeBoard()" class="admin-btn"><span class="admin-chip">ADMIN</span>Normalize</button>
     <button onclick="resetAll()" class="admin-btn danger"><span class="admin-chip">ADMIN</span>Reset</button>
   </div>
 </header>
 
 <main>
-  <div class="layout">
-    <div>
-      <div class="matrix-wrap"><div class="matrix" id="leaderboard"></div></div>
-    </div>
-
-    <aside>
-      <div class="games-legend">
-        <h2 style="font-size:14px; margin-bottom:8px">Open game</h2>
-        <a class="legend-row legend-link" href="games/1-gesture-lock.html" target="_blank" rel="noopener">
-          <span><span class="pill">GZ</span> Gesture Lock</span><span class="legend-arrow">↗</span>
-        </a>
-        <a class="legend-row legend-link" href="games/2-pantomime.html" target="_blank" rel="noopener">
-          <span><span class="pill">PM</span> Pantomime</span><span class="legend-arrow">↗</span>
-        </a>
-        <a class="legend-row legend-link" href="dino/index.html" target="_blank" rel="noopener">
-          <span><span class="pill">DN</span> Pipeline Dash</span><span class="legend-arrow">↗</span>
-        </a>
-        <a class="legend-row legend-link" href="flappy/index.html" target="_blank" rel="noopener">
-          <span><span class="pill">FL</span> Insight Monitor</span><span class="legend-arrow">↗</span>
-        </a>
-        <a class="legend-row legend-link" href="index.html" target="_blank" rel="noopener" style="margin-top: 8px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
-          <span><span class="pill" style="background: rgba(255,0,170,0.15); color: var(--accent-2);">QR</span> Hub & QR generator</span><span class="legend-arrow">↗</span>
-        </a>
-      </div>
-
-      <div class="actions-row">
-        <button onclick="exportData()">Export JSON</button>
-        <button onclick="document.getElementById('importInput').click()">Import JSON</button>
-        <input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)">
-      </div>
-    </aside>
-  </div>
+  <div class="matrix-wrap"><div class="matrix" id="leaderboard"></div></div>
 </main>
 
 <div class="confetti" id="confetti"></div>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getDatabase, ref, set, update, remove, push, onValue, get } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from './firebase-config.js';
-import { createLobbyApi } from './shared/lobby.js';
 import { GAMES, allEnteredKeys } from './shared/games-catalog.js';
 import { rankPointsByTeam } from './shared/ranking.js';
+import { requireAdmin } from './shared/admin-gate.js';
 
 const lobbyId = new URLSearchParams(location.search).get('lobby');
 if (!lobbyId) {
@@ -403,28 +324,6 @@ if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-
-const lobbyApi = createLobbyApi({
-  get: async (path) => {
-    const snap = await get(ref(db, path));
-    return snap.exists() ? snap.val() : null;
-  },
-  set: async (path, value) => set(ref(db, path), value),
-});
-
-const ADMIN_PWD_KEY = `psOffsite2026.adminPwd.${lobbyId}`;
-async function requireAdmin() {
-  let cached = null;
-  try { cached = sessionStorage.getItem(ADMIN_PWD_KEY); } catch {}
-  if (cached && await lobbyApi.verifyAdminPwd(lobbyId, cached)) return true;
-  const entered = prompt(`Admin password for lobby ${lobbyId}:`);
-  if (!entered) return false;
-  const pwd = entered.trim().toUpperCase();
-  const ok = await lobbyApi.verifyAdminPwd(lobbyId, pwd);
-  if (!ok) { alert('Wrong admin password.'); return false; }
-  try { sessionStorage.setItem(ADMIN_PWD_KEY, pwd); } catch {}
-  return true;
-}
 
 let state = { teams: [], history: [] };
 let initialized = false;
@@ -456,33 +355,8 @@ onValue(ref(db, LOBBY_PATH), snap => {
   initialized = true;
 });
 
-async function addTeam() {
-  const nextId = Math.max(0, ...state.teams.map(t => t.id)) + 1;
-  const name = prompt('Team name:', `Team ${nextId}`);
-  if (!name) return;
-  await update(ref(db, `${LOBBY_PATH}/teams/${nextId}`), { id: nextId, name });
-}
-window.addTeam = addTeam;
-
-async function renameTeam(id) {
-  const t = state.teams.find(x => x.id === id);
-  if (!t) return;
-  const name = prompt('New name:', t.name);
-  if (name && name.trim()) {
-    await update(ref(db, `${LOBBY_PATH}/teams/${id}`), { name: name.trim() });
-  }
-}
-window.renameTeam = renameTeam;
-
-async function removeTeam(id) {
-  if (!confirm('Remove this team?')) return;
-  await remove(ref(db, `${LOBBY_PATH}/teams/${id}`));
-  await remove(ref(db, `${LOBBY_PATH}/scores/${id}`));
-}
-window.removeTeam = removeTeam;
-
 async function resetAll() {
-  if (!await requireAdmin()) return;
+  if (!await requireAdmin(lobbyId)) return;
   if (!confirm(`Wipe scores and history for lobby ${lobbyId}? Teams are kept. This affects everyone in this lobby.`)) return;
   await set(ref(db, `${LOBBY_PATH}/scores`), null);
   await set(ref(db, `${LOBBY_PATH}/history`), null);
@@ -490,7 +364,7 @@ async function resetAll() {
 window.resetAll = resetAll;
 
 async function normalizeBoard() {
-  if (!await requireAdmin()) return;
+  if (!await requireAdmin(lobbyId)) return;
   const gameKeys = allEnteredKeys();
   const missingByTeam = state.teams
     .map(t => ({
@@ -547,17 +421,10 @@ function computeLeader() {
   return sorted[0];
 }
 
-const GAME_LINKS = {
-  GZ: 'games/1-gesture-lock.html',
-  PM: 'games/2-pantomime.html',
-  DN: 'dino/index.html',
-  FL: 'flappy/index.html',
-};
-
 function render() {
   const list = document.getElementById('leaderboard');
   if (state.teams.length === 0) {
-    list.innerHTML = '<div class="empty"><h3>No teams yet</h3><p>Click "+ Add team" at the top to start adding participants.</p></div>';
+    list.innerHTML = '<div class="empty"><h3>No teams yet</h3><p>Create a lobby from the join page to add teams.</p></div>';
     return;
   }
   const bumpedTeamId = bumpedTeam && bumpedTeam.until > Date.now() ? bumpedTeam.id : null;
@@ -584,12 +451,17 @@ function render() {
     })
     .sort((a, b) => b.total - a.total || a.id - b.id);
 
+  const submittedByGame = {};
+  for (const g of gameKeys) {
+    let n = 0;
+    for (const t of state.teams) if (typeof t.scores[g] === 'number') n++;
+    submittedByGame[g] = n;
+  }
   const headCells = gameKeys.map(g => {
-    const href = GAME_LINKS[g];
-    const label = href
-      ? `<a href="${href}" target="_blank" rel="noopener" title="${escapeHtml(GAMES[g].name)}">${g}</a>`
-      : g;
-    return `<div class="cell-game">${label}</div>`;
+    const closed = submittedByGame[g] === teamCount && teamCount > 0;
+    const cls = closed ? 'closed' : 'open';
+    const label = closed ? 'closed' : `open ${submittedByGame[g]}/${teamCount}`;
+    return `<div class="cell-game ${cls}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span></div>`;
   }).join('');
   const head = `
     <div class="matrix-row matrix-head">
@@ -619,11 +491,11 @@ function render() {
   </div>`;
     }).join('');
     return `
-      <div class="matrix-row team ${rankClass} ${shine} ${rowMissing}" ondblclick="renameTeam(${t.id})" oncontextmenu="event.preventDefault(); removeTeam(${t.id})">
+      <div class="matrix-row team ${rankClass} ${shine} ${rowMissing}">
         <div class="cell-rank">${i + 1}</div>
         <div>
           <div class="cell-team-name">${escapeHtml(t.name)}</div>
-          <div class="cell-team-meta">${t.gameCount}/${gameKeys.length} games · dbl-click rename · right-click remove</div>
+          <div class="cell-team-meta">${t.gameCount}/${gameKeys.length} games</div>
         </div>
         ${cells}
         <div class="cell-total ${bump}">${formatPts(t.total)}</div>
@@ -652,50 +524,6 @@ function confetti() {
     setTimeout(() => s.remove(), 3500);
   }
 }
-
-function exportData() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `ps-offsite-scores-${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importData(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async ev => {
-    try {
-      const data = JSON.parse(ev.target.result);
-      if (!data.teams || !Array.isArray(data.teams)) throw new Error('bad shape');
-      // Convert exported array shape back into RTDB object shape
-      const teamsObj = {};
-      const scoresObj = {};
-      for (const t of data.teams) {
-        teamsObj[t.id] = { id: t.id, name: t.name };
-        if (t.scores) scoresObj[t.id] = t.scores;
-      }
-      const historyObj = {};
-      if (Array.isArray(data.history)) {
-        for (const h of data.history) {
-          const k = push(ref(db, `${LOBBY_PATH}/history`)).key;
-          historyObj[k] = h;
-        }
-      }
-      await set(ref(db, LOBBY_PATH), { teams: teamsObj, scores: scoresObj, history: historyObj });
-      alert('Imported.');
-    } catch (err) {
-      alert('Invalid file format.');
-    }
-  };
-  reader.readAsText(file);
-  e.target.value = '';
-}
-window.exportData = exportData;
-window.importData = importData;
 
 let bumpedTeam = null;
 let prevLeaderId = null;

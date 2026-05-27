@@ -200,6 +200,27 @@ describe('createLobbyApi.loadLobbyTeams', () => {
   });
 });
 
+describe('createLobbyApi.verifyAdminPwd', () => {
+  it('returns true on match', async () => {
+    const a = fakeAdapter();
+    const api = createLobbyApi(a);
+    const { lobbyId, adminPwd } = await api.createLobby(2);
+    expect(await api.verifyAdminPwd(lobbyId, adminPwd)).toBe(true);
+  });
+
+  it('returns false on wrong pwd', async () => {
+    const a = fakeAdapter();
+    const api = createLobbyApi(a);
+    const { lobbyId } = await api.createLobby(2);
+    expect(await api.verifyAdminPwd(lobbyId, 'WRONG1')).toBe(false);
+  });
+
+  it('returns false when lobby missing', async () => {
+    const api = createLobbyApi(fakeAdapter());
+    expect(await api.verifyAdminPwd('PS-AAAA', 'X')).toBe(false);
+  });
+});
+
 describe('createLobbyApi.verifyTeamPwd', () => {
   it('returns true on match', async () => {
     const a = fakeAdapter();

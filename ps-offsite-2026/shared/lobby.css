@@ -158,6 +158,11 @@
 }
 .lobby-strip button:hover { color: var(--text); border-color: var(--accent); }
 
+#teamPicker:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 .team-picker {
   display: flex;
   flex-direction: column;
