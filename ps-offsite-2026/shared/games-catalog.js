@@ -2,8 +2,8 @@
 export const GAMES = {
   GZ: { name: 'Gesture Lock',    emoji: '✋', kind: 'play',   href: 'games/1-gesture-lock.html' },
   PM: { name: 'Pantomime',       emoji: '🎭', kind: 'play',   href: 'games/2-pantomime.html' },
-  DN: { name: 'Pipeline Dash',   emoji: '🛡️', kind: 'play',   href: 'dino/index.html' },
-  FL: { name: 'Insight Monitor', emoji: '📊', kind: 'play',   href: 'flappy/index.html' },
+  DN: { name: 'Dino Dash',       emoji: '🦖', kind: 'play',   href: 'games/3-dino.html' },
+  FL: { name: 'Flappy Voice',    emoji: '📢', kind: 'play',   href: 'games/4-flappy.html' },
   MX: { name: 'Math No-Brain',   emoji: '🧮', kind: 'manual', rules: 'Simple arithmetic round. Team writes answers, count correct out of total.\n\n- Submit number of correct answers as raw score.' },
   MB: { name: 'Math Big-Brain',  emoji: '🧠', kind: 'manual', rules: 'Harder math round. Same scoring: count correct.\n\n- Submit number of correct answers as raw score.' },
   SF: { name: 'Šifra',           emoji: '🔐', kind: 'manual', rules: 'Crack the cipher. Faster team = higher raw score.\n\n- Submit raw points awarded by host.' },
