@@ -174,6 +174,7 @@ function arabesqueRef() {
 }
 
 // --- Duo (2-person) reference figures ---
+// Duo ref figures: coords are relative to each figure's own 0–1 frame; the ref card renders each into its own half-panel.
 function mirrorRefX(ref) {
   const out = {};
   for (const k in ref) out[k] = { x: 1 - ref[k].x, y: ref[k].y };
@@ -212,7 +213,7 @@ function twinShape(p) {
   const shMidX = (p[LM.L_SHOULDER].x + p[LM.R_SHOULDER].x) / 2;
   const raised = lw.y < rw.y ? lw : rw;   // higher wrist = smaller y
   const out    = lw.y < rw.y ? rw : lw;
-  const raisedOK    = smoothScore(nose.y - raised.y, 0.10, 0.12);          // raised wrist above nose
+  const raisedOK    = smoothScore(nose.y - raised.y, 0.15, 0.10);          // raised wrist above nose
   const outLevel    = smoothScore(Math.abs(out.y - shMidY), 0, 0.15);      // other wrist near shoulder height
   const outExtended = smoothScore(Math.abs(out.x - shMidX), 0.28, 0.18);   // ...and far out sideways
   return { score: (raisedOK + outLevel + outExtended) / 3, raised, shMidX };
@@ -689,6 +690,7 @@ export const POSE_POOL = [
         const sa = twinShape(a), sb = twinShape(b);
         const sideA = Math.sign(sa.raised.x - sa.shMidX);
         const sideB = Math.sign(sb.raised.x - sb.shMidX);
+        // Binary by design: raised arms must be on opposite sides (true mirror) or this gates the pose.
         return (sideA !== 0 && sideA === -sideB) ? 1 : 0;
       }},
     ],

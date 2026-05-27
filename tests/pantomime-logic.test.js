@@ -334,4 +334,13 @@ describe('Mirror Twins checks', () => {
     const mirror = twins().checks.find(c => c.name.toLowerCase().includes('mirror')).fn(a, b);
     expect(mirror).toBe(0);
   });
+
+  it('left-person shape check scores low when both arms are down', () => {
+    const [a, b] = good();
+    // Both wrists at hip level, near body center — no arm is up or extended out
+    a[LM.L_WRIST] = { x: 0.22, y: 0.55, visibility: 1 };
+    a[LM.R_WRIST] = { x: 0.28, y: 0.55, visibility: 1 };
+    const shapeLeft = twins().checks[0].fn(a, b); // "Left person: one arm up, one out"
+    expect(shapeLeft).toBeLessThan(0.4);
+  });
 });
