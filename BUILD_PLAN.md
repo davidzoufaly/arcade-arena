@@ -1,3 +1,7 @@
+- [] double length of hand gesture + countdown 10s per gesture
+- [] pantomine -> remove pink skeleton from camera overlay
+- [] napsat, že chci doručit pravidla ke všem hrám, či pokiny koho se zeptat, kde co najít
+- [] pub quizz sync
 - [] v češtině popsat jak celá appka a jednotlivé věci fungují
 - [] unlocking games by admin for specific team -> verify
 - [] gesture lock -> more rounds
