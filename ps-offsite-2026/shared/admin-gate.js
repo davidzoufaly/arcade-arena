@@ -18,24 +18,17 @@ function getApi() {
   return cachedApi;
 }
 
-function storageKey(lobbyId) {
-  return `psOffsite2026.adminPwd.${lobbyId}`;
-}
-
 export async function requireAdmin(lobbyId, { promptText } = {}) {
   if (!lobbyId) return false;
   const session = getSession();
   if (isAdminSession(session) && session.lobbyId === lobbyId) return true;
+  // No caching: prompt on every restart so the admin password is never
+  // persisted on a team's device, where it could be read and reused.
   const api = getApi();
-  const key = storageKey(lobbyId);
-  let cached = null;
-  try { cached = sessionStorage.getItem(key); } catch {}
-  if (cached && await api.verifyAdminPwd(lobbyId, cached)) return true;
   const entered = prompt(promptText || `Admin password for lobby ${lobbyId}:`);
   if (!entered) return false;
   const pwd = entered.trim().toUpperCase();
   const ok = await api.verifyAdminPwd(lobbyId, pwd);
   if (!ok) { alert('Wrong admin password.'); return false; }
-  try { sessionStorage.setItem(key, pwd); } catch {}
   return true;
 }
