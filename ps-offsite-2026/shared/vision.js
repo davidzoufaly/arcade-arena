@@ -13,9 +13,9 @@ async function loadVision() {
   return visionPromise;
 }
 
-export async function createCamStream() {
+export async function createCamStream({ width = 640, height = 480 } = {}) {
   const stream = await navigator.mediaDevices.getUserMedia({
-    video: { width: 640, height: 480, facingMode: 'user' }
+    video: { width, height, facingMode: 'user' }
   });
   const video = document.createElement('video');
   video.srcObject = stream;
@@ -26,14 +26,14 @@ export async function createCamStream() {
   return { video, stream };
 }
 
-export async function createHandTracker(video) {
+export async function createHandTracker(video, { numHands = 4, minRunMs = 0 } = {}) {
   const { mod, fileset } = await loadVision();
   const tracker = await mod.HandLandmarker.createFromOptions(fileset, {
     baseOptions: {
       modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
       delegate: 'GPU'
     },
-    numHands: 4,
+    numHands,
     runningMode: 'VIDEO'
   });
 
@@ -42,7 +42,7 @@ export async function createHandTracker(video) {
   let lastTs = 0;
   function loop() {
     const ts = performance.now();
-    if (video.readyState >= 2 && ts - lastTs > 33) {
+    if (video.readyState >= 2 && ts - lastTs >= minRunMs) {
       lastTs = ts;
       const result = tracker.detectForVideo(video, ts);
       latest = { hands: result.landmarks ?? [] };
