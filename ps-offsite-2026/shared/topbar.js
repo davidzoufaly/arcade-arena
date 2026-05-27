@@ -1,4 +1,4 @@
-import { resolveSession, clearSession, isValidLobbyId } from './lobby.js';
+import { resolveSession, clearSession } from './lobby.js';
 import { getApps, getApp, initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from '../firebase-config.js';
@@ -23,22 +23,22 @@ function isCanvasGamePage() {
   return !!(document.getElementById('game') || document.getElementById('cam'));
 }
 
-function buildHeader({ lobbyId, teamId }, activePage, spectator) {
+function buildHeader({ lobbyId, teamId }, activePage, admin) {
   const pfx = prefix();
   const lobbyQ = `?lobby=${encodeURIComponent(lobbyId)}${teamId ? `&team=${teamId}` : ''}`;
   const indexHref    = `${pfx}index.html`;
   const gamesHref    = `${pfx}games.html${lobbyQ}`;
   const scoreHref    = `${pfx}scoreboard.html?lobby=${encodeURIComponent(lobbyId)}`;
 
-  const nav = spectator
+  const nav = admin
     ? `<a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>`
     : `<a data-nav="games" href="${gamesHref}">Games</a>
        <a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>`;
-  const info = spectator
-    ? `Lobby <code>${esc(lobbyId)}</code> · <strong>Spectator</strong>`
+  const info = admin
+    ? `Lobby <code>${esc(lobbyId)}</code> · <strong>Admin</strong>`
     : `Lobby <code>${esc(lobbyId)}</code> · <strong>Team ${teamId}</strong> · <strong class="ps-topbar-pts" title="Total rank-points across all entered games">— pts</strong>`;
-  const brandHref = spectator ? scoreHref : gamesHref;
-  const leaveLabel = spectator ? 'Exit' : 'Leave';
+  const brandHref = admin ? scoreHref : gamesHref;
+  const leaveLabel = 'Leave';
 
   const header = document.createElement('header');
   header.className = 'ps-topbar';
@@ -86,22 +86,20 @@ function subscribeTeamPoints(lobbyId, teamId, onUpdate) {
 }
 
 export function mountTopbar({ activePage }) {
-  const session = resolveSession();
-  const urlLobby = new URLSearchParams(location.search).get('lobby');
-  const spectator = !session && isValidLobbyId(urlLobby);
-  if (!session && !spectator) {
+  const ctx = resolveSession();
+  if (!ctx) {
     location.replace(`${prefix()}index.html`);
     return;
   }
-  const ctx = session || { lobbyId: urlLobby, teamId: null };
-  const header = buildHeader(ctx, activePage, spectator);
+  const admin = ctx.role === 'admin';
+  const header = buildHeader(ctx, activePage, admin);
   document.body.insertBefore(header, document.body.firstChild);
   if (!isCanvasGamePage()) {
     document.body.classList.add('ps-topbar-host');
   }
-  if (!spectator) {
+  if (!admin) {
     const ptsEl = header.querySelector('.ps-topbar-pts');
-    subscribeTeamPoints(session.lobbyId, session.teamId, total => {
+    subscribeTeamPoints(ctx.lobbyId, ctx.teamId, total => {
       ptsEl.textContent = `${formatPts(total)} pts`;
     });
   }
