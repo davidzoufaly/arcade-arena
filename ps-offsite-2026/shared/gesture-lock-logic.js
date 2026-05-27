@@ -7,6 +7,8 @@ export const GESTURE_POOL = [
   { id: 'Pointing_Up', emoji: '☝️', name: 'Point Up' },
 ];
 
+export const SEQUENCE_LEN = 16;
+
 export function pickSequenceWithRepeats(pool, len) {
   const out = [];
   for (let i = 0; i < len; i++) {
@@ -20,7 +22,7 @@ export function scoreAttempt({ result, completed, timeSec }) {
     const raw = 100 - Math.max(0, timeSec - 10) * 2;
     return Math.max(40, Math.min(100, Math.round(raw)));
   }
-  return Math.floor((completed / 8) * 35);
+  return Math.floor((completed / SEQUENCE_LEN) * 35);
 }
 
 export function finalScore(attempts) {

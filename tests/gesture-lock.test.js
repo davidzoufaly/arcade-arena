@@ -1,10 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import {
   GESTURE_POOL,
+  SEQUENCE_LEN,
   pickSequenceWithRepeats,
   scoreAttempt,
   finalScore,
 } from '../ps-offsite-2026/shared/gesture-lock-logic.js';
+
+describe('SEQUENCE_LEN', () => {
+  it('is 16', () => {
+    expect(SEQUENCE_LEN).toBe(16);
+  });
+});
 
 describe('GESTURE_POOL', () => {
   it('has exactly 6 gestures', () => {
@@ -86,16 +93,16 @@ describe('scoreAttempt', () => {
     expect(scoreAttempt({ result: 'fail', completed: 0, timeSec: 10 })).toBe(0);
   });
 
-  it('fail with 4 completed → 17 (floor of 4/8*35)', () => {
-    expect(scoreAttempt({ result: 'fail', completed: 4, timeSec: 12 })).toBe(17);
+  it('fail with 8 completed → 17 (floor of 8/16*35)', () => {
+    expect(scoreAttempt({ result: 'fail', completed: 8, timeSec: 12 })).toBe(17);
   });
 
-  it('timeout with 7 completed → 30 (floor of 7/8*35)', () => {
-    expect(scoreAttempt({ result: 'timeout', completed: 7, timeSec: 45 })).toBe(30);
+  it('timeout with 14 completed → 30 (floor of 14/16*35)', () => {
+    expect(scoreAttempt({ result: 'timeout', completed: 14, timeSec: 45 })).toBe(30);
   });
 
-  it('partial never reaches success floor — 8/8 fail (impossible state) still caps at 35', () => {
-    expect(scoreAttempt({ result: 'fail', completed: 8, timeSec: 30 })).toBe(35);
+  it('partial never reaches success floor — 15/16 fail still caps below 40', () => {
+    expect(scoreAttempt({ result: 'fail', completed: 15, timeSec: 30 })).toBe(32);
   });
 });
 
