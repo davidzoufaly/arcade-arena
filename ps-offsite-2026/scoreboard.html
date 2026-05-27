@@ -414,6 +414,9 @@ async function resetAll() {
   if (!confirm(`Wipe scores and history for lobby ${lobbyId}? Teams are kept. This affects everyone in this lobby.`)) return;
   await set(ref(db, `${LOBBY_PATH}/scores`), null);
   await set(ref(db, `${LOBBY_PATH}/history`), null);
+  // Reset only appears in edit mode; exit it so the now-stale edit form
+  // (whose inputs still hold pre-reset values) can't resurrect them on Save.
+  if (editing) cancelEdits();
 }
 
 const adminSession = getSession();
@@ -620,7 +623,7 @@ function render() {
         const title = cs === 'locked' ? 'Locked for this team — click to unlock' : 'Unlocked for this team — click to lock';
         const typed = pendingScores?.[String(t.id)]?.[g];
         const val = typed !== undefined ? typed : (v ?? '');
-        return `<div class="cell-game edit ${cs}"><input class="cell-input" type="number" min="0" step="1" inputmode="numeric" data-team="${t.id}" data-game="${g}" value="${val}" placeholder="-"><button class="lock-btn" data-game="${g}" data-team="${t.id}" title="${title}">${icon}</button></div>`;
+        return `<div class="cell-game edit ${cs}"><input class="cell-input" type="number" min="0" step="1" inputmode="numeric" data-team="${t.id}" data-game="${g}" value="${escapeHtml(String(val))}" placeholder="-"><button class="lock-btn" data-game="${g}" data-team="${t.id}" title="${title}">${icon}</button></div>`;
       }
       if (v === undefined) {
         return `<div class="cell-game empty">-</div>`;
