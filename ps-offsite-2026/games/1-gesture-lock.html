@@ -489,6 +489,135 @@ phaseEnter.intro = () => {
   $('introStartBtn').onclick = () => goto('memorize');
 };
 
+phaseEnter.calibrate = () => {
+  // Attempts 2 and 3 reuse the locked teamN — skip immediately. Also covers
+  // the ?debug&team=N path: state.teamN was set at boot, so calibrate is a
+  // no-op.
+  if (state.teamN !== null) {
+    state.sequenceLen ??= sequenceLengthForTeam(state.teamN);
+    goto('memorize');
+    return;
+  }
+
+  const video = $('calibVideo');
+  video.srcObject = state.stream;
+  // GestureRecognizer.recognizeForVideo(video, ts) reads from video.currentTime.
+  // Without an explicit play() the element stays at currentTime=0 and MediaPipe
+  // gets the same frozen frame every tick — sampling sees zero hands forever.
+  video.play().catch(e => console.warn('Gesture-lock calibration: calibVideo play() failed', e));
+
+  // Closure-local per-phase state. g.startedMs is NOT paused on visibility
+  // change — see spec: tab-switch mid-calibrate is a low-probability case in
+  // a live offsite setting; worst case is early lock-in with samples already
+  // collected.
+  const g = {
+    startedMs: performance.now(),
+    samples: [],          // hands.length per frame, only after grace
+    liveBuf: [],          // last ~20 frames for smoothed banner count
+    liveMax: 0,
+    locking: false,       // re-entrancy guard while async lock-in is in flight
+    lastVideoTime: -1,    // dedupe frames so MediaPipe sees monotonic timestamps
+    lastHandsNow: 0,      // last computed hands count, replayed on duplicate frames
+  };
+
+  let cancelled = false;
+  let rafId = null;
+
+  async function lockIn() {
+    g.locking = true;
+    const detected = pickCalibratedHandCount(g.samples);
+
+    // Open a new single-hand recognizer BEFORE closing the multi-hand one.
+    // If construction throws, the old recognizer stays live and the team
+    // plays with the ceiling cap — slightly less efficient but functional.
+    let newRecognizer = null;
+    try {
+      const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+      newRecognizer = await GestureRecognizer.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: GESTURE_MODEL_URL, delegate: 'GPU' },
+        runningMode: 'VIDEO',
+        numHands: 1,
+      });
+    } catch (e) {
+      console.warn('Gesture-lock calibration: recognizer recreate failed, keeping multi-hand recognizer', e);
+    }
+
+    // If the phase was cancelled during the await, abort cleanly.
+    if (cancelled) {
+      try { newRecognizer?.close(); } catch {}
+      g.locking = false;
+      return;
+    }
+
+    if (newRecognizer) {
+      try { state.recognizer.close(); } catch {}
+      state.recognizer = newRecognizer;
+    }
+
+    state.teamN = detected;
+    state.sequenceLen = sequenceLengthForTeam(detected);
+
+    console.info('Gesture-lock calibration: locked', {
+      teamN: state.teamN,
+      sequenceLen: state.sequenceLen,
+      samples: g.samples.length,
+      recreateOk: !!newRecognizer,
+    });
+
+    g.locking = false;
+    goto('memorize');
+  }
+
+  function tick() {
+    if (cancelled) return;
+    const now = performance.now();
+    const elapsed = (now - g.startedMs) / 1000;
+
+    // MediaPipe's gesture recognizer returns one landmark array per detected
+    // hand. We use the length as the hand count.
+    // Guard against re-feeding the same video frame to the recognizer — this
+    // can happen when RAF fires faster than the camera delivers frames, and
+    // MediaPipe warns "timestamp must be monotonically increasing".
+    let handsNow = g.lastHandsNow ?? 0;
+    if (video.currentTime !== g.lastVideoTime) {
+      g.lastVideoTime = video.currentTime;
+      const result = state.recognizer.recognizeForVideo(video, now);
+      handsNow = result.landmarks?.length ?? 0;
+      g.lastHandsNow = handsNow;
+    }
+
+    g.liveBuf.push(handsNow);
+    if (g.liveBuf.length > 20) g.liveBuf.shift();
+    g.liveMax = g.liveBuf.reduce((m, v) => v > m ? v : m, 0);
+
+    if (elapsed >= CALIB_GRACE_S && !g.locking) {
+      g.samples.push(handsNow);
+    }
+
+    // Update banner DOM each frame.
+    $('calibCount').textContent = String(g.liveMax);
+    $('calibTimer').textContent = String(Math.max(0, Math.ceil(CALIB_TOTAL_S - elapsed)));
+
+    if (elapsed >= CALIB_TOTAL_S && !g.locking) {
+      // Fire-and-forget. The RAF chain stops here; lockIn() resolves and
+      // calls goto('memorize'). During the ~100ms recreate, the calibrate
+      // banner shows the last-rendered count + "0s" and stays static —
+      // acceptable since nothing else is in flight.
+      lockIn();
+      return;
+    }
+
+    rafId = requestAnimationFrame(tick);
+  }
+
+  rafId = requestAnimationFrame(tick);
+
+  activeCleanup = () => {
+    cancelled = true;
+    if (rafId) cancelAnimationFrame(rafId);
+  };
+};
+
 // ----- placeholders (filled in later tasks) -----
 phaseEnter.memorize = () => {
   state.sequence = pickSequenceWithRepeats(GESTURE_POOL, SEQUENCE_LEN);
