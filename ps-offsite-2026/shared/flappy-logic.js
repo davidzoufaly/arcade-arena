@@ -37,7 +37,7 @@ export function nextVelocity(vy, amp, floor, dt, meterMax = METER_MAX) {
 export const RAMP_S = 60;
 export const SPEED_MIN = 3, SPEED_MAX = 6.5;                 // pipe scroll speed (px/frame)
 export const SPAWN_FRAMES_MAX = 160, SPAWN_FRAMES_MIN = 95;  // frames between spawns
-export const GAP_MAX = 240, GAP_MIN = 175;                   // vertical gap height
+export const GAP_MAX = 288, GAP_MIN = 210;                   // vertical gap height (+20% for easier pass-through)
 
 export function difficultyProgress(elapsedSec) {
   return Math.max(0, Math.min(1, elapsedSec / RAMP_S));
