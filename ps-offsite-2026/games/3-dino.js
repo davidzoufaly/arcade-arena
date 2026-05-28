@@ -65,8 +65,8 @@ function showToast(msg) {
 }
 
 // Solo-dev debug: with ?debug in the URL, hold keys 0-9 for exact palm count;
-// shift+0..4 maps to 10..14 (covers full TRACKER_CEILING range). Keyup clears, so
-// each press re-triggers a jump like raising/lowering hands.
+// shift+0..9 maps to 10..19 (TRACKER_CEILING=20 is not reachable by keyboard).
+// Keyup clears, so each press re-triggers a jump like raising/lowering hands.
 const DEBUG = new URLSearchParams(location.search).has('debug');
 let debugPalms = null;
 if (DEBUG) {
@@ -85,13 +85,15 @@ if (DEBUG) {
 
 // ?debug&team=N forces state.teamN at boot and skips the calibrate sub-phase.
 // Useful for solo testing where a single user can't supply >2 hands.
-const DEBUG_TEAM_N = (() => {
+// Guarded by DEBUG so a production URL with a stray `team` query param cannot
+// accidentally skip calibration.
+const DEBUG_TEAM_N = DEBUG ? (() => {
   const raw = new URLSearchParams(location.search).get('team');
   if (raw === null) return null;
   const n = Number(raw);
   if (!Number.isFinite(n) || n < MIN_N || n > TRACKER_CEILING) return null;
   return Math.floor(n);
-})();
+})() : null;
 if (DEBUG_TEAM_N !== null) state.teamN = DEBUG_TEAM_N;
 
 // Pre-build pip placeholders. The row is rebuilt to the detected team size at
@@ -388,7 +390,7 @@ phaseEnter.play = () => {
     ctx.restore();
   }
 
-  async function lockInCalibration(now) {
+  async function lockInCalibration() {
     g.calibLocking = true;
     const detected = pickCalibratedHandCount(g.calibSamples);
     const newCap = Math.min(TRACKER_CEILING, detected + TRACKER_BUFFER);
@@ -465,8 +467,10 @@ phaseEnter.play = () => {
     }
 
     if (elapsed >= CALIB_TOTAL_S) {
-      lockInCalibration(now);
-      // Draw this frame normally; lockInCalibration schedules its own RAF.
+      lockInCalibration();
+      // Fire-and-forget; RAF chain continues via tickCalibrate. calibLocking
+      // blocks the threshold check on subsequent ticks until the async swap
+      // finishes and subPhase advances to 'warmup'.
     }
 
     draw();
