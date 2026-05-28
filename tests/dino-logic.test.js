@@ -1,11 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
   PALM_COUNT_WINDOW,
+  TRACKER_CEILING,
+  TRACKER_BUFFER,
+  CALIB_TOTAL_S,
+  CALIB_GRACE_S,
+  FALLBACK_N,
+  MIN_N,
   RAMP_S,
   SPEED_MIN, SPEED_MAX,
   SPAWN_FRAMES_MAX, SPAWN_FRAMES_MIN,
   HIGH_PROB_MAX,
   palmCountToJumpStrength,
+  pickCalibratedHandCount,
   difficultyProgress,
   runSpeed,
   spawnIntervalFrames,
@@ -16,16 +23,42 @@ import {
 
 describe('constants', () => {
   it('PALM_COUNT_WINDOW is 4', () => expect(PALM_COUNT_WINDOW).toBe(4));
+  it('TRACKER_CEILING is 20', () => expect(TRACKER_CEILING).toBe(20));
+  it('TRACKER_BUFFER is 2', () => expect(TRACKER_BUFFER).toBe(2));
+  it('CALIB_TOTAL_S is 5', () => expect(CALIB_TOTAL_S).toBe(5));
+  it('CALIB_GRACE_S is 2', () => expect(CALIB_GRACE_S).toBe(2));
+  it('FALLBACK_N is 4', () => expect(FALLBACK_N).toBe(4));
+  it('MIN_N is 1', () => expect(MIN_N).toBe(1));
   it('RAMP_S is 60', () => expect(RAMP_S).toBe(60));
 });
 
 describe('palmCountToJumpStrength', () => {
-  it('0 palms → 0 (no jump)', () => expect(palmCountToJumpStrength(0)).toBe(0));
-  it('negative → 0', () => expect(palmCountToJumpStrength(-3)).toBe(0));
-  it('1 palm → 8', () => expect(palmCountToJumpStrength(1)).toBe(8));
-  it('4 palms → 14', () => expect(palmCountToJumpStrength(4)).toBe(14));
-  it('8 palms → 20 (clamped)', () => expect(palmCountToJumpStrength(8)).toBe(20));
-  it('20 palms → 20 (clamped)', () => expect(palmCountToJumpStrength(20)).toBe(20));
+  it('0 palms → 0',            () => expect(palmCountToJumpStrength(0, 4)).toBe(0));
+  it('negative palms → 0',     () => expect(palmCountToJumpStrength(-3, 4)).toBe(0));
+  it('teamN=2, 1 palm → 13',   () => expect(palmCountToJumpStrength(1, 2)).toBe(13));
+  it('teamN=2, 2 palms → 20',  () => expect(palmCountToJumpStrength(2, 2)).toBe(20));
+  it('teamN=7, 4 palms → 14',  () => expect(palmCountToJumpStrength(4, 7)).toBe(14));
+  it('teamN=7, 7 palms → 20',  () => expect(palmCountToJumpStrength(7, 7)).toBe(20));
+  it('teamN=14, 14 palms → 20',           () => expect(palmCountToJumpStrength(14, 14)).toBe(20));
+  it('teamN=14, 20 palms → 20 (clamped)', () => expect(palmCountToJumpStrength(20, 14)).toBe(20));
+  it('teamN nullish → uses FALLBACK_N (4)', () => expect(palmCountToJumpStrength(4, null)).toBe(palmCountToJumpStrength(4, 4)));
+  it('teamN undefined → uses FALLBACK_N',   () => expect(palmCountToJumpStrength(4, undefined)).toBe(palmCountToJumpStrength(4, 4)));
+  // teamN=0 means "no team detected, but value was supplied" — clamped up to
+  // MIN_N (1). One palm against teamN=0 = peak jump 20.
+  it('teamN=0 → clamped to MIN_N',          () => expect(palmCountToJumpStrength(1, 0)).toBe(20));
+  it('teamN=0, 2 palms → still clamped to 20', () => expect(palmCountToJumpStrength(2, 0)).toBe(20));
+});
+
+describe('pickCalibratedHandCount', () => {
+  it('empty → FALLBACK_N',              () => expect(pickCalibratedHandCount([])).toBe(4));
+  it('all zeros → FALLBACK_N',          () => expect(pickCalibratedHandCount([0,0,0])).toBe(4));
+  it('clear mode',                       () => expect(pickCalibratedHandCount([4,4,4,5,4])).toBe(4));
+  it('tie resolves to higher',           () => expect(pickCalibratedHandCount([6,6,7,7])).toBe(7));
+  it('clamps above ceiling',             () => expect(pickCalibratedHandCount([25,25,25])).toBe(20));
+  it('zero-dominant → FALLBACK_N',       () => expect(pickCalibratedHandCount([0,0,1])).toBe(4));
+  it('ignores transient spike (noise)',  () => expect(pickCalibratedHandCount([10,10,10,10,15,10])).toBe(10));
+  it('ignores drop-out (noise)',          () => expect(pickCalibratedHandCount([8,8,7,8,8,7,8,8,8,7])).toBe(8));
+  it('uniform low signal',                () => expect(pickCalibratedHandCount([1,1,1])).toBe(1));
 });
 
 describe('difficultyProgress', () => {
