@@ -346,10 +346,19 @@ import { GestureRecognizer, FilesetResolver, DrawingUtils } from 'https://cdn.js
 import {
   GESTURE_POOL,
   SEQUENCE_LEN,
+  sequenceLengthForTeam,
   pickSequenceWithRepeats,
   scoreAttempt,
   finalScore,
 } from '../shared/gesture-lock-logic.js';
+import {
+  TRACKER_CEILING,
+  CALIB_TOTAL_S,
+  CALIB_GRACE_S,
+  FALLBACK_N,
+  MIN_N,
+  pickCalibratedHandCount,
+} from '../shared/dino-logic.js';
 import { mountTopbar } from '../shared/topbar.js';
 import { resolveSession } from '../shared/lobby.js';
 import { requireAdmin } from '../shared/admin-gate.js';
@@ -391,6 +400,8 @@ const state = {
   teamId: null,
   recognizer: null,
   stream: null,
+  teamN: null,         // locked by calibrate phase on attempt 1
+  sequenceLen: null,   // derived from teamN; falls back at memorize-time
   attemptIdx: 0,
   sequence: [],
   stepIdx: 0,
@@ -433,7 +444,7 @@ phaseEnter.loading = async () => {
           delegate: 'GPU',
         },
         runningMode: 'VIDEO',
-        numHands: 1,
+        numHands: TRACKER_CEILING,
       });
     }
     if (!state.stream) {
