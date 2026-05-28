@@ -18,8 +18,8 @@ export function effectivePalmCount(samples) {
 // docs/superpowers/specs/2026-05-28-dino-hand-calibration-design.md
 export const TRACKER_CEILING  = 20;  // hard upper bound; MediaPipe-safe max
 export const TRACKER_BUFFER   = 2;   // extra slots over detected N (stragglers)
-export const CALIB_TOTAL_S    = 5;   // total calibration phase duration
-export const CALIB_GRACE_S    = 2;   // skip the first N seconds (team raising hands)
+export const CALIB_TOTAL_S    = 20;  // total calibration phase duration
+export const CALIB_GRACE_S    = 3;   // skip the first N seconds (team raising hands)
 export const FALLBACK_N       = 4;   // if calibration sees no hands at all
 export const MIN_N            = 1;   // lower bound on team size
 

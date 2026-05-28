@@ -246,7 +246,7 @@
 
 <main>
   <div class="card briefing" id="briefing">
-    <strong>Goal:</strong> Watch a sequence flash by once, then unlock the vault by repeating it from memory. The length scales with your team — bigger team, longer sequence. <strong>Who performs each gesture is your team's call — split the sequence however your strategy works best.</strong> One wrong move locks you out, and each gesture has a <strong>10 s timer</strong> — run out and the attempt fails. Go in order. <strong>3 attempts</strong>, best score counts; the faster you unlock, the higher the score.
+    <strong>Goal:</strong> Watch a sequence flash by once, then unlock the vault by repeating it from memory. <strong>First, a 20-second calibration:</strong> everyone shows all their hands so the game can detect team size — the sequence length scales with it (bigger team, longer sequence). <strong>Who performs each gesture is your team's call — split the sequence however your strategy works best.</strong> One wrong move locks you out, and each gesture has a <strong>10 s timer</strong> — run out and the attempt fails. Go in order. <strong>3 attempts</strong>, best score counts; the faster you unlock, the higher the score.
   </div>
 
   <!-- BOOT -->
@@ -517,12 +517,19 @@ phaseEnter.calibrate = () => {
     return;
   }
 
-  const video = $('calibVideo');
-  video.srcObject = state.stream;
-  // GestureRecognizer.recognizeForVideo(video, ts) reads from video.currentTime.
-  // Without an explicit play() the element stays at currentTime=0 and MediaPipe
-  // gets the same frozen frame every tick — sampling sees zero hands forever.
-  video.play().catch(e => console.warn('Gesture-lock calibration: calibVideo play() failed', e));
+  // Visual preview only — calibVideo shows the player their framing during
+  // calibration. We do NOT feed it to MediaPipe because some browsers pause
+  // a second <video> element sharing the same MediaStream, leaving
+  // currentTime stuck at 0 and recognition stuck at zero hands.
+  const previewVideo = $('calibVideo');
+  previewVideo.srcObject = state.stream;
+  previewVideo.play().catch(e => console.warn('Gesture-lock calibration: preview play() failed', e));
+
+  // Detection reads from the original #video element opened in phaseEnter.
+  // loading — its srcObject was set, play() was awaited, and it has been
+  // decoding the camera stream continuously since. recognizeForVideo on it
+  // returns a fresh frame every tick.
+  const video = $('video');
 
   // Closure-local per-phase state. g.startedMs is NOT paused on visibility
   // change — see spec: tab-switch mid-calibrate is a low-probability case in
