@@ -9,8 +9,10 @@ import { firebaseConfig } from '../firebase-config.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import {
-  PALM_COUNT_WINDOW, TRACKER_CEILING,
-  palmCountToJumpStrength, scoreAttempt, finalScore,
+  PALM_COUNT_WINDOW, TRACKER_CEILING, TRACKER_BUFFER,
+  CALIB_TOTAL_S, CALIB_GRACE_S, FALLBACK_N,
+  palmCountToJumpStrength, pickCalibratedHandCount,
+  scoreAttempt, finalScore,
   runSpeed, spawnIntervalFrames, highObstacleProb,
 } from '../shared/dino-logic.js';
 import { warmupSecondsLeft } from '../shared/warmup-logic.js';
@@ -162,11 +164,15 @@ phaseEnter.play = () => {
     y: GROUND_Y - RUNNER_H, vy: 0, ducking: false,
     score: 0, obs: [], spawnTimer: 0, runPhase: 0,
     palmWindow: [], lastEff: 0,
-    // Sub-phase machine replaces the old `warming` boolean. On attempt 1
-    // (state.teamN === null) we'd start in 'calibrate' — for now we always
-    // start in 'warmup'; calibrate is added in the next task.
-    subPhase: 'warmup',
+    // Sub-phase machine. On attempt 1 (state.teamN === null) start in
+    // 'calibrate' to detect team size; subsequent attempts skip straight to
+    // warmup and reuse the locked state.teamN.
+    subPhase: (state.teamN === null) ? 'calibrate' : 'warmup',
     subPhaseMs: performance.now(),
+    calibSamples: [],
+    calibLiveBuf: [],     // ring buffer of recent hands.length for smoothed banner
+    calibLiveMax: 0,      // smoothed max for banner display
+    calibLocking: false,  // re-entrancy guard while async lock-in is in flight
     warmStartMs: performance.now(), startMs: 0,
     // Parallax speck field — scrolls with run speed so forward motion reads
     // even in warmup (no obstacles yet). z = depth → speed, size, brightness.
@@ -188,9 +194,14 @@ phaseEnter.play = () => {
     if (document.hidden) hiddenAt = performance.now();
     else if (hiddenAt) {
       const delta = performance.now() - hiddenAt;
-      if (g.subPhase === 'calibrate')   g.subPhaseMs += delta;  // pause calibration clock
-      else if (g.subPhase === 'warmup') g.warmStartMs += delta; // pause warmup countdown
-      else                              g.startMs    += delta;  // pause scored clock
+      // Ignore the visibility delta while the async lock-in is in flight —
+      // the awaited recreate doesn't care about page visibility, and
+      // subPhaseMs is about to be overwritten anyway when subPhase advances.
+      if (!g.calibLocking) {
+        if (g.subPhase === 'calibrate')   g.subPhaseMs += delta;
+        else if (g.subPhase === 'warmup') g.warmStartMs += delta;
+        else                              g.startMs    += delta;
+      }
       hiddenAt = 0;
       prevTs = performance.now();
     }
@@ -334,6 +345,18 @@ phaseEnter.play = () => {
     drawRunner();
   }
 
+  function drawCalibrateBanner(secondsLeft, detectedCount) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = css('--accent');
+    ctx.font = 'bold 34px system-ui, sans-serif';
+    ctx.fillText('SHOW ALL HANDS', CANVAS_W / 2, 70);
+    ctx.fillStyle = css('--text');
+    ctx.font = '22px system-ui, sans-serif';
+    ctx.fillText(`${detectedCount} detected · ${secondsLeft}s`, CANVAS_W / 2, 104);
+    ctx.restore();
+  }
+
   function drawWarmupBanner(secondsLeft) {
     ctx.save();
     ctx.textAlign = 'center';
@@ -346,13 +369,89 @@ phaseEnter.play = () => {
     ctx.restore();
   }
 
-  function tickCalibrate(_dt, _now) {
-    // Filled in by Task 5. For now: immediately advance to warmup so the
-    // refactor stays behaviorally identical when subPhase happens to start
-    // at 'calibrate' (e.g., if Task 5 lands partially).
+  async function lockInCalibration(now) {
+    g.calibLocking = true;
+    const detected = pickCalibratedHandCount(g.calibSamples);
+    const newCap = Math.min(TRACKER_CEILING, detected + TRACKER_BUFFER);
+
+    // Open the new tracker BEFORE closing the old one. If construction throws,
+    // the old tracker is still live and the team plays with the ceiling cap.
+    let newTracker = null;
+    try {
+      newTracker = await createHandTracker(state.video, { numHands: newCap, minRunMs: 0 });
+    } catch (e) {
+      console.warn('Dino calibration: tracker recreate failed, keeping ceiling cap', e);
+    }
+
+    // If the play phase was cancelled while we were awaiting, abort cleanly
+    // and don't mutate shared state.
+    if (cancelled) {
+      try { newTracker?.stop(); } catch {}
+      g.calibLocking = false;
+      return;
+    }
+
+    if (newTracker) {
+      try { state.tracker.stop(); } catch {}
+      state.tracker = newTracker;
+    }
+
+    state.teamN = detected;
+
+    // Rebuild HUD pip row to match the detected count.
+    palmDotsEl.innerHTML = '';
+    for (let i = 0; i < state.teamN; i++) {
+      const d = document.createElement('div');
+      d.className = 'pip';
+      palmDotsEl.appendChild(d);
+    }
+
+    console.info('Dino calibration: locked', {
+      teamN: state.teamN,
+      cap: newTracker ? newCap : TRACKER_CEILING,
+      samples: g.calibSamples.length,
+      recreateOk: !!newTracker,
+    });
+
+    g.calibSamples = [];
+    g.calibLocking = false;
     g.subPhase = 'warmup';
     g.subPhaseMs = performance.now();
     g.warmStartMs = g.subPhaseMs;
+  }
+
+  function tickCalibrate(dt, now) {
+    if (g.calibLocking) {
+      // Async lock-in in flight; draw the current frame but do not advance.
+      step(dt, 0);
+      if (cancelled) return;
+      draw();
+      drawCalibrateBanner(0, g.calibLiveMax);
+      return;
+    }
+
+    step(dt, 0);
+    if (cancelled) return;
+
+    // Maintain the smoothed live max over the last ~20 frames so the banner
+    // count climbs as hands are raised but doesn't flicker on a missed frame.
+    const handsNow = state.tracker.latest().hands.length;
+    g.calibLiveBuf.push(handsNow);
+    if (g.calibLiveBuf.length > 20) g.calibLiveBuf.shift();
+    g.calibLiveMax = g.calibLiveBuf.reduce((m, v) => v > m ? v : m, 0);
+
+    const elapsed = (now - g.subPhaseMs) / 1000;
+    if (elapsed >= CALIB_GRACE_S) {
+      g.calibSamples.push(handsNow);
+    }
+
+    if (elapsed >= CALIB_TOTAL_S) {
+      lockInCalibration(now);
+      // Draw this frame normally; lockInCalibration schedules its own RAF.
+    }
+
+    draw();
+    drawCalibrateBanner(Math.max(0, Math.ceil(CALIB_TOTAL_S - elapsed)), g.calibLiveMax);
   }
 
   function tickWarmup(dt, now) {
