@@ -426,6 +426,23 @@ const state = {
   attempts: [],
 };
 
+// ?debug&team=N skips the calibrate phase and forces state.teamN /
+// sequenceLen at boot. Guarded by ?debug so a stray ?team= production URL
+// cannot suppress calibration. Useful for solo dev when one person cannot
+// supply >2 hands during the 5 s calibrate window.
+const DEBUG = new URLSearchParams(location.search).has('debug');
+const DEBUG_TEAM_N = DEBUG ? (() => {
+  const raw = new URLSearchParams(location.search).get('team');
+  if (raw === null) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < MIN_N || n > TRACKER_CEILING) return null;
+  return Math.floor(n);
+})() : null;
+if (DEBUG_TEAM_N !== null) {
+  state.teamN = DEBUG_TEAM_N;
+  state.sequenceLen = sequenceLengthForTeam(DEBUG_TEAM_N);
+}
+
 function $(id) { return document.getElementById(id); }
 
 function goto(phase) {
