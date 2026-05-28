@@ -13,6 +13,7 @@ import {
   HIGH_PROB_MAX,
   palmCountToJumpStrength,
   pickCalibratedHandCount,
+  effectivePalmCount,
   difficultyProgress,
   runSpeed,
   spawnIntervalFrames,
@@ -59,6 +60,23 @@ describe('pickCalibratedHandCount', () => {
   it('ignores transient spike (noise)',  () => expect(pickCalibratedHandCount([10,10,10,10,15,10])).toBe(10));
   it('ignores drop-out (noise)',          () => expect(pickCalibratedHandCount([8,8,7,8,8,7,8,8,8,7])).toBe(8));
   it('uniform low signal',                () => expect(pickCalibratedHandCount([1,1,1])).toBe(1));
+});
+
+describe('effectivePalmCount (per-frame smoother — rejects flicker)', () => {
+  it('empty → 0',                            () => expect(effectivePalmCount([])).toBe(0));
+  it('undefined → 0',                        () => expect(effectivePalmCount(undefined)).toBe(0));
+  it('all zeros → 0',                        () => expect(effectivePalmCount([0,0,0,0])).toBe(0));
+  it('single-frame phantom rejected',        () => expect(effectivePalmCount([0,0,0,1])).toBe(0));
+  it('two-frame phantom still rejected',     () => expect(effectivePalmCount([0,0,1,1])).toBe(1));
+  it('three-frame raise registers',          () => expect(effectivePalmCount([0,1,1,1])).toBe(1));
+  it('stable 4-frame raise',                 () => expect(effectivePalmCount([1,1,1,1])).toBe(1));
+  it('higher-value phantom rejected',        () => expect(effectivePalmCount([0,0,0,2])).toBe(0));
+  it('drop-out from stable raise still 1',   () => expect(effectivePalmCount([1,1,0,1])).toBe(1));
+  it('rising team count [1,2,3,4] → 3 (round 2.5 up)', () =>
+    expect(effectivePalmCount([1,2,3,4])).toBe(3));
+  it('uniform team of 5 stays 5',            () => expect(effectivePalmCount([5,5,5,5])).toBe(5));
+  it('odd-length window picks middle',       () => expect(effectivePalmCount([0,1,2])).toBe(1));
+  it('single-element window returns it',     () => expect(effectivePalmCount([7])).toBe(7));
 });
 
 describe('difficultyProgress', () => {

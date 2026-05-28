@@ -11,7 +11,7 @@ import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import {
   PALM_COUNT_WINDOW, TRACKER_CEILING, TRACKER_BUFFER,
   CALIB_TOTAL_S, CALIB_GRACE_S, FALLBACK_N, MIN_N,
-  palmCountToJumpStrength, pickCalibratedHandCount,
+  palmCountToJumpStrength, pickCalibratedHandCount, effectivePalmCount,
   scoreAttempt, finalScore,
   runSpeed, spawnIntervalFrames, highObstacleProb,
 } from '../shared/dino-logic.js';
@@ -234,7 +234,7 @@ phaseEnter.play = () => {
     const palms = hands.filter(isPalmOpen).length;
     g.palmWindow.push(palms);
     if (g.palmWindow.length > PALM_COUNT_WINDOW) g.palmWindow.shift();
-    const eff = DEBUG ? (debugPalms ?? 0) : Math.max(0, ...g.palmWindow);
+    const eff = DEBUG ? (debugPalms ?? 0) : effectivePalmCount(g.palmWindow);
     const fist = hands.some(isFist);
     const ready = hands.some(isVictorySign);
     updatePalmHud(eff);
