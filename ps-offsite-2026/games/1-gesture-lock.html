@@ -361,7 +361,6 @@
 import { GestureRecognizer, FilesetResolver, DrawingUtils } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
 import {
   GESTURE_POOL,
-  SEQUENCE_LEN,
   sequenceLengthForTeam,
   pickSequenceWithRepeats,
   scoreAttempt,
@@ -430,6 +429,8 @@ const state = {
 // sequenceLen at boot. Guarded by ?debug so a stray ?team= production URL
 // cannot suppress calibration. Useful for solo dev when one person cannot
 // supply >2 hands during the 5 s calibrate window.
+// Note: ?debug alone (no team=) → DEBUG_TEAM_N stays null → calibration
+// runs normally. Only ?debug&team=N short-circuits the calibrate phase.
 const DEBUG = new URLSearchParams(location.search).has('debug');
 const DEBUG_TEAM_N = DEBUG ? (() => {
   const raw = new URLSearchParams(location.search).get('team');
@@ -534,7 +535,6 @@ phaseEnter.calibrate = () => {
     liveMax: 0,
     locking: false,       // re-entrancy guard while async lock-in is in flight
     lastVideoTime: -1,    // dedupe frames so MediaPipe sees monotonic timestamps
-    lastHandsNow: 0,      // last computed hands count, replayed on duplicate frames
   };
 
   let cancelled = false;
@@ -594,21 +594,21 @@ phaseEnter.calibrate = () => {
     // hand. We use the length as the hand count.
     // Guard against re-feeding the same video frame to the recognizer — this
     // can happen when RAF fires faster than the camera delivers frames, and
-    // MediaPipe warns "timestamp must be monotonically increasing".
-    let handsNow = g.lastHandsNow ?? 0;
+    // MediaPipe warns "timestamp must be monotonically increasing". Both
+    // calibSamples and liveBuf are pushed only on fresh frames so the
+    // 3-second sample window isn't inflated by RAF-vs-camera mismatch.
     if (video.currentTime !== g.lastVideoTime) {
       g.lastVideoTime = video.currentTime;
       const result = state.recognizer.recognizeForVideo(video, now);
-      handsNow = result.landmarks?.length ?? 0;
-      g.lastHandsNow = handsNow;
-    }
+      const handsNow = result.landmarks?.length ?? 0;
 
-    g.liveBuf.push(handsNow);
-    if (g.liveBuf.length > 20) g.liveBuf.shift();
-    g.liveMax = g.liveBuf.reduce((m, v) => v > m ? v : m, 0);
+      g.liveBuf.push(handsNow);
+      if (g.liveBuf.length > 20) g.liveBuf.shift();
+      g.liveMax = g.liveBuf.reduce((m, v) => v > m ? v : m, 0);
 
-    if (elapsed >= CALIB_GRACE_S && !g.locking) {
-      g.samples.push(handsNow);
+      if (elapsed >= CALIB_GRACE_S && !g.locking) {
+        g.samples.push(handsNow);
+      }
     }
 
     // Update banner DOM each frame.
