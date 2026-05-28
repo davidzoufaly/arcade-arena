@@ -93,7 +93,7 @@ for (let i = 0; i < TRACKER_CEILING; i++) {
 function updatePalmHud(n) {
   const pips = palmDotsEl.children;
   for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('on', i < n);
-  $('jumpFill').style.width = `${(palmCountToJumpStrength(n) / 20) * 100}%`;
+  $('jumpFill').style.width = `${(palmCountToJumpStrength(n, state.teamN ?? FALLBACK_N) / 20) * 100}%`;
 }
 
 // Live control-state chip so players see jump-armed vs ducking vs ready.
@@ -246,7 +246,7 @@ phaseEnter.play = () => {
   function step(dt, elapsedSec) {
     const { eff, fist } = readInput();
     const onGround = g.y + RUNNER_H >= GROUND_Y - 0.5;
-    if (onGround && eff > 0 && g.lastEff === 0) g.vy = -palmCountToJumpStrength(eff);
+    if (onGround && eff > 0 && g.lastEff === 0) g.vy = -palmCountToJumpStrength(eff, state.teamN ?? FALLBACK_N);
     g.lastEff = eff;
     g.ducking = fist && onGround;
     g.vy += GRAVITY * dt;
