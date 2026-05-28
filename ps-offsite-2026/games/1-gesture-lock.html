@@ -231,6 +231,11 @@
   }
   .hidden { display: none !important; }
   .loading { text-align: center; color: var(--muted); padding: 40px; }
+  .calib-card { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+  .calib-banner { text-align: center; }
+  .calib-banner h1 { font-size: 34px; font-weight: 800; letter-spacing: 1px; color: var(--accent); margin: 0; }
+  .calib-banner p { font-size: 22px; color: var(--text); margin: 6px 0 0; }
+  .calib-card .cam { width: 320px; height: 240px; object-fit: cover; transform: scaleX(-1); border-radius: 12px; background: #000; }
 </style>
 <link rel="stylesheet" href="../shared/topbar.css">
 </head>
@@ -269,6 +274,17 @@
     <p class="briefing">Memorize the sequence — each gesture flashes once, no replay.</p>
     <button id="introStartBtn" style="margin-top: 16px;">Show sequence</button>
   </div>
+
+  <!-- CALIBRATE -->
+  <section id="phase-calibrate" class="phase hidden">
+    <div class="phase-card calib-card">
+      <video id="calibVideo" autoplay playsinline muted class="cam"></video>
+      <div class="calib-banner">
+        <h1>SHOW ALL HANDS</h1>
+        <p><span id="calibCount">0</span> detected · <span id="calibTimer">5</span>s</p>
+      </div>
+    </div>
+  </section>
 
   <!-- MEMORIZE -->
   <div id="phase-memorize" class="card hidden">
@@ -393,7 +409,7 @@ const MATCH_CONFIDENCE = 0.45;
 const GESTURE_TIME_S = 10;
 const CAM_COUNTDOWN_S = 3;
 
-const PHASES = ['setup', 'loading', 'intro', 'memorize', 'countdown', 'recall', 'attempt-end', 'final'];
+const PHASES = ['setup', 'loading', 'intro', 'calibrate', 'memorize', 'countdown', 'recall', 'attempt-end', 'final'];
 let activeCleanup = null;
 
 const state = {
