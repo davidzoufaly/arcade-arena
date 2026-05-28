@@ -10,7 +10,7 @@ import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import {
   PALM_COUNT_WINDOW, TRACKER_CEILING, TRACKER_BUFFER,
-  CALIB_TOTAL_S, CALIB_GRACE_S, FALLBACK_N,
+  CALIB_TOTAL_S, CALIB_GRACE_S, FALLBACK_N, MIN_N,
   palmCountToJumpStrength, pickCalibratedHandCount,
   scoreAttempt, finalScore,
   runSpeed, spawnIntervalFrames, highObstacleProb,
@@ -76,16 +76,30 @@ if (DEBUG) {
   };
   window.addEventListener('keydown', (e) => {
     const n = parseKey(e);
-    if (n !== null && n <= TRACKER_CEILING) debugPalms = n;
+    // Read state.teamN inside the handler so the bound updates after lock-in.
+    const upper = state.teamN ?? TRACKER_CEILING;
+    if (n !== null && n <= upper) debugPalms = n;
   });
   window.addEventListener('keyup', (e) => { if (parseKey(e) !== null) debugPalms = null; });
 }
 
-// Pre-build TRACKER_CEILING pip placeholders. The row is rebuilt to the
-// detected team size at calibration lock-in. Until then it shows the full
-// ceiling so calibrate-phase players can see hands light up as they raise.
+// ?debug&team=N forces state.teamN at boot and skips the calibrate sub-phase.
+// Useful for solo testing where a single user can't supply >2 hands.
+const DEBUG_TEAM_N = (() => {
+  const raw = new URLSearchParams(location.search).get('team');
+  if (raw === null) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < MIN_N || n > TRACKER_CEILING) return null;
+  return Math.floor(n);
+})();
+if (DEBUG_TEAM_N !== null) state.teamN = DEBUG_TEAM_N;
+
+// Pre-build pip placeholders. The row is rebuilt to the detected team size at
+// calibration lock-in. Until then it shows the full ceiling (or DEBUG_TEAM_N
+// if the debug param forced it).
 const palmDotsEl = $('palmDots');
-for (let i = 0; i < TRACKER_CEILING; i++) {
+const initialPipCount = DEBUG_TEAM_N !== null ? DEBUG_TEAM_N : TRACKER_CEILING;
+for (let i = 0; i < initialPipCount; i++) {
   const d = document.createElement('div');
   d.className = 'pip';
   palmDotsEl.appendChild(d);
@@ -120,7 +134,12 @@ phaseEnter.loading = async () => {
       const { video, stream } = await createCamStream({ width: 480, height: 360 });
       state.video = video;
       state.stream = stream;
-      state.tracker = await createHandTracker(video, { numHands: TRACKER_CEILING, minRunMs: 0 });
+      state.tracker = await createHandTracker(video, {
+        numHands: DEBUG_TEAM_N !== null
+          ? Math.min(TRACKER_CEILING, DEBUG_TEAM_N + TRACKER_BUFFER)
+          : TRACKER_CEILING,
+        minRunMs: 0,
+      });
     }
   } catch (e) {
     if (e && (e.name === 'NotAllowedError' || e.name === 'NotFoundError' || e.name === 'NotReadableError')) {
