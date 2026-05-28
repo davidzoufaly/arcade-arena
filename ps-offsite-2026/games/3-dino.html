@@ -40,7 +40,7 @@
     border: 1px solid rgba(255,255,255,0.06);
     margin-bottom: 20px;
   }
-  .briefing { font-size: 15px; line-height: 1.6; color: var(--muted); }
+  .briefing { font-size: 17px; line-height: 1.6; color: var(--muted); }
   .briefing strong { color: var(--text); }
   .setup { display: flex; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap; }
   input, select {
@@ -49,14 +49,14 @@
     color: var(--text);
     padding: 12px 16px;
     border-radius: 10px;
-    font-size: 16px;
+    font-size: 18px;
     font-family: inherit;
   }
   button {
     background: linear-gradient(135deg, var(--accent), #0099cc);
     border: none; color: #001;
     padding: 12px 24px; border-radius: 10px;
-    font-size: 16px; font-weight: 700; cursor: pointer;
+    font-size: 18px; font-weight: 700; cursor: pointer;
     font-family: inherit; transition: all 0.15s;
   }
   button:hover:not(:disabled) { transform: translateY(-1px); }
@@ -92,7 +92,7 @@
     position: absolute; top: 16px; right: 16px;
     background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
     padding: 8px 14px; border-radius: 999px;
-    font-size: 14px; font-weight: 800; letter-spacing: 0.5px;
+    font-size: 16px; font-weight: 800; letter-spacing: 0.5px;
     color: var(--accent);
   }
   .video-wrap video, .video-wrap canvas {
@@ -104,7 +104,7 @@
     position: absolute; bottom: 16px; left: 16px;
     background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
     padding: 8px 14px; border-radius: 10px;
-    font-size: 14px; font-family: ui-monospace, monospace;
+    font-size: 16px; font-family: ui-monospace, monospace;
   }
   /* Canvas on top (full width), controls in a strip below. */
   .game { display: flex; flex-direction: column; gap: 20px; }
@@ -120,7 +120,7 @@
     text-align: center;
   }
   .player-banner .label {
-    font-size: 11px; color: var(--muted);
+    font-size: 13px; color: var(--muted);
     text-transform: uppercase; letter-spacing: 1px;
   }
   .player-banner .name {
@@ -164,7 +164,7 @@
     border-radius: 12px; text-align: center;
   }
   .stat .value { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+  .stat .label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
 
   .big-flash {
     text-align: center;
@@ -201,14 +201,14 @@
   }
   .save-status {
     display: inline-block; margin-top: 14px;
-    font-size: 12px; font-weight: 800; letter-spacing: 1.5px;
+    font-size: 14px; font-weight: 800; letter-spacing: 1.5px;
     padding: 6px 12px; border-radius: 999px;
     background: rgba(255,255,255,0.08); color: var(--text);
   }
   .save-status.ok  { background: rgba(0,230,118,0.18); color: #00e676; }
   .save-status.bad { background: rgba(255,77,109,0.18); color: #ff4d6d; cursor: pointer; }
   .secondary-link {
-    color: var(--accent); text-decoration: none; font-weight: 700; font-size: 14px;
+    color: var(--accent); text-decoration: none; font-weight: 700; font-size: 16px;
     align-self: center; padding: 8px 14px;
   }
   .result-row {
@@ -240,7 +240,7 @@
   .jump-meter .fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--good)); transition: width 0.05s linear; }
   .pose-state {
     margin-top: 10px; text-align: center;
-    font-size: 13px; font-weight: 800; letter-spacing: 1px;
+    font-size: 15px; font-weight: 800; letter-spacing: 1px;
     padding: 6px 10px; border-radius: 8px;
     background: rgba(255,255,255,0.06); color: var(--muted);
   }
@@ -251,7 +251,7 @@
     position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%);
     background: var(--card); color: var(--text); padding: 12px 20px;
     border-radius: 10px; border: 1px solid var(--bad); z-index: 50;
-    font-size: 14px;
+    font-size: 16px;
   }
 </style>
 <link rel="stylesheet" href="../shared/topbar.css">
@@ -263,7 +263,7 @@
 
 <main>
   <div class="card briefing" id="briefing">
-    <strong>Goal:</strong> Control the on-screen dino 🦖 with your hands — the whole team plays together in front of the laptop camera. Dino jumps ⬆️ and ducks ⬇️ past obstacles 🌵; it's <strong>endless and keeps speeding up 💨</strong>. <strong>First, a 20-second calibration:</strong> show all your hands so the game can detect team size — your jump strength scales with it. Then: <strong>more open palms ✋ = higher jump.</strong> Make a fist ✊ to duck. Survive as long as you can; your score is the number of obstacles passed. <strong>3 attempts</strong>, best score counts 🏆.
+    <strong>Goal:</strong> Control the on-screen dino 🦖 with your hands — the whole team plays together in front of the laptop camera. Dino jumps ⬆️ and ducks ⬇️ past obstacles 🌵; it's <strong>endless and keeps speeding up 💨</strong>. <strong>First, a 20-second calibration:</strong> show all your hands so the game can detect team size — your jump strength scales with it. Then: <strong>more open palms ✋ = higher jump.</strong> Make a fist ✊ to duck. Hold a victory sign ✌️ to stay ready (no jump, no duck) — useful between obstacles so an idle palm doesn't trigger a false jump. Survive as long as you can; your score is the number of obstacles passed. <strong>3 attempts</strong>, best score counts 🏆.
   </div>
 
   <!-- BOOT -->
@@ -273,7 +273,7 @@
   <div id="phase-setup" class="card hidden">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup"><button id="startBtn">Start game</button></div>
-    <div class="briefing" style="margin-top: 12px; font-size: 13px;">Allow camera access when prompted. Get the whole team in frame.</div>
+    <div class="briefing" style="margin-top: 12px; font-size: 15px;">Allow camera access when prompted. Get the whole team in frame.</div>
   </div>
 
   <!-- LOADING -->
@@ -298,7 +298,7 @@
       <div class="panel">
         <div style="text-align:center"><video id="camPreview" class="cam-preview" playsinline autoplay muted></video></div>
         <div>
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;text-align:center">Open palms ✋ → jump ⬆️<br>Fist ✊ → duck ⬇️<br>Victory ✌️ → ready</div>
+          <div style="font-size: 13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;text-align:center">Open palms ✋ → jump ⬆️<br>Fist ✊ → duck ⬇️<br>Victory ✌️ → ready</div>
           <div class="palm-dots" id="palmDots"></div>
           <div class="jump-meter"><div class="fill" id="jumpFill"></div></div>
           <div class="pose-state" id="poseState">SHOW HANDS</div>
@@ -335,7 +335,7 @@
       <button id="finalPlayAgain">Restart game</button>
       <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin-top:10px">Something went wrong? Restart requires the admin password.</p>
+    <p style="font-size: 14px;color:var(--muted);margin-top:10px">Something went wrong? Restart requires the admin password.</p>
   </div>
 </main>
 

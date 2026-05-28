@@ -113,21 +113,22 @@ describe('scoreAttempt', () => {
 });
 
 describe('sequence-length constants', () => {
-  it('SEQUENCE_LEN_MIN is 8', () => expect(SEQUENCE_LEN_MIN).toBe(8));
+  it('SEQUENCE_LEN_MIN is 4', () => expect(SEQUENCE_LEN_MIN).toBe(4));
   it('SEQUENCE_LEN_MAX is 28', () => expect(SEQUENCE_LEN_MAX).toBe(28));
   it('TIME_GRACE_PER_GESTURE is 0.625', () => expect(TIME_GRACE_PER_GESTURE).toBe(0.625));
   it('SEQUENCE_LEN (back-compat) is still 16', () => expect(SEQUENCE_LEN).toBe(16));
 });
 
 describe('sequenceLengthForTeam', () => {
-  it('teamN nullish → FALLBACK_N (4) → clamped to MIN (8)', () => {
+  it('teamN nullish → FALLBACK_N (4) → 8 (natural, no clamp)', () => {
     expect(sequenceLengthForTeam(null)).toBe(8);
     expect(sequenceLengthForTeam(undefined)).toBe(8);
   });
-  it('teamN=0 → clamped to MIN (8)',  () => expect(sequenceLengthForTeam(0)).toBe(8));
-  it('teamN=1 → 2 → clamped to MIN (8)', () => expect(sequenceLengthForTeam(1)).toBe(8));
-  it('teamN=3 → 6 → clamped to MIN (8)', () => expect(sequenceLengthForTeam(3)).toBe(8));
-  it('teamN=4 → 8',  () => expect(sequenceLengthForTeam(4)).toBe(8));
+  it('teamN=0 → clamped MIN_N (1) → 2 → clamped to MIN (4)', () => expect(sequenceLengthForTeam(0)).toBe(4));
+  it('teamN=1 → 2 → clamped to MIN (4)', () => expect(sequenceLengthForTeam(1)).toBe(4));
+  it('teamN=2 (solo / 1 person) → 4',     () => expect(sequenceLengthForTeam(2)).toBe(4));
+  it('teamN=3 → 6 (natural N*2)',         () => expect(sequenceLengthForTeam(3)).toBe(6));
+  it('teamN=4 → 8',                        () => expect(sequenceLengthForTeam(4)).toBe(8));
   it('teamN=5 → 10', () => expect(sequenceLengthForTeam(5)).toBe(10));
   it('teamN=8 → 16 (matches today)', () => expect(sequenceLengthForTeam(8)).toBe(16));
   it('teamN=14 → 28', () => expect(sequenceLengthForTeam(14)).toBe(28));
