@@ -16,9 +16,11 @@ export const GESTURE_POOL = [
  */
 export const SEQUENCE_LEN = 16;
 
-// Backstop bounds: a solo player should still see a real sequence; a 7-player
-// team should not be punished with 30+ gestures inside the 5-minute attempt.
-export const SEQUENCE_LEN_MIN = 8;
+// Backstop bounds. Floor at 4 so solo / very-small teams get the natural
+// N*2 length (e.g., 2 hands → 4 gestures, ≈ 4 per person) instead of being
+// padded to 8 — which felt too long for small teams in practice. Ceiling at
+// 28 so a 7-player team is not drowned inside the 5-minute attempt.
+export const SEQUENCE_LEN_MIN = 4;
 export const SEQUENCE_LEN_MAX = 28;
 
 // Free seconds per gesture before the success-score timer penalty kicks in.

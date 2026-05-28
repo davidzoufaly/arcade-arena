@@ -11,7 +11,7 @@ import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import {
   PALM_COUNT_WINDOW, TRACKER_CEILING, TRACKER_BUFFER,
   CALIB_TOTAL_S, CALIB_GRACE_S, FALLBACK_N, MIN_N,
-  palmCountToJumpStrength, pickCalibratedHandCount,
+  palmCountToJumpStrength, pickCalibratedHandCount, effectivePalmCount,
   scoreAttempt, finalScore,
   runSpeed, spawnIntervalFrames, highObstacleProb,
 } from '../shared/dino-logic.js';
@@ -234,7 +234,7 @@ phaseEnter.play = () => {
     const palms = hands.filter(isPalmOpen).length;
     g.palmWindow.push(palms);
     if (g.palmWindow.length > PALM_COUNT_WINDOW) g.palmWindow.shift();
-    const eff = DEBUG ? (debugPalms ?? 0) : Math.max(0, ...g.palmWindow);
+    const eff = DEBUG ? (debugPalms ?? 0) : effectivePalmCount(g.palmWindow);
     const fist = hands.some(isFist);
     const ready = hands.some(isVictorySign);
     updatePalmHud(eff);
@@ -366,15 +366,28 @@ phaseEnter.play = () => {
     drawRunner();
   }
 
-  function drawCalibrateBanner(secondsLeft, detectedCount) {
+  // Dedicated calibration screen — clean canvas, no runner, no particles, no
+  // obstacles. Just a big banner and the live hand count. The game (runner,
+  // ground, particles) only appears once subPhase advances to 'warmup'.
+  function drawCalibrateScreen(secondsLeft, detectedCount) {
+    ctx.fillStyle = css('--bg');
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
     ctx.save();
     ctx.textAlign = 'center';
+
     ctx.fillStyle = css('--accent');
-    ctx.font = 'bold 34px system-ui, sans-serif';
-    ctx.fillText('SHOW ALL HANDS', CANVAS_W / 2, 70);
+    ctx.font = 'bold 56px system-ui, sans-serif';
+    ctx.fillText('CALIBRATING', CANVAS_W / 2, CANVAS_H * 0.35);
+
     ctx.fillStyle = css('--text');
-    ctx.font = '22px system-ui, sans-serif';
-    ctx.fillText(`${detectedCount} detected · ${secondsLeft}s`, CANVAS_W / 2, 104);
+    ctx.font = 'bold 32px system-ui, sans-serif';
+    ctx.fillText('SHOW ALL HANDS', CANVAS_W / 2, CANVAS_H * 0.45);
+
+    ctx.fillStyle = css('--muted');
+    ctx.font = '28px system-ui, sans-serif';
+    ctx.fillText(`${detectedCount} hands detected · ${secondsLeft}s`, CANVAS_W / 2, CANVAS_H * 0.58);
+
     ctx.restore();
   }
 
@@ -442,17 +455,19 @@ phaseEnter.play = () => {
   }
 
   function tickCalibrate(dt, now) {
+    // Keep the HUD (pip dots, pose chip) live during calibrate so players see
+    // their hand detection working. No physics: the runner stays at its
+    // initial position and jumps are not triggered — the game canvas is a
+    // clean calibration screen until subPhase advances to 'warmup'.
+    readInput();
+
     if (g.calibLocking) {
-      // Async lock-in in flight; draw the current frame but do not advance.
-      step(dt, 0);
+      // Async lock-in in flight; render the calibration screen but do not
+      // advance the timer or sample further.
       if (cancelled) return;
-      draw();
-      drawCalibrateBanner(0, g.calibLiveMax);
+      drawCalibrateScreen(0, g.calibLiveMax);
       return;
     }
-
-    step(dt, 0);
-    if (cancelled) return;
 
     // Maintain the smoothed live max over the last ~20 frames so the banner
     // count climbs as hands are raised but doesn't flicker on a missed frame.
@@ -473,8 +488,7 @@ phaseEnter.play = () => {
       // finishes and subPhase advances to 'warmup'.
     }
 
-    draw();
-    drawCalibrateBanner(Math.max(0, Math.ceil(CALIB_TOTAL_S - elapsed)), g.calibLiveMax);
+    drawCalibrateScreen(Math.max(0, Math.ceil(CALIB_TOTAL_S - elapsed)), g.calibLiveMax);
   }
 
   function tickWarmup(dt, now) {

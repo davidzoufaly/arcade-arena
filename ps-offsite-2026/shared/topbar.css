@@ -26,7 +26,7 @@
 
 .ps-topbar-brand {
   font-weight: 800;
-  font-size: 16px;
+  font-size: 18px;
   text-decoration: none;
   background: linear-gradient(90deg, var(--tb-accent), var(--tb-accent-2));
   -webkit-background-clip: text;
@@ -43,7 +43,7 @@
   color: var(--tb-muted);
   text-decoration: none;
   padding: 8px 12px;
-  font-size: 14px;
+  font-size: 16px;
   border-bottom: 2px solid transparent;
 }
 
@@ -58,7 +58,7 @@
 
 .ps-topbar-info {
   margin-left: auto;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--tb-muted);
 }
 
@@ -77,7 +77,7 @@
   color: var(--tb-bad);
   padding: 6px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 15px;
   font-family: inherit;
   cursor: pointer;
 }
@@ -102,11 +102,11 @@ body.ps-topbar-host {
     display: none;
   }
   .ps-topbar-nav a {
-    font-size: 12px;
+    font-size: 14px;
     padding: 6px 8px;
   }
   .ps-topbar-info {
-    font-size: 12px;
+    font-size: 14px;
     margin-left: 0;
     width: 100%;
     order: 99;

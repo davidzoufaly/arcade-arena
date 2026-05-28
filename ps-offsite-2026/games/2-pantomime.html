@@ -38,20 +38,20 @@
     background: var(--card); border-radius: 20px; padding: 28px;
     border: 1px solid rgba(255,255,255,0.06); margin-bottom: 20px;
   }
-  .briefing { font-size: 15px; line-height: 1.6; color: var(--muted); }
+  .briefing { font-size: 17px; line-height: 1.6; color: var(--muted); }
   .briefing strong { color: var(--text); }
 
   .setup { display: flex; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap; }
   input, select {
     background: var(--bg-2); border: 1px solid rgba(255,255,255,0.1);
     color: var(--text); padding: 12px 16px; border-radius: 10px;
-    font-size: 16px; font-family: inherit;
+    font-size: 18px; font-family: inherit;
   }
   button {
     background: linear-gradient(135deg, var(--accent), #cc0099);
     border: none; color: #fff;
     padding: 12px 24px; border-radius: 10px;
-    font-size: 16px; font-weight: 700; cursor: pointer;
+    font-size: 18px; font-weight: 700; cursor: pointer;
     font-family: inherit; transition: transform 0.15s;
   }
   button:hover:not(:disabled) { transform: translateY(-1px); }
@@ -87,13 +87,13 @@
     position: absolute; bottom: 16px; left: 16px;
     background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
     padding: 10px 16px; border-radius: 10px;
-    font-size: 14px; font-family: ui-monospace, monospace;
+    font-size: 16px; font-family: ui-monospace, monospace;
   }
   .step-badge {
     position: absolute; top: 16px; left: 16px;
     background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
     padding: 8px 14px; border-radius: 999px;
-    font-size: 14px; font-weight: 800; letter-spacing: 0.5px;
+    font-size: 16px; font-weight: 800; letter-spacing: 0.5px;
     color: var(--accent);
   }
   .cam-countdown {
@@ -135,12 +135,12 @@
   }
   .pose-card.match { border-color: var(--good); background: rgba(0,230,118,0.08); }
   .pose-card .label {
-    font-size: 11px; color: var(--muted); text-transform: uppercase;
+    font-size: 13px; color: var(--muted); text-transform: uppercase;
     letter-spacing: 1px; margin-bottom: 4px;
   }
   .difficulty {
     display: inline-block; padding: 2px 10px; border-radius: 999px;
-    font-size: 10px; font-weight: 800; letter-spacing: 1px;
+    font-size: 12px; font-weight: 800; letter-spacing: 1px;
     text-transform: uppercase; margin-left: 8px;
   }
   .difficulty.easy { background: rgba(0,230,118,0.15); color: var(--easy); }
@@ -149,7 +149,7 @@
   .difficulty.duo { background: rgba(0,212,255,0.15); color: var(--accent-2); }
 
   .pose-card .name { font-size: 24px; font-weight: 800; margin: 6px 0; }
-  .pose-card .desc { font-size: 13px; color: var(--muted); margin: 8px 0 16px; line-height: 1.4; }
+  .pose-card .desc { font-size: 15px; color: var(--muted); margin: 8px 0 16px; line-height: 1.4; }
 
   .pose-ref {
     background: var(--bg-2); border-radius: 12px; padding: 12px;
@@ -178,7 +178,7 @@
     max-height: 130px; overflow-y: auto;
   }
   .check {
-    font-size: 12px; padding: 4px 0;
+    font-size: 14px; padding: 4px 0;
     display: flex; justify-content: space-between; align-items: center;
     color: var(--muted);
   }
@@ -209,7 +209,7 @@
   }
   .pose-pill {
     padding: 6px 8px; border-radius: 8px; text-align: center;
-    font-size: 11px; background: var(--bg-2);
+    font-size: 13px; background: var(--bg-2);
     border: 1px solid rgba(255,255,255,0.08); color: var(--muted);
   }
   .pose-pill.done { color: var(--good); border-color: var(--good); }
@@ -219,7 +219,7 @@
   .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
   .stat { background: var(--bg-2); padding: 12px; border-radius: 10px; text-align: center; }
   .stat .value { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  .stat .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .stat .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
 
   .result { text-align: center; padding: 32px; }
   .result h2 { font-size: 32px; margin-bottom: 8px; }
@@ -237,14 +237,14 @@
   }
   .save-status {
     display: inline-block; margin-top: 14px;
-    font-size: 12px; font-weight: 800; letter-spacing: 1.5px;
+    font-size: 14px; font-weight: 800; letter-spacing: 1.5px;
     padding: 6px 12px; border-radius: 999px;
     background: rgba(255,255,255,0.08); color: var(--text);
   }
   .save-status.ok  { background: rgba(0,230,118,0.18); color: #00e676; }
   .save-status.bad { background: rgba(255,77,109,0.18); color: #ff4d6d; cursor: pointer; }
   .secondary-link {
-    color: var(--accent); text-decoration: none; font-weight: 700; font-size: 14px;
+    color: var(--accent); text-decoration: none; font-weight: 700; font-size: 16px;
     align-self: center; padding: 8px 14px;
   }
   .result-row { display: flex; gap: 12px; justify-content: center; align-items: center; }
@@ -256,7 +256,7 @@
     text-align: left;
   }
   .breakdown-row {
-    display: flex; justify-content: space-between; font-size: 13px;
+    display: flex; justify-content: space-between; font-size: 15px;
     color: var(--muted);
   }
   .breakdown-row.failed { opacity: 0.5; }
@@ -307,7 +307,7 @@
     <div class="setup">
       <button id="startBtn">Start game</button>
     </div>
-    <div class="briefing" style="margin-top: 12px; font-size: 13px;">
+    <div class="briefing" style="margin-top: 12px; font-size: 15px;">
       Place the laptop at least 2 m from the person — full body must fit in frame (head to ankles). Plain background helps a lot.
     </div>
   </div>
@@ -318,7 +318,7 @@
 
   <div id="phase-countdown" class="card hidden">
     <div style="text-align:center; padding:60px 24px;">
-      <div style="font-size:180px; font-weight:900; line-height:1;
+      <div style="font-size: 180px; font-weight:900; line-height:1;
                   background:linear-gradient(135deg, var(--accent), var(--gold));
                   -webkit-background-clip:text; background-clip:text; color:transparent;"
            id="countdownNum">3</div>
@@ -379,7 +379,7 @@
       <button onclick="replayFromFinal()">Restart game</button>
       <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin-top:10px">Something went wrong? Restart requires the admin password.</p>
+    <p style="font-size: 14px;color:var(--muted);margin-top:10px">Something went wrong? Restart requires the admin password.</p>
   </div>
 </main>
 
@@ -505,7 +505,7 @@ async function loadModel() {
   );
   landmarker = await PoseLandmarker.createFromOptions(vision, {
     baseOptions: {
-      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
       delegate: 'GPU',
     },
     runningMode: 'VIDEO',

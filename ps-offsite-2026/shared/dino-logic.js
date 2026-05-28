@@ -1,11 +1,25 @@
 export const PALM_COUNT_WINDOW = 4;
 
+// Smooths the per-frame palm count over PALM_COUNT_WINDOW frames so a single
+// MediaPipe false-positive does not flicker the HUD or trigger a jump.
+// Median (not max) rejects 1-frame spikes; real palms still register after
+// majority frames. For even-length windows the two middle values average
+// and round half-up — leaning slightly toward "registered" on ties so input
+// stays responsive.
+export function effectivePalmCount(samples) {
+  if (!samples || samples.length === 0) return 0;
+  const sorted = [...samples].sort((a, b) => a - b);
+  const n = sorted.length;
+  if (n % 2 === 1) return sorted[(n - 1) >> 1];
+  return Math.round((sorted[n / 2 - 1] + sorted[n / 2]) / 2);
+}
+
 // Hand-count calibration tuning. See
 // docs/superpowers/specs/2026-05-28-dino-hand-calibration-design.md
 export const TRACKER_CEILING  = 20;  // hard upper bound; MediaPipe-safe max
 export const TRACKER_BUFFER   = 2;   // extra slots over detected N (stragglers)
-export const CALIB_TOTAL_S    = 5;   // total calibration phase duration
-export const CALIB_GRACE_S    = 2;   // skip the first N seconds (team raising hands)
+export const CALIB_TOTAL_S    = 20;  // total calibration phase duration
+export const CALIB_GRACE_S    = 3;   // skip the first N seconds (team raising hands)
 export const FALLBACK_N       = 4;   // if calibration sees no hands at all
 export const MIN_N            = 1;   // lower bound on team size
 
