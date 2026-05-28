@@ -346,6 +346,40 @@ phaseEnter.play = () => {
     ctx.restore();
   }
 
+  function tickCalibrate(_dt, _now) {
+    // Filled in by Task 5. For now: immediately advance to warmup so the
+    // refactor stays behaviorally identical when subPhase happens to start
+    // at 'calibrate' (e.g., if Task 5 lands partially).
+    g.subPhase = 'warmup';
+    g.subPhaseMs = performance.now();
+    g.warmStartMs = g.subPhaseMs;
+  }
+
+  function tickWarmup(dt, now) {
+    const left = warmupSecondsLeft((now - g.warmStartMs) / 1000);
+    if (left <= 0) {
+      g.subPhase = 'live';
+      g.subPhaseMs = now;
+      g.startMs = now;
+      g.spawnTimer = 0;
+      return false; // caller falls through to tickLive this same frame
+    }
+    $('timerLabel').textContent = 'WARM UP';
+    step(dt, 0);
+    if (cancelled) return true;
+    draw();
+    drawWarmupBanner(left);
+    return true; // handled this frame
+  }
+
+  function tickLive(dt, now) {
+    const elapsed = (now - g.startMs) / 1000;
+    $('timerLabel').textContent = elapsed.toFixed(1);
+    step(dt, elapsed);
+    if (cancelled) return;
+    draw();
+  }
+
   function loop() {
     if (cancelled) return;
     const now = performance.now();
@@ -360,31 +394,25 @@ phaseEnter.play = () => {
       else slowTicks = 0;
     }
 
+    if (g.subPhase === 'calibrate') {
+      tickCalibrate(dt, now);
+      if (cancelled) return;
+      rafId = requestAnimationFrame(loop);
+      return;
+    }
+
     if (g.subPhase === 'warmup') {
-      const left = warmupSecondsLeft((now - g.warmStartMs) / 1000);
-      if (left <= 0) {
-        // Transition to live play this same frame; falls through below.
-        g.subPhase = 'live';
-        g.subPhaseMs = now;
-        g.startMs = now;
-        g.spawnTimer = 0;
-      } else {
-        $('timerLabel').textContent = 'WARM UP';
-        step(dt, 0);
-        if (cancelled) return;
-        draw();
-        drawWarmupBanner(left);
+      const handled = tickWarmup(dt, now);
+      if (cancelled) return;
+      if (handled) {
         rafId = requestAnimationFrame(loop);
         return;
       }
+      // Fall through into tickLive this same frame (warmup just expired).
     }
 
-    const elapsed = (now - g.startMs) / 1000;
-    $('timerLabel').textContent = elapsed.toFixed(1);
-
-    step(dt, elapsed);
+    tickLive(dt, now);
     if (cancelled) return;
-    draw();
     rafId = requestAnimationFrame(loop);
   }
 
