@@ -583,6 +583,13 @@ phaseEnter.final = () => {
 function wireRestart() {
   $('finalPlayAgain').onclick = async () => {
     if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:' })) return;
+    // Tear down the camera/tracker so the next loading phase reopens a fresh
+    // tracker at TRACKER_CEILING. Defensive — phaseEnter.final already does
+    // the same teardown, but wireRestart is also wired from enterAlreadyPlayed
+    // where final didn't run.
+    if (state.stream) { state.stream.getTracks().forEach(t => t.stop()); state.stream = null; }
+    if (state.tracker) { try { state.tracker.stop(); } catch {} state.tracker = null; }
+    state.teamN = null;
     state.attempts = [];
     state.attemptIdx = 0;
     goto('setup');
