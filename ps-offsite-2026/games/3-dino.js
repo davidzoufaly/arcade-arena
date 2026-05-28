@@ -9,7 +9,7 @@ import { firebaseConfig } from '../firebase-config.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import {
-  PALM_COUNT_WINDOW,
+  PALM_COUNT_WINDOW, TRACKER_CEILING,
   palmCountToJumpStrength, scoreAttempt, finalScore,
   runSpeed, spawnIntervalFrames, highObstacleProb,
 } from '../shared/dino-logic.js';
@@ -38,6 +38,7 @@ let activeCleanup = null;
 const state = {
   teamId: session?.teamId ?? 0,
   tracker: null, stream: null, video: null,
+  teamN: null,
   attemptIdx: 0, attempts: [],
 };
 
@@ -61,18 +62,28 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 3000);
 }
 
-// Solo-dev debug: with ?debug in the URL, hold keys 0-8 to force palm count
-// (keyup clears it, so each press re-triggers a jump like raising/lowering hands).
+// Solo-dev debug: with ?debug in the URL, hold keys 0-9 for exact palm count;
+// shift+0..4 maps to 10..14 (covers full TRACKER_CEILING range). Keyup clears, so
+// each press re-triggers a jump like raising/lowering hands.
 const DEBUG = new URLSearchParams(location.search).has('debug');
 let debugPalms = null;
 if (DEBUG) {
-  window.addEventListener('keydown', (e) => { if (e.key >= '0' && e.key <= '8') debugPalms = Number(e.key); });
-  window.addEventListener('keyup', (e) => { if (e.key >= '0' && e.key <= '8') debugPalms = null; });
+  const parseKey = (e) => {
+    if (e.key >= '0' && e.key <= '9') return e.shiftKey ? 10 + Number(e.key) : Number(e.key);
+    return null;
+  };
+  window.addEventListener('keydown', (e) => {
+    const n = parseKey(e);
+    if (n !== null && n <= TRACKER_CEILING) debugPalms = n;
+  });
+  window.addEventListener('keyup', (e) => { if (parseKey(e) !== null) debugPalms = null; });
 }
 
-// Pre-build 8 palm pips
+// Pre-build TRACKER_CEILING pip placeholders. The row is rebuilt to the
+// detected team size at calibration lock-in. Until then it shows the full
+// ceiling so calibrate-phase players can see hands light up as they raise.
 const palmDotsEl = $('palmDots');
-for (let i = 0; i < 8; i++) {
+for (let i = 0; i < TRACKER_CEILING; i++) {
   const d = document.createElement('div');
   d.className = 'pip';
   palmDotsEl.appendChild(d);
@@ -107,7 +118,7 @@ phaseEnter.loading = async () => {
       const { video, stream } = await createCamStream({ width: 480, height: 360 });
       state.video = video;
       state.stream = stream;
-      state.tracker = await createHandTracker(video, { numHands: 8, minRunMs: 0 });
+      state.tracker = await createHandTracker(video, { numHands: TRACKER_CEILING, minRunMs: 0 });
     }
   } catch (e) {
     if (e && (e.name === 'NotAllowedError' || e.name === 'NotFoundError' || e.name === 'NotReadableError')) {
@@ -151,7 +162,12 @@ phaseEnter.play = () => {
     y: GROUND_Y - RUNNER_H, vy: 0, ducking: false,
     score: 0, obs: [], spawnTimer: 0, runPhase: 0,
     palmWindow: [], lastEff: 0,
-    warming: true, warmStartMs: performance.now(), startMs: 0,
+    // Sub-phase machine replaces the old `warming` boolean. On attempt 1
+    // (state.teamN === null) we'd start in 'calibrate' — for now we always
+    // start in 'warmup'; calibrate is added in the next task.
+    subPhase: 'warmup',
+    subPhaseMs: performance.now(),
+    warmStartMs: performance.now(), startMs: 0,
     // Parallax speck field — scrolls with run speed so forward motion reads
     // even in warmup (no obstacles yet). z = depth → speed, size, brightness.
     particles: Array.from({ length: 28 }, () => ({
@@ -172,8 +188,9 @@ phaseEnter.play = () => {
     if (document.hidden) hiddenAt = performance.now();
     else if (hiddenAt) {
       const delta = performance.now() - hiddenAt;
-      if (g.warming) g.warmStartMs += delta;   // pause the warmup countdown
-      else g.startMs += delta;                 // pause the scored clock
+      if (g.subPhase === 'calibrate')   g.subPhaseMs += delta;  // pause calibration clock
+      else if (g.subPhase === 'warmup') g.warmStartMs += delta; // pause warmup countdown
+      else                              g.startMs    += delta;  // pause scored clock
       hiddenAt = 0;
       prevTs = performance.now();
     }
@@ -233,7 +250,7 @@ phaseEnter.play = () => {
       if (p.x < -2) { p.x = CANVAS_W + Math.random() * 40; p.y = Math.random() * GROUND_Y; }
     }
 
-    if (!g.warming) {
+    if (g.subPhase === 'live') {
       g.spawnTimer -= dt;
       if (g.spawnTimer <= 0) {
         spawnObstacle(elapsedSec);
@@ -343,11 +360,12 @@ phaseEnter.play = () => {
       else slowTicks = 0;
     }
 
-    if (g.warming) {
+    if (g.subPhase === 'warmup') {
       const left = warmupSecondsLeft((now - g.warmStartMs) / 1000);
       if (left <= 0) {
         // Transition to live play this same frame; falls through below.
-        g.warming = false;
+        g.subPhase = 'live';
+        g.subPhaseMs = now;
         g.startMs = now;
         g.spawnTimer = 0;
       } else {
