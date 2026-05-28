@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   GESTURE_POOL,
   SEQUENCE_LEN,
+  SEQUENCE_LEN_MIN,
+  SEQUENCE_LEN_MAX,
+  TIME_GRACE_PER_GESTURE,
   pickSequenceWithRepeats,
+  sequenceLengthForTeam,
+  successScore,
+  failScore,
   scoreAttempt,
   finalScore,
 } from '../ps-offsite-2026/shared/gesture-lock-logic.js';
@@ -104,6 +110,58 @@ describe('scoreAttempt', () => {
   it('partial never reaches success floor — 15/16 fail still caps below 40', () => {
     expect(scoreAttempt({ result: 'fail', completed: 15, timeSec: 30 })).toBe(32);
   });
+});
+
+describe('sequence-length constants', () => {
+  it('SEQUENCE_LEN_MIN is 8', () => expect(SEQUENCE_LEN_MIN).toBe(8));
+  it('SEQUENCE_LEN_MAX is 28', () => expect(SEQUENCE_LEN_MAX).toBe(28));
+  it('TIME_GRACE_PER_GESTURE is 0.625', () => expect(TIME_GRACE_PER_GESTURE).toBe(0.625));
+  it('SEQUENCE_LEN (back-compat) is still 16', () => expect(SEQUENCE_LEN).toBe(16));
+});
+
+describe('sequenceLengthForTeam', () => {
+  it('teamN nullish → FALLBACK_N (4) → clamped to MIN (8)', () => {
+    expect(sequenceLengthForTeam(null)).toBe(8);
+    expect(sequenceLengthForTeam(undefined)).toBe(8);
+  });
+  it('teamN=0 → clamped to MIN (8)',  () => expect(sequenceLengthForTeam(0)).toBe(8));
+  it('teamN=1 → 2 → clamped to MIN (8)', () => expect(sequenceLengthForTeam(1)).toBe(8));
+  it('teamN=3 → 6 → clamped to MIN (8)', () => expect(sequenceLengthForTeam(3)).toBe(8));
+  it('teamN=4 → 8',  () => expect(sequenceLengthForTeam(4)).toBe(8));
+  it('teamN=5 → 10', () => expect(sequenceLengthForTeam(5)).toBe(10));
+  it('teamN=8 → 16 (matches today)', () => expect(sequenceLengthForTeam(8)).toBe(16));
+  it('teamN=14 → 28', () => expect(sequenceLengthForTeam(14)).toBe(28));
+  it('teamN=15 → 30 → clamped to MAX (28)', () => expect(sequenceLengthForTeam(15)).toBe(28));
+  it('teamN=20 → 40 → clamped to MAX (28)', () => expect(sequenceLengthForTeam(20)).toBe(28));
+});
+
+describe('successScore', () => {
+  it('inside grace at len=16 → 100',                 () => expect(successScore(0, 16)).toBe(100));
+  it('at grace edge (10 s for len=16) → 100',         () => expect(successScore(10.0, 16)).toBe(100));
+  it('5 s past grace at len=16 → 90',                 () => expect(successScore(15.0, 16)).toBe(90));
+  it('30 s past grace at len=16 → floored to 40',     () => expect(successScore(40.0, 16)).toBe(40));
+  it('len=8 floors earlier (grace 5 s) at 35 s',      () => expect(successScore(35.0, 8)).toBe(40));
+  it('len=28 floors later (grace 17.5 s) at 47.5 s',  () => expect(successScore(47.5, 28)).toBe(40));
+  it('len=8 inside grace at 4 s → 100',               () => expect(successScore(4.0, 8)).toBe(100));
+  it('len=8 at 7 s (2 s past grace) → 96',            () => expect(successScore(7.0, 8)).toBe(96));
+});
+
+describe('failScore', () => {
+  it('len=16, completed=8 → 17 (floor of 50% × 35)', () => expect(failScore(8, 16)).toBe(17));
+  it('len=28, completed=8 → 10 (floor of 28.6% × 35)', () => expect(failScore(8, 28)).toBe(10));
+  it('len=16, completed=0 → 0',                       () => expect(failScore(0, 16)).toBe(0));
+  it('len=8, completed=8 → 35 (100% × 35)',           () => expect(failScore(8, 8)).toBe(35));
+});
+
+describe('scoreAttempt with explicit sequenceLen', () => {
+  it('success at sequenceLen=8 grace edge (5 s) → 100', () =>
+    expect(scoreAttempt({ result: 'success', completed: 8, timeSec: 5, sequenceLen: 8 })).toBe(100));
+  it('success at sequenceLen=8, 3 s past grace → 94', () =>
+    expect(scoreAttempt({ result: 'success', completed: 8, timeSec: 8, sequenceLen: 8 })).toBe(94));
+  it('success at sequenceLen=28 grace edge (17.5 s) → 100', () =>
+    expect(scoreAttempt({ result: 'success', completed: 28, timeSec: 17.5, sequenceLen: 28 })).toBe(100));
+  it('fail at sequenceLen=28, completed=14 → 17', () =>
+    expect(scoreAttempt({ result: 'fail', completed: 14, timeSec: 30, sequenceLen: 28 })).toBe(17));
 });
 
 describe('finalScore', () => {
