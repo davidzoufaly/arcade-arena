@@ -70,3 +70,25 @@ export function setCellOverride(node, gameKey, teamId, value) {
   }
   return node;
 }
+
+// Timer arithmetic (pure). Callers guarantee a positive `minutes`.
+export function deadlineFor(startTs, minutes) {
+  return startTs + minutes * 60000;
+}
+
+export function remainingMs(startTs, minutes, now) {
+  return Math.max(0, deadlineFor(startTs, minutes) - now);
+}
+
+export function isExpired(startTs, minutes, now) {
+  return now >= deadlineFor(startTs, minutes);
+}
+
+// Remaining ms -> "M:SS" (ceil so the last partial second still reads >= 0:01;
+// exactly 0 reads 0:00). Clamps negatives.
+export function formatMMSS(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}

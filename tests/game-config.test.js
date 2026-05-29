@@ -100,3 +100,33 @@ describe('setCellOverride SET vs CLEAR', () => {
     expect(node.cells.SF[3]).toBe('0');
   });
 });
+
+import { deadlineFor, remainingMs, isExpired, formatMMSS } from '../ps-offsite-2026/shared/game-config.js';
+
+describe('timer arithmetic', () => {
+  const start = 1_000_000;
+  const mins = 2; // 120000 ms
+  it('deadlineFor adds minutes in ms', () => {
+    expect(deadlineFor(start, mins)).toBe(start + 120_000);
+  });
+  it('remainingMs clamps at 0', () => {
+    expect(remainingMs(start, mins, start)).toBe(120_000);
+    expect(remainingMs(start, mins, start + 119_999)).toBe(1);
+    expect(remainingMs(start, mins, start + 120_000)).toBe(0);
+    expect(remainingMs(start, mins, start + 999_999)).toBe(0);
+  });
+  it('isExpired true at and past the deadline, false the ms before', () => {
+    expect(isExpired(start, mins, start + 119_999)).toBe(false);
+    expect(isExpired(start, mins, start + 120_000)).toBe(true);
+  });
+});
+
+describe('formatMMSS', () => {
+  it('formats remaining ms as M:SS, clamping negatives', () => {
+    expect(formatMMSS(0)).toBe('0:00');
+    expect(formatMMSS(1)).toBe('0:01');      // ceil: any remaining shows >=1s
+    expect(formatMMSS(1000)).toBe('0:01');
+    expect(formatMMSS(65_000)).toBe('1:05');
+    expect(formatMMSS(-5000)).toBe('0:00');
+  });
+});
