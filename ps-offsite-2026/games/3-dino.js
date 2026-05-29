@@ -27,7 +27,7 @@ const catalogHref = session
   : '../games.html';
 
 const GAME_CODE = 'DN';
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 4;
 const CANVAS_W = 960, CANVAS_H = 540;
 const GROUND_Y = Math.round(CANVAS_H * 0.78);
 const RUNNER_X = 240, RUNNER_W = 30, RUNNER_H = 60, LEG_LEN = 10;

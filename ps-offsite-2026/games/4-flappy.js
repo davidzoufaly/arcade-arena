@@ -25,7 +25,7 @@ const catalogHref = session
   : '../games.html';
 
 const GAME_CODE = 'FL';
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 4;
 const CANVAS_W = 960, CANVAS_H = 540;
 const PIPE_W = 80, ORB_R = 18, ORB_X = 220;
 const CALIB_MS = 1500;

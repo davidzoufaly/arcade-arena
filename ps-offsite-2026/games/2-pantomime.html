@@ -295,7 +295,7 @@
   <div class="card briefing" id="briefing">
     <strong>Goal:</strong> Match each target pose with your body. The <strong>reference pose</strong> is shown beside the video so you can see what to aim for. Each pose has multiple checks — get every check above 85 %, then <strong>hold the pose still</strong> for the required time (1.2 s easy, 1.5 s medium, 2 s hard). Wobbling resets the hold timer.
     <br><br>
-    <strong>8 poses per run — the last 2 need a partner</strong> (two people in frame). 25 s per pose. Run out of time = pose is skipped (zero points). Players take turns — one person poses each round, the rest direct.
+    <strong>8 poses per run — the last 2 need a partner</strong> (two people in frame). 25 s per pose. Run out of time = pose is skipped (zero points). Players take turns — one person poses each round, the rest direct. <strong>2 attempts — best score counts 🏆.</strong>
   </div>
 
   <div id="phase-boot" class="card">
@@ -369,6 +369,16 @@
     </div>
   </div>
 
+  <div id="phase-attempt-end" class="card result hidden">
+    <h2 id="pmAttemptTitle">Attempt 1 of 2 complete</h2>
+    <p style="color:var(--muted)">This run scored</p>
+    <div class="score" id="pmAttemptScore">0</div>
+    <div class="result-row" style="margin-top: 14px;">
+      <button id="pmTryAgain">Try again</button>
+      <button class="secondary" id="pmFinish">Finish — keep best</button>
+    </div>
+  </div>
+
   <div id="phase-final" class="card result hidden">
     <h2>🎭 Pantomime complete</h2>
     <p style="color:var(--muted)">Team <strong id="resTeam"></strong></p>
@@ -413,7 +423,7 @@ const catalogHref = session
   ? `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`
   : '../games.html';
 
-const PHASES = ['setup', 'loading', 'countdown', 'playing', 'final'];
+const PHASES = ['setup', 'loading', 'countdown', 'playing', 'attempt-end', 'final'];
 let activeCleanup = null;
 const phaseEnter = {};
 
@@ -492,6 +502,9 @@ let lastVideoTime = -1;
 let stepStartTs = 0;
 let recentLandmarks = []; // for stability check
 let lastCamCount = -1;
+const MAX_ATTEMPTS = 2;
+let attemptIdx = 0;
+let attempts = []; // [{ score, scores }] — one per completed run, best counts
 
 document.getElementById('startBtn').addEventListener('click', () => {
   teamId = _session?.teamId ?? 0;
@@ -548,7 +561,8 @@ phaseEnter.countdown = () => {
 };
 
 phaseEnter.playing = () => {
-  POSES = samplePoses(POSE_POOL);
+  // Sample once on attempt 1; reuse the same poses across attempts so best-of-N is fair.
+  if (POSES.length === 0) POSES = samplePoses(POSE_POOL);
   scores = [];
   stepIndex = 0;
   running = true;
@@ -789,16 +803,29 @@ window.skipCurrent = function() {
 function finish() {
   running = false;
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-  goto('final');
+  attempts.push({ score: finalScore(scores), scores: scores.slice() });
+  if (attempts.length < MAX_ATTEMPTS) goto('attempt-end');
+  else goto('final');
 }
 
+phaseEnter['attempt-end'] = () => {
+  const last = attempts[attempts.length - 1];
+  $('pmAttemptTitle').textContent = `Attempt ${attempts.length} of ${MAX_ATTEMPTS} complete`;
+  $('pmAttemptScore').textContent = last.score;
+  $('pmTryAgain').onclick = () => { attemptIdx++; goto('loading'); };
+  $('pmFinish').onclick = () => goto('final');
+};
+
 phaseEnter.final = () => {
-  const final = finalScore(scores);
+  // Best attempt counts; show its score + breakdown.
+  const best = attempts.reduce((a, b) => (b.score > a.score ? b : a), attempts[0]);
+  const final = best.score;
+  const breakdownScores = best.scores;
   document.getElementById('resTeam').textContent = teamId;
   document.getElementById('resScore').textContent = final;
   document.getElementById('resBreakdown').classList.remove('hidden');
   document.getElementById('resBreakdown').innerHTML = POSES.map((p, i) => {
-    const s = scores[i] ?? 0;
+    const s = breakdownScores[i] ?? 0;
     return `<div class="breakdown-row ${s === 0 ? 'failed' : ''}">
       <span>${p.emoji} ${p.name} <span class="difficulty ${p.difficulty}">${p.difficulty}</span></span>
       <span class="pose-score">${s === 0 ? '— skipped' : s + ' / 100'}</span>
@@ -839,6 +866,7 @@ window.resetGame = function() {
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
   scores = []; stepIndex = 0;
   POSES = [];
+  attempts = []; attemptIdx = 0;
   goto('setup');
 };
 

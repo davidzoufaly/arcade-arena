@@ -1,6 +1,8 @@
-- [] napsat, že chci doručit pravidla ke všem hrám, či pokiny koho se zeptat, kde co najít
-- [] pub quizz sync
-- [] v češtině popsat jak celá appka a jednotlivé věci fungují
+- [x] flappy překážky dál od sebe
+- [x] pantonime polishnout 2 lidi
+---
+- [x] napsat, že chci doručit pravidla ke všem hrám, či pokiny koho se zeptat, kde co najít
+- [x] pub quizz sync
 - [x] gesture lock -> remove "take turns" it should be up to team strategy -> so teas this in the game rules
 - [x] unlocking games by admin for specific team -> verify
 - [x] gesture lock -> more rounds
