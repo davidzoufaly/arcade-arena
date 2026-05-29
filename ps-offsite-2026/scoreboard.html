@@ -596,10 +596,14 @@ function openRulesModal(g, teamRaw) {
   const teamId = teamRaw !== undefined ? Number(teamRaw) : undefined;
   const cur = teamId !== undefined ? draft.rules?.cells?.[g]?.[teamId] : draft.rules?.games?.[g];
   const level = teamId !== undefined ? `Team ${teamId} (hint)` : 'all teams';
+  const def = GAMES[g].rules || '';
+  // Prefill the catalog default as editable text (own-level override wins if set), so
+  // the admin can extend the defaults. Clearing the box falls back to the default again.
+  const text = cur != null ? String(cur) : def;
   openModal({
     title: `📋 Rules · ${escapeHtml(GAMES[g].name)} · ${level}`,
-    bodyHtml: `<label>Rules text (blank = use default)</label>
-      <textarea id="cfgInput" placeholder="${escapeHtml(GAMES[g].rules || '')}">${cur != null ? escapeHtml(String(cur)) : ''}</textarea>`,
+    bodyHtml: `<label>Rules text (clear to fall back to the default)</label>
+      <textarea id="cfgInput" placeholder="${escapeHtml(def)}">${escapeHtml(text)}</textarea>`,
     onConfirm: () => {
       const val = document.getElementById('cfgInput').value.trim();
       captureScoreInputs();

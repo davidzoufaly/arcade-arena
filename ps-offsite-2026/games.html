@@ -26,6 +26,7 @@
   .subtitle { color: var(--muted); font-size: 17px; margin-bottom: 32px; }
   .grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-auto-rows: 1fr;   /* equal-height rows so a timed tile's extra line doesn't make it taller */
     gap: 14px;
   }
   .tile {
@@ -42,10 +43,10 @@
   .tile.locked { opacity: 0.5; pointer-events: none; border-style: dashed; border-color: rgba(255,77,109,0.4); }
   .tile.locked .tile-tag { background: rgba(255,77,109,0.12); color: #ff4d6d; }
   .tile .lock-badge { position: absolute; top: 10px; left: 12px; font-size: 18px; }
-  .tile .timer-badge {
-    position: absolute; top: 10px; left: 12px;
+  .tile .timer-line {           /* in-flow pill — never overlaps the emoji or the ✓, shows even after submit */
+    align-self: flex-start;
     font-size: 12px; font-weight: 800; color: var(--accent);
-    background: rgba(0,212,255,0.12); padding: 2px 7px; border-radius: 999px;
+    background: rgba(0,212,255,0.12); padding: 2px 8px; border-radius: 999px;
   }
   .tile.timed { cursor: pointer; }
 
@@ -153,10 +154,12 @@ function render() {
       ? `<div class="score-line">Score: <strong>${esc(String(score))}</strong></div>`
       : '';
     const lockBadge = lockedTile ? '<div class="lock-badge" title="Locked by host">🔒</div>' : '';
-    const mins = (g.kind === 'manual' && !lockedTile && score === undefined)
-      ? resolveTimer(currentTimers, key, session.teamId) : undefined;
-    const timed = mins !== undefined;
-    const timerBadge = timed ? `<div class="timer-badge" title="Time limit">⏱ ${mins}m</div>` : '';
+    const mins = g.kind === 'manual' ? resolveTimer(currentTimers, key, session.teamId) : undefined;
+    const hasTimer = mins !== undefined;
+    // Intercept ENTRY with a warning only for a fresh, unlocked, unsubmitted timed game.
+    // The minute info itself shows whenever a timer is set (incl. after submit / when locked).
+    const timed = hasTimer && !lockedTile && score === undefined;
+    const timerInfo = hasTimer ? `<div class="timer-line" title="Time limit">⏱ ${mins} min limit</div>` : '';
     const tag2 = `<span class="tile-tag">${tag}</span>`;
     const tileCls = lockedTile ? `${g.kind} locked` : g.kind;
     const isDiv = g.kind === 'soon' || lockedTile || timed;
@@ -169,10 +172,10 @@ function render() {
       <div class="tile-emoji">${g.emoji}</div>
       <h3>${esc(g.name)}</h3>
       ${scoreLine}
+      ${timerInfo}
       ${tag2}
       ${tick}
       ${lockBadge}
-      ${timerBadge}
     ${close}`;
   }).join('');
   grid.innerHTML = html;
