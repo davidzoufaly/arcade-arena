@@ -33,3 +33,40 @@ export function resolveTimer(timers, gameKey, teamId) {
 export function resolveRule(rules, gameKey, teamId, fallback) {
   return resolveOverride(rules, gameKey, teamId) ?? fallback;
 }
+
+// "Empty" => clear the override. Strings are checked by trim only (so rules text
+// like "0" stays a valid value); numbers by finite-and-positive (so a 0/NaN
+// minutes clears). The clock modal pre-coerces its input with Number().
+function isEmpty(value) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (typeof value === 'number') return !Number.isFinite(value) || value <= 0;
+  return false;
+}
+
+// SET (non-empty): write the game value AND cascade-clear that game's cells
+// (a fresh game-level value should not leave shadowed per-team overrides behind,
+// mirroring setGame in game-lock.js).
+// CLEAR (empty): delete ONLY the game key; LEAVE cells intact (nothing shadows
+// them once the game value is gone, so they stay meaningful).
+export function setGameOverride(node, gameKey, value) {
+  if (isEmpty(value)) {
+    if (node.games) delete node.games[gameKey];
+  } else {
+    node.games ??= {};
+    node.games[gameKey] = value;
+    if (node.cells) delete node.cells[gameKey];
+  }
+  return node;
+}
+
+export function setCellOverride(node, gameKey, teamId, value) {
+  if (isEmpty(value)) {
+    if (node.cells?.[gameKey]) delete node.cells[gameKey][teamId];
+  } else {
+    node.cells ??= {};
+    node.cells[gameKey] ??= {};
+    node.cells[gameKey][teamId] = value;
+  }
+  return node;
+}
