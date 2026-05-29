@@ -271,9 +271,12 @@ listeners). In `render()`, for each **manual** tile compute
 ### New imports / listeners
 
 `manual.html` today does one-shot `get` and imports only `get, update, push`. This
-feature **adds `onValue` and `set`** to the Firebase import, and adds two listeners
-(`rules`, and the team's `score`). The "live rules update" is therefore a **new**
-realtime listener on this page, not an existing one.
+feature **adds `onValue` and `set`** to the Firebase import, and adds **one new live
+listener** on the `rules` node (so an admin rule/hint edit re-renders the rules block
+without a refresh). `score` and `timers` are read **once at boot** via `get` — the
+already-played branch and the resolved limit are decided at entry; a live score
+listener mid-countdown would add re-render races for negligible gain. The "live rules
+update" is therefore a **new** realtime listener on this page, not an existing one.
 
 ### Rules
 
