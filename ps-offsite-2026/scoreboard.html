@@ -195,6 +195,36 @@
     opacity: 0.85;
   }
   .lock-btn:hover { opacity: 1; transform: scale(1.12); }
+  .lock-btn { font-size: 14px; }                 /* was 16px — make room for the row */
+  .edit-btns { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; margin-top: 4px; }
+  .cfg-btn {
+    background: transparent; border: none; cursor: pointer;
+    font-size: 12px; line-height: 1; padding: 2px 3px; opacity: 0.7; color: var(--text);
+    font-family: inherit;
+  }
+  .cfg-btn:hover { opacity: 1; transform: scale(1.1); }
+  .cfg-btn.set { opacity: 1; color: var(--accent); font-weight: 800; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center; z-index: 200;
+  }
+  .modal-box {
+    background: var(--card); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px; padding: 24px; width: min(460px, 92vw); box-shadow: var(--shadow);
+  }
+  .modal-box h2 { font-size: 18px; margin-bottom: 16px; }
+  .modal-body label {
+    display: block; font-size: 13px; color: var(--muted);
+    margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .modal-body input, .modal-body textarea {
+    width: 100%; background: var(--bg-2); color: var(--text);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+    padding: 12px; font-size: 16px; font-family: inherit;
+  }
+  .modal-body textarea { resize: vertical; min-height: 140px; line-height: 1.5; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
   .cell-game.edit.locked .cell-input { border-color: rgba(255,77,109,0.6); box-shadow: inset 0 0 0 1px rgba(255,77,109,0.22); }
   .cell-game.edit.unlocked .cell-input { border-color: rgba(0,230,118,0.55); }
   .matrix-head .cell-game.lk-locked { color: #ff4d6d; }
@@ -338,6 +368,9 @@ import {
   resolveLock, resolveGameLock, resolveAllLock,
   toggleAll, toggleGame, toggleCell,
 } from './shared/game-lock.js';
+import {
+  resolveOverride, hasOverride, setGameOverride, setCellOverride,
+} from './shared/game-config.js';
 
 const lobbyId = new URLSearchParams(location.search).get('lobby');
 if (!lobbyId) {
@@ -416,6 +449,7 @@ async function resetAll() {
   if (!confirm(`Wipe scores and history for lobby ${lobbyId}? Teams are kept. This affects everyone in this lobby.`)) return;
   await set(ref(db, `${LOBBY_PATH}/scores`), null);
   await set(ref(db, `${LOBBY_PATH}/history`), null);
+  await set(ref(db, `${LOBBY_PATH}/timerStarts`), null);
   // Reset only appears in edit mode; exit it so the now-stale edit form
   // (whose inputs still hold pre-reset values) can't resurrect them on Save.
   if (editing) cancelEdits();
@@ -501,6 +535,74 @@ function wireEditButtons() {
       render();
     });
   }
+  for (const btn of document.querySelectorAll('.clock-btn')) {
+    btn.addEventListener('click', () => openClockModal(btn.dataset.game, btn.dataset.team));
+  }
+  for (const btn of document.querySelectorAll('.rules-btn')) {
+    btn.addEventListener('click', () => openRulesModal(btn.dataset.game, btn.dataset.team));
+  }
+}
+
+function openModal({ title, bodyHtml, onConfirm }) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <h2>${title}</h2>
+      <div class="modal-body">${bodyHtml}</div>
+      <div class="modal-actions">
+        <button id="modalCancel">Cancel</button>
+        <button class="primary" id="modalConfirm">Confirm</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelector('#modalCancel').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  overlay.querySelector('#modalConfirm').addEventListener('click', () => { onConfirm(); close(); });
+  const field = overlay.querySelector('#cfgInput');
+  if (field) field.focus();
+}
+
+// Prefill with the OWN-LEVEL override only (not the resolved cell>game value), so
+// clearing removes exactly this level and the modal never silently pins an
+// inherited value.
+function openClockModal(g, teamRaw) {
+  const teamId = teamRaw !== undefined ? Number(teamRaw) : undefined;
+  const cur = teamId !== undefined ? draft.timers?.cells?.[g]?.[teamId] : draft.timers?.games?.[g];
+  const level = teamId !== undefined ? `Team ${teamId}` : 'all teams';
+  openModal({
+    title: `⏱ Time limit · ${escapeHtml(GAMES[g].name)} · ${level}`,
+    bodyHtml: `<label>Minutes (blank or 0 = no limit)</label>
+      <input id="cfgInput" type="number" min="1" step="1" inputmode="numeric" value="${cur != null ? escapeHtml(String(cur)) : ''}">`,
+    onConfirm: () => {
+      const val = Number(document.getElementById('cfgInput').value);
+      captureScoreInputs();
+      if (teamId !== undefined) setCellOverride(draft.timers, g, teamId, val);
+      else setGameOverride(draft.timers, g, val);
+      dirty.timers = true;
+      render();
+    },
+  });
+}
+
+function openRulesModal(g, teamRaw) {
+  const teamId = teamRaw !== undefined ? Number(teamRaw) : undefined;
+  const cur = teamId !== undefined ? draft.rules?.cells?.[g]?.[teamId] : draft.rules?.games?.[g];
+  const level = teamId !== undefined ? `Team ${teamId} (hint)` : 'all teams';
+  openModal({
+    title: `📋 Rules · ${escapeHtml(GAMES[g].name)} · ${level}`,
+    bodyHtml: `<label>Rules text (blank = use default)</label>
+      <textarea id="cfgInput" placeholder="${escapeHtml(GAMES[g].rules || '')}">${cur != null ? escapeHtml(String(cur)) : ''}</textarea>`,
+    onConfirm: () => {
+      const val = document.getElementById('cfgInput').value.trim();
+      captureScoreInputs();
+      if (teamId !== undefined) setCellOverride(draft.rules, g, teamId, val);
+      else setGameOverride(draft.rules, g, val);
+      dirty.rules = true;
+      render();
+    },
+  });
 }
 
 async function saveEdits() {
@@ -523,6 +625,8 @@ async function saveEdits() {
   }
   for (const [path, val] of writes) await set(ref(db, path), val);
   if (dirty.locks) await set(ref(db, `${LOBBY_PATH}/locks`), draft.locks);
+  if (dirty.timers) await set(ref(db, `${LOBBY_PATH}/timers`), draft.timers);
+  if (dirty.rules) await set(ref(db, `${LOBBY_PATH}/rules`), draft.rules);
   editing = false;
   draft = null;
   dirty = { locks: false, timers: false, rules: false };
@@ -558,6 +662,27 @@ function computeLeader() {
     })
     .sort((a, b) => b.total - a.total);
   return sorted[0];
+}
+
+// Build the edit-mode button row for a game header (teamId undefined) or a cell.
+function editButtonsHtml(g, teamId) {
+  const isCell = teamId !== undefined;
+  const lockState = isCell ? resolveLock(draft.locks, g, teamId) : resolveGameLock(draft.locks, g);
+  const lockIcon = lockState === 'locked' ? '🔒' : '🔓';
+  const lockTitle = lockState === 'locked'
+    ? (isCell ? 'Locked for this team — click to unlock' : 'Locked for all teams — click to unlock')
+    : (isCell ? 'Unlocked for this team — click to lock' : 'Unlocked for all teams — click to lock');
+  const teamAttr = isCell ? ` data-team="${teamId}"` : '';
+  let html = `<button class="lock-btn" data-game="${g}"${teamAttr} title="${lockTitle}">${lockIcon}</button>`;
+  if (GAMES[g].kind === 'manual') {
+    const mins = resolveOverride(draft.timers, g, teamId);
+    const minsSet = hasOverride(draft.timers, g, teamId);
+    const clockLabel = minsSet ? `⏱${mins}` : '⏱';
+    html += `<button class="cfg-btn clock-btn ${minsSet ? 'set' : ''}" data-game="${g}"${teamAttr} title="Set time limit (minutes)">${clockLabel}</button>`;
+    const rulesSet = hasOverride(draft.rules, g, teamId);
+    html += `<button class="cfg-btn rules-btn ${rulesSet ? 'set' : ''}" data-game="${g}"${teamAttr} title="Edit rules / hint">📋</button>`;
+  }
+  return `<span class="edit-btns">${html}</span>`;
 }
 
 function render() {
@@ -602,9 +727,7 @@ function render() {
     const label = closed ? 'closed' : `open ${submittedByGame[g]}/${teamCount}`;
     if (editing) {
       const gs = resolveGameLock(draft.locks, g);
-      const icon = gs === 'locked' ? '🔒' : '🔓';
-      const title = gs === 'locked' ? 'Locked for all teams — click to unlock' : 'Unlocked for all teams — click to lock';
-      return `<div class="cell-game ${cls} lk-${gs}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span><br><button class="lock-btn" data-game="${g}" title="${title}">${icon}</button></div>`;
+      return `<div class="cell-game ${cls} lk-${gs}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span><br>${editButtonsHtml(g)}</div>`;
     }
     return `<div class="cell-game ${cls}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span></div>`;
   }).join('');
@@ -625,11 +748,9 @@ function render() {
       const v = t.scores[g];
       if (editing) {
         const cs = resolveLock(draft.locks, g, t.id);
-        const icon = cs === 'locked' ? '🔒' : '🔓';
-        const title = cs === 'locked' ? 'Locked for this team — click to unlock' : 'Unlocked for this team — click to lock';
         const typed = pendingScores?.[String(t.id)]?.[g];
         const val = typed !== undefined ? typed : (v ?? '');
-        return `<div class="cell-game edit ${cs}"><input class="cell-input" type="number" min="0" step="1" inputmode="numeric" data-team="${t.id}" data-game="${g}" value="${escapeHtml(String(val))}" placeholder="-"><button class="lock-btn" data-game="${g}" data-team="${t.id}" title="${title}">${icon}</button></div>`;
+        return `<div class="cell-game edit ${cs}"><input class="cell-input" type="number" min="0" step="1" inputmode="numeric" data-team="${t.id}" data-game="${g}" value="${escapeHtml(String(val))}" placeholder="-">${editButtonsHtml(g, t.id)}</div>`;
       }
       if (v === undefined) {
         return `<div class="cell-game empty">-</div>`;
@@ -656,7 +777,7 @@ function render() {
   list.innerHTML = head + rows;
   if (editing) wireEditButtons();
   document.getElementById('subtitle').textContent = editing
-    ? `Editing raw scores · clear a cell to remove · Save to apply`
+    ? `Editing scores · clock/rules per game & team (manual) · clear a cell to remove · Save to apply`
     : `Lobby ${lobbyId} · ${state.teams.length} teams · ${state.history.length} submissions`;
 }
 
