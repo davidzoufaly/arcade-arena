@@ -42,6 +42,29 @@
   .tile.locked { opacity: 0.5; pointer-events: none; border-style: dashed; border-color: rgba(255,77,109,0.4); }
   .tile.locked .tile-tag { background: rgba(255,77,109,0.12); color: #ff4d6d; }
   .tile .lock-badge { position: absolute; top: 10px; left: 12px; font-size: 18px; }
+  .tile .timer-badge {
+    position: absolute; top: 10px; left: 12px;
+    font-size: 12px; font-weight: 800; color: var(--accent);
+    background: rgba(0,212,255,0.12); padding: 2px 7px; border-radius: 999px;
+  }
+  .tile.timed { cursor: pointer; }
+
+  .tw-box {
+    background: var(--card); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px; padding: 26px; width: min(440px, 92vw); text-align: center;
+    color: var(--text);
+  }
+  .tw-box::backdrop { background: rgba(0,0,0,0.6); }
+  .tw-box h2 { font-size: 20px; margin-bottom: 12px; }
+  .tw-box p { color: var(--muted); line-height: 1.6; margin-bottom: 20px; font-size: 15px; }
+  .tw-box strong { color: var(--text); }
+  .tw-actions { display: flex; gap: 10px; justify-content: center; }
+  .tw-actions button {
+    background: var(--card); border: 1px solid rgba(255,255,255,0.12); color: var(--text);
+    padding: 12px 18px; border-radius: 10px; font-size: 16px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+  .tw-actions button.go { background: linear-gradient(135deg, var(--accent), #0099cc); border: none; color: #001; }
   .tile:not(.soon):hover {
     transform: translateY(-2px);
     box-shadow: 0 12px 30px rgba(0,0,0,0.35);
@@ -82,6 +105,7 @@ import { resolveSession } from './shared/lobby.js';
 import { mountTopbar } from './shared/topbar.js';
 import { GAMES } from './shared/games-catalog.js';
 import { resolveLock } from './shared/game-lock.js';
+import { resolveTimer } from './shared/game-config.js';
 
 if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
   document.body.innerHTML = '<div style="max-width:640px;margin:80px auto;padding:32px;background:#1b2540;border-radius:16px;color:#f5f7fb;font-family:system-ui">Firebase config missing. See SETUP.md.</div>';
@@ -103,6 +127,7 @@ const subtitle = document.getElementById('subtitle');
 
 let currentScores = null;
 let currentLocks = null;
+let currentTimers = null;
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -128,26 +153,54 @@ function render() {
       ? `<div class="score-line">Score: <strong>${esc(String(score))}</strong></div>`
       : '';
     const lockBadge = lockedTile ? '<div class="lock-badge" title="Locked by host">🔒</div>' : '';
+    const mins = (g.kind === 'manual' && !lockedTile && score === undefined)
+      ? resolveTimer(currentTimers, key, session.teamId) : undefined;
+    const timed = mins !== undefined;
+    const timerBadge = timed ? `<div class="timer-badge" title="Time limit">⏱ ${mins}m</div>` : '';
     const tag2 = `<span class="tile-tag">${tag}</span>`;
     const tileCls = lockedTile ? `${g.kind} locked` : g.kind;
-    const isDiv = g.kind === 'soon' || lockedTile;
+    const isDiv = g.kind === 'soon' || lockedTile || timed;
     const open = isDiv ? '<div' : '<a';
     const close = isDiv ? '</div>' : '</a>';
-    const hrefAttr = href ? ` href="${href}"` : '';
-    return `${open} class="tile ${tileCls}"${hrefAttr}>
+    // timed tiles carry the destination in data-href; a click handler shows the warning dialog.
+    const hrefAttr = timed ? ` data-href="${href}" data-name="${esc(g.name)}" data-mins="${mins}"` : (href ? ` href="${href}"` : '');
+    const tileCls2 = timed ? `${tileCls} timed` : tileCls;
+    return `${open} class="tile ${tileCls2}"${hrefAttr}>
       <div class="tile-emoji">${g.emoji}</div>
       <h3>${esc(g.name)}</h3>
       ${scoreLine}
       ${tag2}
       ${tick}
       ${lockBadge}
+      ${timerBadge}
     ${close}`;
   }).join('');
   grid.innerHTML = html;
+  for (const el of grid.querySelectorAll('.tile.timed')) {
+    el.addEventListener('click', () => openTimeWarning(el.dataset.href, el.dataset.name, el.dataset.mins));
+  }
 
   const submitted = scoresForTeam ? Object.keys(scoresForTeam).length : 0;
   const total = Object.values(GAMES).filter(g => g.kind !== 'soon').length;
   subtitle.textContent = `Lobby ${session.lobbyId} · Team ${session.teamId} · ${submitted}/${total} games submitted`;
+}
+
+function openTimeWarning(href, name, mins) {
+  const dialog = document.createElement('dialog');
+  dialog.className = 'tw-box';
+  dialog.innerHTML = `
+    <h2>⏱ ${esc(name)} has a ${esc(mins)}-minute limit</h2>
+    <p>Entering starts your countdown <strong>now</strong>. You must submit your score before it reaches 0, or you'll be recorded a <strong>0</strong>.</p>
+    <div class="tw-actions">
+      <button type="button" id="twCancel">Cancel</button>
+      <button type="button" class="go" id="twGo">Enter game</button>
+    </div>`;
+  document.body.appendChild(dialog);
+  dialog.addEventListener('close', () => dialog.remove());
+  dialog.querySelector('#twCancel').addEventListener('click', () => dialog.close());
+  dialog.querySelector('#twGo').addEventListener('click', () => { location.href = href; });
+  dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); }); // backdrop click cancels
+  dialog.showModal();
 }
 
 onValue(ref(db, `lobbies/${session.lobbyId}/scores/${session.teamId}`), snap => {
@@ -157,6 +210,11 @@ onValue(ref(db, `lobbies/${session.lobbyId}/scores/${session.teamId}`), snap => 
 
 onValue(ref(db, `lobbies/${session.lobbyId}/locks`), snap => {
   currentLocks = snap.exists() ? snap.val() : null;
+  render();
+});
+
+onValue(ref(db, `lobbies/${session.lobbyId}/timers`), snap => {
+  currentTimers = snap.exists() ? snap.val() : null;
   render();
 });
 </script>
