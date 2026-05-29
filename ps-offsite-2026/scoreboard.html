@@ -195,11 +195,12 @@
     opacity: 0.85;
   }
   .lock-btn:hover { opacity: 1; transform: scale(1.12); }
-  .lock-btn { font-size: 14px; }                 /* was 16px — make room for the row */
-  .edit-btns { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; margin-top: 4px; }
+  .lock-btn { font-size: 15px; margin-top: 0; padding: 1px 3px; }  /* match cfg-btn; margin-top from old layout, killed inside the row */
+  .edit-btns { display: flex; flex-wrap: nowrap; gap: 2px; justify-content: center; align-items: center; margin-top: 4px; }
+  .edit-btns button { font-size: 15px; line-height: 1; padding: 1px 3px; width: 22px; height: 20px; display: inline-flex; align-items: center; justify-content: center; }
   .cfg-btn {
     background: transparent; border: none; cursor: pointer;
-    font-size: 12px; line-height: 1; padding: 2px 3px; opacity: 0.7; color: var(--text);
+    font-size: 15px; line-height: 1; padding: 1px 3px; opacity: 0.7; color: var(--text);
     font-family: inherit;
   }
   .cfg-btn:hover { opacity: 1; transform: scale(1.1); }
@@ -208,10 +209,11 @@
   .modal-box {
     background: var(--card); border: 1px solid rgba(255,255,255,0.12);
     border-radius: 14px; padding: 24px; width: min(460px, 92vw); box-shadow: var(--shadow);
-    color: var(--text);
+    color: var(--text); margin: auto;   /* center: the global `* { margin: 0 }` reset kills the UA dialog centering */
   }
   .modal-box::backdrop { background: rgba(0,0,0,0.6); }
   .modal-box h2 { font-size: 18px; margin-bottom: 16px; }
+  .modal-body p { color: var(--muted); line-height: 1.6; font-size: 15px; }
   .modal-body label {
     display: block; font-size: 13px; color: var(--muted);
     margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;
@@ -444,13 +446,20 @@ onValue(ref(db, LOBBY_PATH), snap => {
 
 async function resetAll() {
   if (!await requireAdmin(lobbyId)) return;
-  if (!confirm(`Wipe scores and history for lobby ${lobbyId}? Teams are kept. This affects everyone in this lobby.`)) return;
-  await set(ref(db, `${LOBBY_PATH}/scores`), null);
-  await set(ref(db, `${LOBBY_PATH}/history`), null);
-  await set(ref(db, `${LOBBY_PATH}/timerStarts`), null);
-  // Reset only appears in edit mode; exit it so the now-stale edit form
-  // (whose inputs still hold pre-reset values) can't resurrect them on Save.
-  if (editing) cancelEdits();
+  openModal({
+    title: '⚠️ Reset scoreboard?',
+    bodyHtml: `<p>Wipe all scores and history for lobby <strong>${escapeHtml(lobbyId)}</strong>? Teams are kept. This affects everyone in this lobby and can't be undone.</p>`,
+    confirmLabel: 'Reset everything',
+    danger: true,
+    onConfirm: async () => {
+      await set(ref(db, `${LOBBY_PATH}/scores`), null);
+      await set(ref(db, `${LOBBY_PATH}/history`), null);
+      await set(ref(db, `${LOBBY_PATH}/timerStarts`), null);
+      // Reset only appears in edit mode; exit it so the now-stale edit form
+      // (whose inputs still hold pre-reset values) can't resurrect them on Save.
+      if (editing) cancelEdits();
+    },
+  });
 }
 
 const adminSession = getSession();
@@ -541,7 +550,7 @@ function wireEditButtons() {
   }
 }
 
-function openModal({ title, bodyHtml, onConfirm }) {
+function openModal({ title, bodyHtml, onConfirm, confirmLabel = 'Confirm', danger = false }) {
   const dialog = document.createElement('dialog');
   dialog.className = 'modal-box';
   dialog.innerHTML = `
@@ -549,7 +558,7 @@ function openModal({ title, bodyHtml, onConfirm }) {
     <div class="modal-body">${bodyHtml}</div>
     <div class="modal-actions">
       <button type="button" id="modalCancel">Cancel</button>
-      <button type="button" class="primary" id="modalConfirm">Confirm</button>
+      <button type="button" class="${danger ? 'danger' : 'primary'}" id="modalConfirm">${confirmLabel}</button>
     </div>`;
   document.body.appendChild(dialog);
   dialog.addEventListener('close', () => dialog.remove());
@@ -674,8 +683,8 @@ function editButtonsHtml(g, teamId) {
   if (GAMES[g].kind === 'manual') {
     const mins = resolveOverride(draft.timers, g, teamId);
     const minsSet = hasOverride(draft.timers, g, teamId);
-    const clockLabel = minsSet ? `⏱${mins}` : '⏱';
-    html += `<button class="cfg-btn clock-btn ${minsSet ? 'set' : ''}" data-game="${g}"${teamAttr} title="Set time limit (minutes)">${clockLabel}</button>`;
+    const clockTitle = minsSet ? `Time limit: ${mins} min — click to change` : 'Set time limit (minutes)';
+    html += `<button class="cfg-btn clock-btn ${minsSet ? 'set' : ''}" data-game="${g}"${teamAttr} title="${clockTitle}">⏱</button>`;
     const rulesSet = hasOverride(draft.rules, g, teamId);
     html += `<button class="cfg-btn rules-btn ${rulesSet ? 'set' : ''}" data-game="${g}"${teamAttr} title="Edit rules / hint">📋</button>`;
   }
@@ -774,7 +783,7 @@ function render() {
   list.innerHTML = head + rows;
   if (editing) wireEditButtons();
   document.getElementById('subtitle').textContent = editing
-    ? `Editing scores · clock/rules per game & team (manual) · clear a cell to remove · Save to apply`
+    ? `Editing the lobby. Save to apply`
     : `Lobby ${lobbyId} · ${state.teams.length} teams · ${state.history.length} submissions`;
 }
 

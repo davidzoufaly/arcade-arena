@@ -52,7 +52,7 @@
   .tw-box {
     background: var(--card); border: 1px solid rgba(255,255,255,0.12);
     border-radius: 14px; padding: 26px; width: min(440px, 92vw); text-align: center;
-    color: var(--text);
+    color: var(--text); margin: auto;   /* center: the global `* { margin: 0 }` reset kills the UA dialog centering */
   }
   .tw-box::backdrop { background: rgba(0,0,0,0.6); }
   .tw-box h2 { font-size: 20px; margin-bottom: 12px; }
