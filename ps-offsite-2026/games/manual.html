@@ -197,7 +197,7 @@ function wireSubmit() {
       if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: key })) {
         banner.className = 'banner bad';
         banner.textContent = 'Locked — score not saved.';
-        if (minutes) { settled = false; } // re-arm
+        if (minutes) rearmCountdown(); // re-arm + restart clock
         btn.disabled = false;
         return;
       }
@@ -219,7 +219,7 @@ function wireSubmit() {
     } catch (e) {
       banner.className = 'banner bad';
       banner.textContent = 'Save failed: ' + (e.message || 'unknown error');
-      if (minutes) { settled = false; }
+      if (minutes) rearmCountdown(); // re-arm + restart clock
       btn.disabled = false;
     } finally {
       if (!minutes) btn.disabled = false;
@@ -242,6 +242,16 @@ async function autoZero() {
   if (input) input.disabled = true;
   if (btn) btn.disabled = true;
   if (banner) { banner.className = 'banner bad'; banner.innerHTML = `⏱ Time's up — <strong>0</strong> recorded.`; }
+}
+
+// Re-arm a timed game after a rejected/failed submit. settle() cleared the
+// interval before the await, so restart the countdown — or auto-0 immediately
+// if the deadline already passed — otherwise the clock would freeze and the
+// auto-0 would never fire for an idle tab.
+function rearmCountdown() {
+  settled = false;
+  if (isExpired(startTs, minutes, Date.now())) autoZero();
+  else startCountdown();
 }
 
 function startCountdown() {
