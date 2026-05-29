@@ -205,14 +205,12 @@
   .cfg-btn:hover { opacity: 1; transform: scale(1.1); }
   .cfg-btn.set { opacity: 1; color: var(--accent); font-weight: 800; }
 
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-    display: flex; align-items: center; justify-content: center; z-index: 200;
-  }
   .modal-box {
     background: var(--card); border: 1px solid rgba(255,255,255,0.12);
     border-radius: 14px; padding: 24px; width: min(460px, 92vw); box-shadow: var(--shadow);
+    color: var(--text);
   }
+  .modal-box::backdrop { background: rgba(0,0,0,0.6); }
   .modal-box h2 { font-size: 18px; margin-bottom: 16px; }
   .modal-body label {
     display: block; font-size: 13px; color: var(--muted);
@@ -544,23 +542,22 @@ function wireEditButtons() {
 }
 
 function openModal({ title, bodyHtml, onConfirm }) {
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal-box">
-      <h2>${title}</h2>
-      <div class="modal-body">${bodyHtml}</div>
-      <div class="modal-actions">
-        <button id="modalCancel">Cancel</button>
-        <button class="primary" id="modalConfirm">Confirm</button>
-      </div>
+  const dialog = document.createElement('dialog');
+  dialog.className = 'modal-box';
+  dialog.innerHTML = `
+    <h2>${title}</h2>
+    <div class="modal-body">${bodyHtml}</div>
+    <div class="modal-actions">
+      <button type="button" id="modalCancel">Cancel</button>
+      <button type="button" class="primary" id="modalConfirm">Confirm</button>
     </div>`;
-  document.body.appendChild(overlay);
-  const close = () => overlay.remove();
-  overlay.querySelector('#modalCancel').addEventListener('click', close);
-  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-  overlay.querySelector('#modalConfirm').addEventListener('click', () => { onConfirm(); close(); });
-  const field = overlay.querySelector('#cfgInput');
+  document.body.appendChild(dialog);
+  dialog.addEventListener('close', () => dialog.remove());
+  dialog.querySelector('#modalCancel').addEventListener('click', () => dialog.close());
+  dialog.querySelector('#modalConfirm').addEventListener('click', () => { onConfirm(); dialog.close(); });
+  dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); }); // backdrop click closes
+  dialog.showModal();
+  const field = dialog.querySelector('#cfgInput');
   if (field) field.focus();
 }
 
