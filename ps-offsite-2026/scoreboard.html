@@ -595,7 +595,7 @@ function openClockModal(g, teamRaw) {
 function openRulesModal(g, teamRaw) {
   const teamId = teamRaw !== undefined ? Number(teamRaw) : undefined;
   const cur = teamId !== undefined ? draft.rules?.cells?.[g]?.[teamId] : draft.rules?.games?.[g];
-  const level = teamId !== undefined ? `Team ${teamId} (hint)` : 'all teams';
+  const level = teamId !== undefined ? `Team ${teamId}` : 'all teams';
   const def = GAMES[g].rules || '';
   // Prefill the catalog default as editable text (own-level override wins if set), so
   // the admin can extend the defaults. Clearing the box falls back to the default again.
