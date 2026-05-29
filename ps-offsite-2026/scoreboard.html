@@ -368,10 +368,10 @@ let initialized = false;
 let editing = false;
 let lastUpdate = null;
 let connected = true;
-let locks = null;            // latest live lock node
-let lockDraft = null;        // editable clone while editing
-let pendingScores = null;    // {teamId: {gameKey: typedValue}} preserved across re-renders
-let locksDirty = false;      // only write /locks on Save if a toggle changed it
+let locks = null, timers = null, rules = null;  // latest live nodes
+let draft = null;                                // { locks, timers, rules } while editing
+let dirty = { locks: false, timers: false, rules: false };
+let pendingScores = null;
 
 function snapshotToState(snap) {
   const root = snap.val() ?? {};
@@ -390,6 +390,8 @@ onValue(ref(db, LOBBY_PATH), snap => {
   lastUpdate = Date.now();
   renderLiveStatus();
   locks = snap.val()?.locks ?? null;
+  timers = snap.val()?.timers ?? null;
+  rules = snap.val()?.rules ?? null;
   state = snapshotToState(snap);
   const leader = computeLeader();
   const leaderId = leader?.id ?? null;
@@ -436,11 +438,11 @@ function renderControls() {
     cancelBtn.addEventListener('click', cancelEdits);
     const allBtn = document.createElement('button');
     allBtn.className = 'lock-all';
-    allBtn.textContent = resolveAllLock(lockDraft) === 'locked' ? 'Unlock all' : 'Lock all';
+    allBtn.textContent = resolveAllLock(draft.locks) === 'locked' ? 'Unlock all' : 'Lock all';
     allBtn.addEventListener('click', () => {
       captureScoreInputs();
-      toggleAll(lockDraft);
-      locksDirty = true;
+      toggleAll(draft.locks);
+      dirty.locks = true;
       renderControls();
       render();
     });
@@ -459,18 +461,22 @@ function renderControls() {
 
 function startEdits() {
   editing = true;
-  lockDraft = locks ? JSON.parse(JSON.stringify(locks)) : {};
+  draft = {
+    locks: locks ? JSON.parse(JSON.stringify(locks)) : {},
+    timers: timers ? JSON.parse(JSON.stringify(timers)) : {},
+    rules: rules ? JSON.parse(JSON.stringify(rules)) : {},
+  };
+  dirty = { locks: false, timers: false, rules: false };
   pendingScores = {};
-  locksDirty = false;
   renderControls();
   render();
 }
 
 function cancelEdits() {
   editing = false;
-  lockDraft = null;
+  draft = null;
+  dirty = { locks: false, timers: false, rules: false };
   pendingScores = null;
-  locksDirty = false;
   renderControls();
   render();
 }
@@ -484,14 +490,14 @@ function captureScoreInputs() {
 }
 
 // Wire lock toggle buttons after each editing render (innerHTML wipes listeners).
-function wireLockButtons() {
+function wireEditButtons() {
   for (const btn of document.querySelectorAll('.lock-btn')) {
     btn.addEventListener('click', () => {
       captureScoreInputs();
       const g = btn.dataset.game;
-      if (btn.dataset.team !== undefined) toggleCell(lockDraft, g, Number(btn.dataset.team));
-      else toggleGame(lockDraft, g);
-      locksDirty = true;
+      if (btn.dataset.team !== undefined) toggleCell(draft.locks, g, Number(btn.dataset.team));
+      else toggleGame(draft.locks, g);
+      dirty.locks = true;
       render();
     });
   }
@@ -516,11 +522,11 @@ async function saveEdits() {
     writes.push([path, n]);
   }
   for (const [path, val] of writes) await set(ref(db, path), val);
-  if (locksDirty) await set(ref(db, `${LOBBY_PATH}/locks`), lockDraft);
+  if (dirty.locks) await set(ref(db, `${LOBBY_PATH}/locks`), draft.locks);
   editing = false;
-  lockDraft = null;
+  draft = null;
+  dirty = { locks: false, timers: false, rules: false };
   pendingScores = null;
-  locksDirty = false;
   renderControls();
   render();
 }
@@ -595,7 +601,7 @@ function render() {
     const cls = closed ? 'closed' : 'open';
     const label = closed ? 'closed' : `open ${submittedByGame[g]}/${teamCount}`;
     if (editing) {
-      const gs = resolveGameLock(lockDraft, g);
+      const gs = resolveGameLock(draft.locks, g);
       const icon = gs === 'locked' ? '🔒' : '🔓';
       const title = gs === 'locked' ? 'Locked for all teams — click to unlock' : 'Unlocked for all teams — click to lock';
       return `<div class="cell-game ${cls} lk-${gs}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span><br><button class="lock-btn" data-game="${g}" title="${title}">${icon}</button></div>`;
@@ -618,7 +624,7 @@ function render() {
     const cells = gameKeys.map(g => {
       const v = t.scores[g];
       if (editing) {
-        const cs = resolveLock(lockDraft, g, t.id);
+        const cs = resolveLock(draft.locks, g, t.id);
         const icon = cs === 'locked' ? '🔒' : '🔓';
         const title = cs === 'locked' ? 'Locked for this team — click to unlock' : 'Unlocked for this team — click to lock';
         const typed = pendingScores?.[String(t.id)]?.[g];
@@ -648,7 +654,7 @@ function render() {
   }).join('');
 
   list.innerHTML = head + rows;
-  if (editing) wireLockButtons();
+  if (editing) wireEditButtons();
   document.getElementById('subtitle').textContent = editing
     ? `Editing raw scores · clear a cell to remove · Save to apply`
     : `Lobby ${lobbyId} · ${state.teams.length} teams · ${state.history.length} submissions`;
