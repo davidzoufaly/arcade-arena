@@ -30,24 +30,24 @@ describe('constants', () => {
   it('CALIB_GRACE_S is 3', () => expect(CALIB_GRACE_S).toBe(3));
   it('FALLBACK_N is 4', () => expect(FALLBACK_N).toBe(4));
   it('MIN_N is 1', () => expect(MIN_N).toBe(1));
-  it('RAMP_S is 60', () => expect(RAMP_S).toBe(60));
+  it('RAMP_S is 70', () => expect(RAMP_S).toBe(70));
 });
 
 describe('palmCountToJumpStrength', () => {
   it('0 palms → 0',            () => expect(palmCountToJumpStrength(0, 4)).toBe(0));
   it('negative palms → 0',     () => expect(palmCountToJumpStrength(-3, 4)).toBe(0));
-  it('teamN=2, 1 palm → 13',   () => expect(palmCountToJumpStrength(1, 2)).toBe(13));
-  it('teamN=2, 2 palms → 20',  () => expect(palmCountToJumpStrength(2, 2)).toBe(20));
-  it('teamN=7, 4 palms → 14',  () => expect(palmCountToJumpStrength(4, 7)).toBe(14));
-  it('teamN=7, 7 palms → 20',  () => expect(palmCountToJumpStrength(7, 7)).toBe(20));
-  it('teamN=14, 14 palms → 20',           () => expect(palmCountToJumpStrength(14, 14)).toBe(20));
-  it('teamN=14, 20 palms → 20 (clamped)', () => expect(palmCountToJumpStrength(20, 14)).toBe(20));
+  it('teamN=2, 1 palm → 15',   () => expect(palmCountToJumpStrength(1, 2)).toBe(15));
+  it('teamN=2, 2 palms → 22',  () => expect(palmCountToJumpStrength(2, 2)).toBe(22));
+  it('teamN=7, 4 palms → 16',  () => expect(palmCountToJumpStrength(4, 7)).toBe(16));
+  it('teamN=7, 7 palms → 22',  () => expect(palmCountToJumpStrength(7, 7)).toBe(22));
+  it('teamN=14, 14 palms → 22',           () => expect(palmCountToJumpStrength(14, 14)).toBe(22));
+  it('teamN=14, 20 palms → 22 (clamped)', () => expect(palmCountToJumpStrength(20, 14)).toBe(22));
   it('teamN nullish → uses FALLBACK_N (4)', () => expect(palmCountToJumpStrength(4, null)).toBe(palmCountToJumpStrength(4, 4)));
   it('teamN undefined → uses FALLBACK_N',   () => expect(palmCountToJumpStrength(4, undefined)).toBe(palmCountToJumpStrength(4, 4)));
   // teamN=0 means "no team detected, but value was supplied" — clamped up to
-  // MIN_N (1). One palm against teamN=0 = peak jump 20.
-  it('teamN=0 → clamped to MIN_N',          () => expect(palmCountToJumpStrength(1, 0)).toBe(20));
-  it('teamN=0, 2 palms → still clamped to 20', () => expect(palmCountToJumpStrength(2, 0)).toBe(20));
+  // MIN_N (1). One palm against teamN=0 = peak jump 22.
+  it('teamN=0 → clamped to MIN_N',          () => expect(palmCountToJumpStrength(1, 0)).toBe(22));
+  it('teamN=0, 2 palms → still clamped to 22', () => expect(palmCountToJumpStrength(2, 0)).toBe(22));
 });
 
 describe('pickCalibratedHandCount', () => {

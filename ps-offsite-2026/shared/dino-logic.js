@@ -26,14 +26,15 @@ export const MIN_N            = 1;   // lower bound on team size
 // Endless difficulty: knobs ramp linearly over the first RAMP_S seconds of live
 // play, then plateau at peak — hard but steady, so the score keeps climbing as
 // long as the team survives. All four numbers are safe to tune.
-export const RAMP_S = 60;
-export const SPEED_MIN = 4, SPEED_MAX = 12;            // scroll speed (px/frame)
-export const SPAWN_FRAMES_MAX = 110, SPAWN_FRAMES_MIN = 48; // gap between spawns
-export const HIGH_PROB_MAX = 0.45;                     // chance an obstacle is "high"
+export const RAMP_S = 70;
+export const SPEED_MIN = 4, SPEED_MAX = 10.2;          // scroll speed (px/frame)
+export const SPAWN_FRAMES_MAX = 110, SPAWN_FRAMES_MIN = 56; // gap between spawns
+export const HIGH_PROB_MAX = 0.38;                     // chance an obstacle is "high"
 
 // 0 palms → no jump. 1..teamN palms → jump velocity scaled so that the team's
-// own hand total equals peak jump (20). Base 6 keeps tiny-team jumps from
-// feeling identical regardless of palm count.
+// own hand total equals peak jump (22). Base 7 keeps tiny-team jumps from
+// feeling identical regardless of palm count. Velocity ~7% higher than before
+// → ~15% more clearance height (height ∝ v²/2g), matching the eased difficulty.
 //
 // Uses `??` not `||` so that teamN === 0 stays 0 (then clamped up to MIN_N by
 // Math.max), while teamN === null/undefined falls back to FALLBACK_N. This
@@ -41,7 +42,7 @@ export const HIGH_PROB_MAX = 0.45;                     // chance an obstacle is 
 export function palmCountToJumpStrength(n, teamN) {
   if (n <= 0) return 0;
   const T = Math.max(MIN_N, teamN ?? FALLBACK_N);
-  return Math.min(20, Math.round(6 + n * (14 / T)));
+  return Math.min(22, Math.round(7 + n * (15 / T)));
 }
 
 // Mode of the sample array. Ties resolve to the higher count
@@ -53,10 +54,16 @@ export function palmCountToJumpStrength(n, teamN) {
 // - Zero-dominant traces (mode is 0, even with a few stray 1s).
 // In all three, `bestN || FALLBACK_N` short-circuits the falsy 0 to FALLBACK.
 // The final clamp to [MIN_N, TRACKER_CEILING] only matters for valid signals.
-export function pickCalibratedHandCount(samples) {
+// `tailFrac` (0<f<=1) restricts the vote to the last fraction of the window,
+// so a team that ramps up late (e.g. 2 hands, then everyone raises to 10)
+// locks on the SETTLED count, not the early-frame majority. Default 1 = whole
+// window (dino's behavior, unchanged). At least 1 sample is always kept.
+export function pickCalibratedHandCount(samples, tailFrac = 1) {
   if (!samples.length) return FALLBACK_N;
+  const keep = Math.max(1, Math.ceil(samples.length * Math.max(0, Math.min(1, tailFrac))));
+  const window = samples.slice(-keep);
   const counts = new Map();
-  for (const s of samples) counts.set(s, (counts.get(s) || 0) + 1);
+  for (const s of window) counts.set(s, (counts.get(s) || 0) + 1);
   let bestN = 0, bestFreq = -1;
   for (const [n, f] of counts) {
     if (f > bestFreq || (f === bestFreq && n > bestN)) { bestN = n; bestFreq = f; }

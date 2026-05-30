@@ -35,9 +35,9 @@ export function nextVelocity(vy, amp, floor, dt, meterMax = METER_MAX) {
 // Pipes get faster, spawn closer together, and the gap narrows as the run goes
 // on — hard but steady, so the score keeps climbing as long as the team flies.
 export const RAMP_S = 60;
-export const SPEED_MIN = 3, SPEED_MAX = 6.5;                 // pipe scroll speed (px/frame)
-export const SPAWN_FRAMES_MAX = 160, SPAWN_FRAMES_MIN = 95;  // frames between spawns
-export const GAP_MAX = 288, GAP_MIN = 210;                   // vertical gap height (+20% for easier pass-through)
+export const SPEED_MIN = 2.55, SPEED_MAX = 5.53;             // pipe scroll speed (px/frame) — 15% slower (easier)
+export const SPAWN_FRAMES_MAX = 184, SPAWN_FRAMES_MIN = 109; // frames between spawns — 15% sparser (easier)
+export const GAP_MAX = 331, GAP_MIN = 242;                   // vertical gap height — 15% wider (easier)
 
 export function difficultyProgress(elapsedSec) {
   return Math.max(0, Math.min(1, elapsedSec / RAMP_S));

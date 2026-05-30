@@ -120,20 +120,20 @@ describe('sequence-length constants', () => {
 });
 
 describe('sequenceLengthForTeam', () => {
-  it('teamN nullish → FALLBACK_N (4) → 8 (natural, no clamp)', () => {
-    expect(sequenceLengthForTeam(null)).toBe(8);
-    expect(sequenceLengthForTeam(undefined)).toBe(8);
+  it('teamN nullish → FALLBACK_N (4) → 16 (natural, no clamp)', () => {
+    expect(sequenceLengthForTeam(null)).toBe(16);
+    expect(sequenceLengthForTeam(undefined)).toBe(16);
   });
-  it('teamN=0 → clamped MIN_N (1) → 2 → clamped to MIN (4)', () => expect(sequenceLengthForTeam(0)).toBe(4));
-  it('teamN=1 → 2 → clamped to MIN (4)', () => expect(sequenceLengthForTeam(1)).toBe(4));
-  it('teamN=2 (solo / 1 person) → 4',     () => expect(sequenceLengthForTeam(2)).toBe(4));
-  it('teamN=3 → 6 (natural N*2)',         () => expect(sequenceLengthForTeam(3)).toBe(6));
-  it('teamN=4 → 8',                        () => expect(sequenceLengthForTeam(4)).toBe(8));
-  it('teamN=5 → 10', () => expect(sequenceLengthForTeam(5)).toBe(10));
-  it('teamN=8 → 16 (matches today)', () => expect(sequenceLengthForTeam(8)).toBe(16));
-  it('teamN=14 → 28', () => expect(sequenceLengthForTeam(14)).toBe(28));
-  it('teamN=15 → 30 → clamped to MAX (28)', () => expect(sequenceLengthForTeam(15)).toBe(28));
-  it('teamN=20 → 40 → clamped to MAX (28)', () => expect(sequenceLengthForTeam(20)).toBe(28));
+  it('teamN=0 → clamped MIN_N (1) → 4 → MIN (4)', () => expect(sequenceLengthForTeam(0)).toBe(4));
+  it('teamN=1 (solo) → 4',                () => expect(sequenceLengthForTeam(1)).toBe(4));
+  it('teamN=2 → 8 (natural N*4)',         () => expect(sequenceLengthForTeam(2)).toBe(8));
+  it('teamN=3 → 12',                       () => expect(sequenceLengthForTeam(3)).toBe(12));
+  it('teamN=4 → 16',                       () => expect(sequenceLengthForTeam(4)).toBe(16));
+  it('teamN=5 → 20', () => expect(sequenceLengthForTeam(5)).toBe(20));
+  it('teamN=7 → 28 (max, no clamp)', () => expect(sequenceLengthForTeam(7)).toBe(28));
+  it('teamN=8 → 32 → clamped to MAX (28)', () => expect(sequenceLengthForTeam(8)).toBe(28));
+  it('teamN=14 → 56 → clamped to MAX (28)', () => expect(sequenceLengthForTeam(14)).toBe(28));
+  it('teamN=20 → 80 → clamped to MAX (28)', () => expect(sequenceLengthForTeam(20)).toBe(28));
 });
 
 describe('successScore', () => {

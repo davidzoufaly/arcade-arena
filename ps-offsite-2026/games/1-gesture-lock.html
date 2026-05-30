@@ -235,7 +235,7 @@
   .calib-banner { text-align: center; }
   .calib-banner h1 { font-size: 34px; font-weight: 800; letter-spacing: 1px; color: var(--accent); margin: 0; }
   .calib-banner p { font-size: 22px; color: var(--text); margin: 6px 0 0; }
-  .calib-card .cam { width: 320px; height: 240px; object-fit: cover; transform: scaleX(-1); border-radius: 12px; background: #000; }
+  .calib-card .cam { height: min(58vh, 620px); width: auto; max-width: 92vw; aspect-ratio: 4 / 3; object-fit: cover; transform: scaleX(-1); border-radius: 12px; background: #000; }
 </style>
 <link rel="stylesheet" href="../shared/topbar.css">
 </head>
@@ -246,7 +246,8 @@
 
 <main>
   <div class="card briefing" id="briefing">
-    <strong>Goal:</strong> Watch a sequence flash by once, then unlock the vault by repeating it from memory. <strong>First, a 20-second calibration:</strong> everyone shows all their hands so the game can detect team size — the sequence length scales with it (bigger team, longer sequence). <strong>Who performs each gesture is your team's call — split the sequence however your strategy works best.</strong> One wrong move locks you out, and each gesture has a <strong>10 s timer</strong> — run out and the attempt fails. Go in order. <strong>4 attempts</strong>, best score counts; the faster you unlock, the higher the score.
+    <strong>Goal:</strong> Watch a sequence flash by once, then unlock the vault by repeating it from memory. <strong>First, a 20-second calibration:</strong> everyone raises one hand each so the game can detect team size. <strong>Who performs each gesture is your team's call — split the sequence however your strategy works best.</strong> One wrong move locks you out, and each gesture has a <strong>10 s timer</strong> — run out and the attempt fails. Go in order. <strong>5 attempts</strong>, best score counts; the faster you unlock, the higher the score.
+    <div style="margin-top: 14px;"><strong style="color:var(--text)">Gestures used:</strong> <span id="gesturePool" style="font-size:22px;letter-spacing:6px;"></span></div>
   </div>
 
   <!-- BOOT -->
@@ -270,7 +271,7 @@
 
   <!-- ATTEMPT_INTRO -->
   <div id="phase-intro" class="card hidden">
-    <h2 style="font-size: 28px; margin-bottom: 8px;">Attempt <span id="introNum">1</span> of 4</h2>
+    <h2 style="font-size: 28px; margin-bottom: 8px;">Attempt <span id="introNum">1</span> of 5</h2>
     <p class="briefing">Memorize the sequence — each gesture flashes once, no replay.</p>
     <button id="introStartBtn" style="margin-top: 16px;">Show sequence</button>
   </div>
@@ -280,7 +281,7 @@
     <div class="phase-card calib-card">
       <video id="calibVideo" autoplay playsinline muted class="cam"></video>
       <div class="calib-banner">
-        <h1>SHOW ALL HANDS</h1>
+        <h1>ONE HAND PER PLAYER</h1>
         <p><span id="calibCount">0</span> detected · <span id="calibTimer">5</span>s</p>
       </div>
     </div>
@@ -324,7 +325,7 @@
         </div>
         <div class="stats">
           <div class="stat"><div class="value" id="timer">10.0</div><div class="label">Time left (s)</div></div>
-          <div class="stat"><div class="value" id="attemptLabel">1 / 4</div><div class="label">Attempt</div></div>
+          <div class="stat"><div class="value" id="attemptLabel">1 / 5</div><div class="label">Attempt</div></div>
         </div>
       </div>
     </div>
@@ -397,7 +398,7 @@ const catalogHref = session
   : '../games.html';
 
 const GAME_CODE = 'GZ';
-const MAX_ATTEMPTS = 4;
+const MAX_ATTEMPTS = 5;
 const MEMORIZE_FLASH_MS = 800;
 const COUNTDOWN_MS = 3000;
 const HOLD_MS = 250;
@@ -408,7 +409,7 @@ const MATCH_CONFIDENCE = 0.45;
 const GESTURE_TIME_S = 10;
 const CAM_COUNTDOWN_S = 3;
 
-const PHASES = ['setup', 'loading', 'intro', 'calibrate', 'memorize', 'countdown', 'recall', 'attempt-end', 'final'];
+const PHASES = ['setup', 'loading', 'calibrate', 'intro', 'memorize', 'countdown', 'recall', 'attempt-end', 'final'];
 let activeCleanup = null;
 
 const state = {
@@ -479,11 +480,14 @@ phaseEnter.loading = async () => {
         },
         runningMode: 'VIDEO',
         numHands: TRACKER_CEILING,
+        minHandDetectionConfidence: 0.3,
+        minHandPresenceConfidence: 0.3,
+        minTrackingConfidence: 0.3,
       });
     }
     if (!state.stream) {
       state.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: 640, height: 480 },
+        video: { facingMode: 'user', width: 1280, height: 720 },
       });
       const video = $('video');
       video.srcObject = state.stream;
@@ -498,22 +502,22 @@ phaseEnter.loading = async () => {
     goto('setup');
     return;
   }
-  goto('intro');
+  goto('calibrate');
 };
 
 // ----- ATTEMPT_INTRO -----
 phaseEnter.intro = () => {
   $('introNum').textContent = state.attemptIdx + 1;
-  $('introStartBtn').onclick = () => goto('calibrate');
+  $('introStartBtn').onclick = () => goto('memorize');
 };
 
 phaseEnter.calibrate = () => {
-  // Attempts 2 and 3 reuse the locked teamN — skip immediately. Also covers
-  // the ?debug&team=N path: state.teamN was set at boot, so calibrate is a
-  // no-op.
+  // Runs once, right after Start game / loading. Attempts 2+ never re-enter
+  // calibrate (attempt-end → intro). The ?debug&team=N path sets state.teamN
+  // at boot, so calibrate is a no-op and jumps straight to the intro.
   if (state.teamN !== null) {
     state.sequenceLen ??= sequenceLengthForTeam(state.teamN);
-    goto('memorize');
+    goto('intro');
     return;
   }
 
@@ -549,7 +553,10 @@ phaseEnter.calibrate = () => {
 
   async function lockIn() {
     g.locking = true;
-    const detected = pickCalibratedHandCount(g.samples);
+    // One hand per person, so the detected count IS the team size. Lock on
+    // the settled count from the final stretch (last ~30% of the window) so a
+    // late ramp-up (2 people up, then 10) locks 10, not the early majority.
+    const detected = pickCalibratedHandCount(g.samples, 0.3);
 
     // Open a new single-hand recognizer BEFORE closing the multi-hand one.
     // If construction throws, the old recognizer stays live and the team
@@ -561,6 +568,9 @@ phaseEnter.calibrate = () => {
         baseOptions: { modelAssetPath: GESTURE_MODEL_URL, delegate: 'GPU' },
         runningMode: 'VIDEO',
         numHands: 1,
+        minHandDetectionConfidence: 0.3,
+        minHandPresenceConfidence: 0.3,
+        minTrackingConfidence: 0.3,
       });
     } catch (e) {
       console.warn('Gesture-lock calibration: recognizer recreate failed, keeping multi-hand recognizer', e);
@@ -589,7 +599,7 @@ phaseEnter.calibrate = () => {
     });
 
     g.locking = false;
-    goto('memorize');
+    goto('intro');
   }
 
   function tick() {
@@ -624,7 +634,7 @@ phaseEnter.calibrate = () => {
 
     if (elapsed >= CALIB_TOTAL_S && !g.locking) {
       // Fire-and-forget. The RAF chain stops here; lockIn() resolves and
-      // calls goto('memorize'). During the ~100ms recreate, the calibrate
+      // calls goto('intro'). During the ~100ms recreate, the calibrate
       // banner shows the last-rendered count + "0s" and stays static —
       // acceptable since nothing else is in flight.
       lockIn();
@@ -1006,6 +1016,7 @@ async function boot() {
   goto('setup');
 }
 for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+$('gesturePool').innerHTML = GESTURE_POOL.map(g => `<span title="${g.name}">${g.emoji}</span>`).join('');
 boot();
 </script>
 </body>

@@ -295,6 +295,8 @@
   <div class="card briefing" id="briefing">
     <strong>Goal:</strong> Match each target pose with your body. The <strong>reference pose</strong> is shown beside the video so you can see what to aim for. Each pose has multiple checks — get every check above 85 %, then <strong>hold the pose still</strong> for the required time (1.2 s easy, 1.5 s medium, 2 s hard). Wobbling resets the hold timer.
     <br><br>
+    <strong>Speed wins:</strong> each pose is worth up to 100 points — half from how clean your form is, half from <strong>how fast you lock it in</strong>. Nail it instantly = near 100; dawdle until the timer almost runs out = far fewer. Don't overthink — strike the pose and lock it fast.
+    <br><br>
     <strong>8 poses per run — the last 2 need a partner</strong> (two people in frame). 25 s per pose. Run out of time = pose is skipped (zero points). Players take turns — one person poses each round, the rest direct. <strong>2 attempts — best score counts 🏆.</strong>
   </div>
 
@@ -488,9 +490,10 @@ function renderRefSvg(pose) {
 
 const HOLD_MS_BY_DIFFICULTY = { easy: 1200, medium: 1500, hard: 2000, duo: 1500 };
 const SIM_THRESHOLD = 0.85; // tighter than before
-const STABILITY_MAX_DRIFT = 0.025; // max landmark drift over recent window — anything more = wobble
-const STABILITY_MAX_DRIFT_DUO = 0.045; // looser: two people can't freeze as still
+const STABILITY_MAX_DRIFT = 0.015; // max landmark drift over recent window — anything more = wobble
+const STABILITY_MAX_DRIFT_DUO = 0.06; // looser: two people can't freeze as still
 const STABILITY_WINDOW = 8; // recent frames to track for stability
+const HOLD_GRACE_FRAMES = 5; // brief sim/wobble blips pause the hold bar instead of zeroing it
 let landmarker = null;
 let stream = null;
 let running = false;
@@ -498,6 +501,8 @@ let stepIndex = 0;
 let teamId = null;
 let scores = [];
 let holdStart = 0;
+let holdMissFrames = 0; // consecutive non-matching frames since the hold began
+let holdPausedAt = 0;   // bar width frozen during a grace blip
 let lastVideoTime = -1;
 let stepStartTs = 0;
 let recentLandmarks = []; // for stability check
@@ -518,11 +523,18 @@ async function loadModel() {
   );
   landmarker = await PoseLandmarker.createFromOptions(vision, {
     baseOptions: {
-      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
+      // Heavy model: better landmark accuracy on the duo poses, where two bodies
+      // stand further back and partly occlude each other. Costs load time + FPS.
+      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task',
       delegate: 'GPU',
     },
     runningMode: 'VIDEO',
     numPoses: 2,
+    // Lowered from 0.5 default so a smaller / partly-occluded second body is
+    // still picked up and kept tracked across frames in the duo rounds.
+    minPoseDetectionConfidence: 0.3,
+    minPosePresenceConfidence: 0.3,
+    minTrackingConfidence: 0.3,
   });
 }
 
@@ -574,6 +586,8 @@ phaseEnter.playing = () => {
 
 function startStep() {
   holdStart = 0;
+  holdMissFrames = 0;
+  holdPausedAt = 0;
   recentLandmarks = [];
   stepStartTs = performance.now();
   const pose = POSES[stepIndex];
@@ -679,9 +693,17 @@ function sortedPair(bodies) {
   const hipX = lm => (lm[LM.L_HIP].x + lm[LM.R_HIP].x) / 2;
   return bodies.slice().sort((a, b) => hipX(a) - hipX(b)); // left (smaller x) first
 }
-function bodyVisible(lm) {
+function bodyVisible(lm, lenient = false) {
+  if (!lm || lm.length < 33) return false;
+  // Duo poses (arch, twins) are upper-body shapes — arms overhead — and two
+  // people stand further back, so legs are often low-confidence. Require only
+  // the core torso joints at a looser threshold so the 2nd body isn't dropped.
+  if (lenient) {
+    const core = [LM.L_SHOULDER, LM.R_SHOULDER, LM.L_HIP, LM.R_HIP];
+    return core.every(i => (lm[i].visibility ?? 1) > 0.3);
+  }
   const required = [LM.L_SHOULDER, LM.R_SHOULDER, LM.L_HIP, LM.R_HIP, LM.L_KNEE, LM.R_KNEE, LM.L_ANKLE, LM.R_ANKLE];
-  return lm && lm.length >= 33 && required.every(i => (lm[i].visibility ?? 1) > 0.4);
+  return required.every(i => (lm[i].visibility ?? 1) > 0.4);
 }
 
 function handlePose(result) {
@@ -692,7 +714,7 @@ function handlePose(result) {
   let checkResults, frameForStability, seriesKeys;
 
   if (isDuo) {
-    const visBodies = bodies.filter(bodyVisible);
+    const visBodies = bodies.filter(b => bodyVisible(b, true));
     if (visBodies.length < 2) {
       document.getElementById('hint').textContent = 'Need 2 people in frame, full body visible';
       document.getElementById('simFill').style.width = '0%';
@@ -767,16 +789,27 @@ function handlePose(result) {
 
   if (sim > SIM_THRESHOLD && stable) {
     if (holdStart === 0) holdStart = performance.now();
+    holdMissFrames = 0;
     const held = performance.now() - holdStart;
-    document.getElementById('holdFill').style.width = Math.min(100, (held / holdMs) * 100) + '%';
+    holdPausedAt = Math.min(100, (held / holdMs) * 100);
+    document.getElementById('holdFill').style.width = holdPausedAt + '%';
     document.getElementById('poseCard').classList.add('match');
     if (held >= holdMs) {
-      scores.push(scorePose({ sim, locked: true }));
+      const elapsed = (performance.now() - stepStartTs) / 1000;
+      scores.push(scorePose({ sim, locked: true, elapsed, timeout: pose.timeout }));
       pulseVideo('match-pulse');
       advance();
     }
+  } else if (holdStart !== 0 && ++holdMissFrames <= HOLD_GRACE_FRAMES) {
+    // Brief blip mid-hold: freeze the bar instead of zeroing it. holdStart is
+    // pushed forward by the blip so dropped frames don't count toward the hold.
+    holdStart = performance.now() - (holdPausedAt / 100) * holdMs;
+    document.getElementById('holdFill').style.width = holdPausedAt + '%';
+    document.getElementById('poseCard').classList.add('match');
   } else {
     holdStart = 0;
+    holdMissFrames = 0;
+    holdPausedAt = 0;
     document.getElementById('holdFill').style.width = '0%';
     document.getElementById('poseCard').classList.remove('match');
   }

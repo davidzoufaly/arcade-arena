@@ -205,17 +205,30 @@ import { scorePose, finalScore } from '../ps-offsite-2026/shared/pantomime-logic
 
 describe('scorePose', () => {
   it('returns 0 when not locked', () => {
-    expect(scorePose({ sim: 0.95, locked: false })).toBe(0);
+    expect(scorePose({ sim: 0.95, locked: false, elapsed: 1, timeout: 25 })).toBe(0);
   });
 
-  it('returns rounded sim*100 when locked', () => {
-    expect(scorePose({ sim: 0.876, locked: true })).toBe(88);
-    expect(scorePose({ sim: 0.85, locked: true })).toBe(85);
+  it('blends form quality (50) with speed bonus (50)', () => {
+    // perfect form, locked instantly (no time elapsed) -> full 100
+    expect(scorePose({ sim: 1, locked: true, elapsed: 0, timeout: 25 })).toBe(100);
+    // perfect form, locked at the buzzer -> speed bonus gone, quality only
+    expect(scorePose({ sim: 1, locked: true, elapsed: 25, timeout: 25 })).toBe(50);
+    // perfect form, half the time left -> 50 + 25
+    expect(scorePose({ sim: 1, locked: true, elapsed: 12.5, timeout: 25 })).toBe(75);
   });
 
-  it('clamps to 0..100 when locked', () => {
-    expect(scorePose({ sim: 1.5, locked: true })).toBe(100);
-    expect(scorePose({ sim: -0.2, locked: true })).toBe(0);
+  it('scales quality component by sim', () => {
+    // sim 0.85, locked instantly -> 0.85*50 + 50 = 92.5 -> 93
+    expect(scorePose({ sim: 0.85, locked: true, elapsed: 0, timeout: 25 })).toBe(93);
+  });
+
+  it('clamps quality and speed into range', () => {
+    expect(scorePose({ sim: 1.5, locked: true, elapsed: 0, timeout: 25 })).toBe(100);
+    expect(scorePose({ sim: -0.2, locked: true, elapsed: 30, timeout: 25 })).toBe(0);
+  });
+
+  it('falls back to quality-only when timeout is missing', () => {
+    expect(scorePose({ sim: 0.9, locked: true })).toBe(45);
   });
 });
 

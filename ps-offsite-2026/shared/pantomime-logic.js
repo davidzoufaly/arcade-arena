@@ -247,25 +247,27 @@ export const POSE_POOL = [
     checks: [
       { name: 'Left arm up & out', fn: lm => {
         const sh = lm[LM.L_SHOULDER], wr = lm[LM.L_WRIST];
-        const upDir = (sh.y - wr.y) > 0.15 ? 1 : 0;
-        const outDir = (sh.x - wr.x) > 0.10 ? 1 : 0;
-        return (upDir + outDir) / 2;
+        const up = smoothScore(sh.y - wr.y, 0.20, 0.18);  // wrist above shoulder (any amount counts)
+        const out = smoothScore(sh.x - wr.x, 0.18, 0.16);  // wrist out to the left
+        return (up + out) / 2;
       }},
       { name: 'Right arm up & out', fn: lm => {
         const sh = lm[LM.R_SHOULDER], wr = lm[LM.R_WRIST];
-        const upDir = (sh.y - wr.y) > 0.15 ? 1 : 0;
-        const outDir = (wr.x - sh.x) > 0.10 ? 1 : 0;
-        return (upDir + outDir) / 2;
+        const up = smoothScore(sh.y - wr.y, 0.20, 0.18);
+        const out = smoothScore(wr.x - sh.x, 0.18, 0.16);  // wrist out to the right
+        return (up + out) / 2;
       }},
       { name: 'Legs spread wide', fn: lm => {
         const ankleSpread = Math.abs(lm[LM.L_ANKLE].x - lm[LM.R_ANKLE].x);
         const hipSpread = Math.abs(lm[LM.L_HIP].x - lm[LM.R_HIP].x);
-        return smoothScore(ankleSpread / Math.max(0.05, hipSpread), 2.0, 0.8);
+        const ratio = ankleSpread / Math.max(0.05, hipSpread);
+        // Saturating: full credit once feet are ~1.8x hip width; wider never penalized.
+        return Math.max(0, Math.min(1, (ratio - 1.0) / 0.8));
       }},
       { name: 'Arms straight', fn: lm => {
         const lAng = angle(lm[LM.L_SHOULDER], lm[LM.L_ELBOW], lm[LM.L_WRIST]);
         const rAng = angle(lm[LM.R_SHOULDER], lm[LM.R_ELBOW], lm[LM.R_WRIST]);
-        return (smoothScore(lAng, 170, 25) + smoothScore(rAng, 170, 25)) / 2;
+        return (smoothScore(lAng, 170, 30) + smoothScore(rAng, 170, 30)) / 2;
       }},
     ],
   },
@@ -727,9 +729,19 @@ export function samplePoses(pool, mix = { easy: 2, medium: 2, hard: 2, duo: 2 })
   return out;
 }
 
-export function scorePose({ sim, locked }) {
+// Per-pose score blends form quality with speed: the faster you lock the pose
+// (more of the timeout left), the bigger the speed bonus. Quality is gated at
+// ~0.85 sim in the game, so unlocked poses score 0 and locked poses range from
+// "barely in time, decent form" up to 100 for instant, perfect locks.
+const QUALITY_WEIGHT = 50;
+const SPEED_WEIGHT = 50;
+
+export function scorePose({ sim, locked, elapsed = 0, timeout = 0 }) {
   if (!locked) return 0;
-  return Math.round(Math.max(0, Math.min(100, sim * 100)));
+  const quality = Math.max(0, Math.min(1, sim));
+  const speed = timeout > 0 ? Math.max(0, Math.min(1, (timeout - elapsed) / timeout)) : 0;
+  const score = quality * QUALITY_WEIGHT + speed * SPEED_WEIGHT;
+  return Math.round(Math.max(0, Math.min(100, score)));
 }
 
 export function finalScore(perPoseScores) {

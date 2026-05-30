@@ -16,10 +16,9 @@ export const GESTURE_POOL = [
  */
 export const SEQUENCE_LEN = 16;
 
-// Backstop bounds. Floor at 4 so solo / very-small teams get the natural
-// N*2 length (e.g., 2 hands → 4 gestures, ≈ 4 per person) instead of being
-// padded to 8 — which felt too long for small teams in practice. Ceiling at
-// 28 so a 7-player team is not drowned inside the 5-minute attempt.
+// Backstop bounds. Floor at 4 so a solo player gets the natural N*4 length
+// (1 person → 4 gestures) instead of feeling trivially short. Ceiling at 28
+// so a 7+ person team is not drowned inside the 5-minute attempt.
 export const SEQUENCE_LEN_MIN = 4;
 export const SEQUENCE_LEN_MAX = 28;
 
@@ -29,10 +28,11 @@ export const SEQUENCE_LEN_MAX = 28;
 // existing scoreAttempt tests passing without modification.
 export const TIME_GRACE_PER_GESTURE = 0.625;
 
-// Two gestures per detected hand, bounded by [SEQUENCE_LEN_MIN, SEQUENCE_LEN_MAX].
+// One hand per person → detected count IS the team size. Four gestures per
+// person, bounded by [SEQUENCE_LEN_MIN, SEQUENCE_LEN_MAX].
 export function sequenceLengthForTeam(teamN) {
   const T = Math.max(MIN_N, teamN ?? FALLBACK_N);
-  return Math.max(SEQUENCE_LEN_MIN, Math.min(SEQUENCE_LEN_MAX, T * 2));
+  return Math.max(SEQUENCE_LEN_MIN, Math.min(SEQUENCE_LEN_MAX, T * 4));
 }
 
 // Success score: full 100 inside the grace window, then 2 pt per second past.

@@ -690,7 +690,7 @@ function editButtonsHtml(g, teamId) {
     const clockTitle = minsSet ? `Time limit: ${mins} min — click to change` : 'Set time limit (minutes)';
     html += `<button class="cfg-btn clock-btn ${minsSet ? 'set' : ''}" data-game="${g}"${teamAttr} title="${clockTitle}">⏱</button>`;
     const rulesSet = hasOverride(draft.rules, g, teamId);
-    html += `<button class="cfg-btn rules-btn ${rulesSet ? 'set' : ''}" data-game="${g}"${teamAttr} title="Edit rules / hint">📋</button>`;
+    html += `<button class="cfg-btn rules-btn ${rulesSet ? 'set' : ''}" data-game="${g}"${teamAttr} title="Edit rules">📋</button>`;
   }
   return `<span class="edit-btns">${html}</span>`;
 }
