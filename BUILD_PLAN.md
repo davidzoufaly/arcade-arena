@@ -1,3 +1,5 @@
+- [x] open / closed just reflect also locked status in scoreboard
+- [x] missing editing rulese for pubquiz via scoreboard
 - [x] flappy překážky dál od sebe
 - [x] pantonime polishnout 2 lidi
 ---
@@ -15,7 +17,7 @@
 - [x] plug it into integrated scoring system
 - [x] connect the scoring to databse -> firebase?
 - [x] deploy FE
-- [] polish all games
+- [x] polish all games
     - [x] gesture lock 
         - there should be random suqence of 8 gestures 4 different guestures are in place 
         - the sequence is displayed in a row for few seconds, team needs to remember it and then show it one by one -> take turns -> if they fails, new sequence is shown -> they can try it three times.. times is also taken in cosideration if they can do it faster they should recieve more points

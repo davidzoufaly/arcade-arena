@@ -50,6 +50,13 @@
     padding: 12px 18px; border-radius: 10px; cursor: pointer; font-family: inherit;
   }
   .panel button:disabled { opacity: 0.5; cursor: default; }
+  .panel + .panel { margin-top: 16px; }
+  .panel.done { opacity: 0.85; }
+  .panel .progress { margin-bottom: 12px; }
+  .cat-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .cat-head h2 { margin-bottom: 0; }
+  .cat-badge { font-size: 13px; font-weight: 800; color: var(--good); background: rgba(0,230,118,0.12); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+  .q input[type=text]:disabled { opacity: 0.7; cursor: default; }
   .panel .current { color: var(--muted); font-size: 15px; margin-bottom: 10px; }
   .panel .current strong { color: var(--good); }
   .banner { margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-size: 15px; font-weight: 700; }
@@ -127,13 +134,50 @@ function render() {
     container.innerHTML = shell(`<div class="panel"><h2>Quiz not ready</h2><p class="current">The host hasn't set up any categories yet. Check back soon.</p><a class="back-link" href="${catalogHref}">← Back to catalog</a></div>`);
     return;
   }
+  // Stack every already-submitted category (locked, answers shown) and, below
+  // them, the one currently being answered. Future categories stay hidden until
+  // reached. When all are submitted, append the "awaiting host" note.
   const curId = currentCategoryId(categories, submissions);
-  if (curId !== null) { renderCategory(ordered.find(c => c.id === curId), ordered); return; }
-  renderDone(ordered);
+  let activeCat = null;
+  let panels = '';
+  for (let pos = 0; pos < ordered.length; pos++) {
+    const cat = ordered[pos];
+    const sub = (submissions || {})[cat.id];
+    if (sub) { panels += submittedPanel(cat, sub, pos + 1, ordered.length); continue; }
+    if (cat.id === curId) { activeCat = cat; panels += activePanel(cat, pos + 1, ordered.length); }
+    break; // never render past the current category
+  }
+  if (curId === null) {
+    panels += `<div class="panel done">
+      <div class="progress">All ${ordered.length} categories submitted</div>
+      <p class="current">You're done — the host will mark your answers and score your team. Nothing more to do here.</p>
+    </div>`;
+  }
+  container.innerHTML = shell(`${panels}<a class="back-link" href="${catalogHref}">← Back to catalog</a>`);
+  if (activeCat) document.getElementById('submitCat').addEventListener('click', () => submitCategory(activeCat));
 }
 
-function renderCategory(cat, ordered) {
-  const done = ordered.filter(c => (submissions || {})[c.id]).length;
+// A locked, read-only panel for a category the team already submitted.
+function submittedPanel(cat, sub, pos, total) {
+  const n = cat.questionCount || 0;
+  let qs = '';
+  for (let i = 0; i < n; i++) {
+    const a = sub.answers?.[i] ?? '';
+    qs += `<div class="q"><label>Question ${i + 1}</label><input type="text" value="${esc(a)}" disabled /></div>`;
+    if (cat.bonus?.[i]) {
+      const b = sub.bonusAnswers?.[i] ?? '';
+      qs += `<div class="q bonus"><label>Question ${i + 1} — Bonus</label><input type="text" value="${esc(b)}" disabled /></div>`;
+    }
+  }
+  return `<div class="panel done">
+    <div class="progress">Category ${pos} of ${total}</div>
+    <div class="cat-head"><h2>${esc(cat.name)}</h2><span class="cat-badge">✓ Submitted</span></div>
+    ${qs}
+  </div>`;
+}
+
+// The editable panel for the category the team is currently answering.
+function activePanel(cat, pos, total) {
   const n = cat.questionCount || 0;
   let qs = '';
   for (let i = 0; i < n; i++) {
@@ -142,16 +186,13 @@ function renderCategory(cat, ordered) {
       qs += `<div class="q bonus"><label for="qb${i}">Question ${i + 1} — Bonus</label><input id="qb${i}" type="text" autocomplete="off" /></div>`;
     }
   }
-  container.innerHTML = shell(`
-    <div class="progress">Category ${done + 1} of ${ordered.length}</div>
-    <div class="panel">
-      <h2>${esc(cat.name)}</h2>
-      ${qs}
-      <button id="submitCat">Submit category</button>
-      <div id="banner"></div>
-      <a class="back-link" href="${catalogHref}">← Back to catalog</a>
-    </div>`);
-  document.getElementById('submitCat').addEventListener('click', () => submitCategory(cat));
+  return `<div class="panel">
+    <div class="progress">Category ${pos} of ${total}</div>
+    <h2>${esc(cat.name)}</h2>
+    ${qs}
+    <button id="submitCat">Submit category</button>
+    <div id="banner"></div>
+  </div>`;
 }
 
 async function submitCategory(cat) {
@@ -180,15 +221,6 @@ async function submitCategory(cat) {
     banner.className = 'banner bad'; banner.textContent = 'Save failed: ' + (e.message || 'unknown error');
     btn.disabled = false;
   }
-}
-
-function renderDone(ordered) {
-  container.innerHTML = shell(`
-    <div class="progress">All ${ordered.length} categories submitted</div>
-    <div class="panel">
-      <p class="current">You're done — the host will mark your answers and score your team. Nothing more to do here.</p>
-      <a class="back-link" href="${catalogHref}">← Back to catalog</a>
-    </div>`);
 }
 
 (async () => {
