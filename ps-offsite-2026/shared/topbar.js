@@ -29,9 +29,11 @@ function buildHeader({ lobbyId, teamId }, activePage, admin) {
   const indexHref    = `${pfx}index.html`;
   const gamesHref    = `${pfx}games.html${lobbyQ}`;
   const scoreHref    = `${pfx}scoreboard.html?lobby=${encodeURIComponent(lobbyId)}`;
+  const quizAdminHref = `${pfx}quiz-admin.html?lobby=${encodeURIComponent(lobbyId)}`;
 
   const nav = admin
-    ? `<a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>`
+    ? `<a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>
+       <a data-nav="quiz-admin" href="${quizAdminHref}">Quiz Admin</a>`
     : `<a data-nav="games" href="${gamesHref}">Games</a>
        <a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>`;
   const info = admin
