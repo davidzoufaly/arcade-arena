@@ -97,7 +97,7 @@
   }
   .matrix-row {
     display: grid;
-    grid-template-columns: 56px minmax(120px, 0.6fr) repeat(10, 84px) 132px;
+    grid-template-columns: 56px minmax(120px, 0.6fr) repeat(var(--game-cols, 10), 84px) 132px;
     align-items: center;
     padding: 14px 20px;
     border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -119,6 +119,7 @@
     to { transform: translateX(100%); }
   }
   .matrix-head {
+    align-items: end;
     background: rgba(0,0,0,0.28);
     font-size: 13px;
     color: var(--muted);
@@ -206,25 +207,6 @@
   .cfg-btn:hover { opacity: 1; transform: scale(1.1); }
   .cfg-btn.set { opacity: 1; color: var(--accent); font-weight: 800; }
 
-  .modal-box {
-    background: var(--card); border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 14px; padding: 24px; width: min(460px, 92vw); box-shadow: var(--shadow);
-    color: var(--text); margin: auto;   /* center: the global `* { margin: 0 }` reset kills the UA dialog centering */
-  }
-  .modal-box::backdrop { background: rgba(0,0,0,0.6); }
-  .modal-box h2 { font-size: 18px; margin-bottom: 16px; }
-  .modal-body p { color: var(--muted); line-height: 1.6; font-size: 15px; }
-  .modal-body label {
-    display: block; font-size: 13px; color: var(--muted);
-    margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;
-  }
-  .modal-body input, .modal-body textarea {
-    width: 100%; background: var(--bg-2); color: var(--text);
-    border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
-    padding: 12px; font-size: 16px; font-family: inherit;
-  }
-  .modal-body textarea { resize: vertical; min-height: 140px; line-height: 1.5; }
-  .modal-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
   .cell-game.edit.locked .cell-input { border-color: rgba(255,77,109,0.6); box-shadow: inset 0 0 0 1px rgba(255,77,109,0.22); }
   .cell-game.edit.unlocked .cell-input { border-color: rgba(0,230,118,0.55); }
   .matrix-head .cell-game.lk-locked { color: #ff4d6d; }
@@ -332,6 +314,7 @@
   }
 </style>
 <link rel="stylesheet" href="./shared/topbar.css">
+<link rel="stylesheet" href="./shared/modal.css">
 <script type="module">
   import { mountTopbar } from './shared/topbar.js';
   mountTopbar({ activePage: 'scoreboard' });
@@ -371,6 +354,7 @@ import {
 import {
   resolveOverride, hasOverride, setGameOverride, setCellOverride,
 } from './shared/game-config.js';
+import { openModal } from './shared/modal.js';
 
 const lobbyId = new URLSearchParams(location.search).get('lobby');
 if (!lobbyId) {
@@ -550,26 +534,6 @@ function wireEditButtons() {
   }
 }
 
-function openModal({ title, bodyHtml, onConfirm, confirmLabel = 'Confirm', danger = false }) {
-  const dialog = document.createElement('dialog');
-  dialog.className = 'modal-box';
-  dialog.innerHTML = `
-    <h2>${title}</h2>
-    <div class="modal-body">${bodyHtml}</div>
-    <div class="modal-actions">
-      <button type="button" id="modalCancel">Cancel</button>
-      <button type="button" class="${danger ? 'danger' : 'primary'}" id="modalConfirm">${confirmLabel}</button>
-    </div>`;
-  document.body.appendChild(dialog);
-  dialog.addEventListener('close', () => dialog.remove());
-  dialog.querySelector('#modalCancel').addEventListener('click', () => dialog.close());
-  dialog.querySelector('#modalConfirm').addEventListener('click', () => { onConfirm(); dialog.close(); });
-  dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); }); // backdrop click closes
-  dialog.showModal();
-  const field = dialog.querySelector('#cfgInput');
-  if (field) field.focus();
-}
-
 // Prefill with the OWN-LEVEL override only (not the resolved cell>game value), so
 // clearing removes exactly this level and the modal never silently pins an
 // inherited value.
@@ -689,6 +653,8 @@ function editButtonsHtml(g, teamId) {
     const minsSet = hasOverride(draft.timers, g, teamId);
     const clockTitle = minsSet ? `Time limit: ${mins} min — click to change` : 'Set time limit (minutes)';
     html += `<button class="cfg-btn clock-btn ${minsSet ? 'set' : ''}" data-game="${g}"${teamAttr} title="${clockTitle}">⏱</button>`;
+  }
+  if (GAMES[g].kind === 'manual' || GAMES[g].kind === 'quiz') {
     const rulesSet = hasOverride(draft.rules, g, teamId);
     html += `<button class="cfg-btn rules-btn ${rulesSet ? 'set' : ''}" data-game="${g}"${teamAttr} title="Edit rules">📋</button>`;
   }
@@ -734,12 +700,13 @@ function render() {
   const headCells = gameKeys.map(g => {
     const closed = submittedByGame[g] === teamCount && teamCount > 0;
     const cls = closed ? 'closed' : 'open';
-    const label = closed ? 'closed' : `open ${submittedByGame[g]}/${teamCount}`;
+    const label = closed ? 'closed' : `${submittedByGame[g]}/${teamCount}`;
     if (editing) {
       const gs = resolveGameLock(draft.locks, g);
       return `<div class="cell-game ${cls} lk-${gs}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span><br>${editButtonsHtml(g)}</div>`;
     }
-    return `<div class="cell-game ${cls}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span></div>`;
+    const gs = resolveGameLock(locks, g);
+    return `<div class="cell-game ${cls} lk-${gs}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span></div>`;
   }).join('');
   const head = `
     <div class="matrix-row matrix-head">
@@ -784,6 +751,7 @@ function render() {
     `;
   }).join('');
 
+  list.style.setProperty('--game-cols', gameKeys.length);
   list.innerHTML = head + rows;
   if (editing) wireEditButtons();
   document.getElementById('subtitle').textContent = editing

@@ -172,6 +172,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 42px;
+  box-sizing: border-box;
   padding: 8px 12px;
   background: var(--bg-2);
   border: 1px solid rgba(255,255,255,0.08);
@@ -182,4 +184,4 @@
   letter-spacing: 0;
 }
 .team-picker label.team-option input { width: auto; }
-.team-picker label.team-admin-option { grid-column: 1 / -1; }
+.team-picker label.team-option-admin { grid-column: 1 / -1; }

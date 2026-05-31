@@ -43,7 +43,6 @@
   .tile.soon   { opacity: 0.4; pointer-events: none; border-style: dashed; }
   .tile.locked { opacity: 0.5; pointer-events: none; border-style: dashed; border-color: rgba(255,77,109,0.4); }
   .tile.locked .tile-tag { background: rgba(255,77,109,0.12); color: #ff4d6d; }
-  .tile .lock-badge { position: absolute; top: 10px; left: 12px; font-size: 18px; }
   .tile .timer-line {           /* in-flow pill — never overlaps the emoji or the ✓, shows even after submit */
     align-self: flex-start;
     font-size: 12px; font-weight: 800; color: var(--accent);
@@ -156,7 +155,6 @@ function render() {
     const scoreLine = score !== undefined
       ? `<div class="score-line">Score: <strong>${esc(String(score))}</strong></div>`
       : '';
-    const lockBadge = lockedTile ? '<div class="lock-badge" title="Locked by host">🔒</div>' : '';
     const mins = (g.kind === 'manual') ? resolveTimer(currentTimers, key, session.teamId) : undefined;
     const hasTimer = mins !== undefined;
     // Intercept ENTRY with a warning only for a fresh, unlocked, unsubmitted timed game.
@@ -178,7 +176,6 @@ function render() {
       ${timerInfo}
       ${tag2}
       ${tick}
-      ${lockBadge}
     ${close}`;
   }).join('');
   grid.innerHTML = html;

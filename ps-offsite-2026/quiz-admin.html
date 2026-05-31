@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PS Offsite 2026 — Quiz Admin</title>
 <link rel="stylesheet" href="./shared/topbar.css">
+<link rel="stylesheet" href="./shared/modal.css">
 <style>
   :root {
     --bg: #0a0e1a; --bg-2: #131a2e; --card: #1b2540;
@@ -70,9 +71,9 @@
   .sub-row .team { min-width: 120px; color: var(--accent); font-weight: 700; }
   .sub-row .ans { flex: 1; }
   .sub-row .ans.empty { color: var(--muted); }
-  .sub-bonus .team { color: var(--muted); }
+  .sub-bonus .team { color: #ff7ad0; }
   .sub-row .ans.bonus-ans { color: #ff7ad0; }
-  .q-title .bonus-tag { color: #ff7ad0; font-weight: 800; margin-left: 6px; }
+  .bonus-row { color: #ff7ad0; font-weight: 800; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; margin: 2px 0 6px; }
   .sub-row .mark {
     margin-left: auto; width: 34px; height: 30px; flex: 0 0 auto;
     background: var(--bg-2); border: 1px solid rgba(255,255,255,0.12); color: var(--bad);
@@ -83,6 +84,13 @@
   .grade-status { font-size: 14px; }
   .grade-status.good { color: var(--good); }
   .grade-status.bad { color: var(--bad); }
+
+  .danger-zone { margin-top: 28px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 18px; }
+  .btn-danger {
+    background: rgba(255,77,109,0.12); border: 1px solid rgba(255,77,109,0.5); color: var(--bad);
+    border-radius: 8px; padding: 12px 18px; font-size: 16px; font-weight: 800; cursor: pointer; font-family: inherit;
+  }
+  .btn-danger:hover { background: rgba(255,77,109,0.2); }
 </style>
 </head>
 <body>
@@ -91,6 +99,7 @@
   <div class="subtitle" id="subtitle">Loading…</div>
   <section id="catEditor"></section>
   <section id="submissionsView"></section>
+  <section id="dangerZone"></section>
 </main>
 
 <script type="module">
@@ -100,8 +109,9 @@ import { firebaseConfig } from './firebase-config.js';
 import { mountTopbar } from './shared/topbar.js';
 import { requireAdmin } from './shared/admin-gate.js';
 import { getSession, isAdminSession } from './shared/lobby.js';
-import { orderedCategories, nextOrder, teamQuizScore } from './shared/quiz.js';
+import { orderedCategories, nextOrder, teamQuizScore, seedCategories } from './shared/quiz.js';
 import { submitScore, firebaseWriter } from './shared/score-submit.js';
+import { openModal } from './shared/modal.js';
 
 const lobbyId = new URLSearchParams(location.search).get('lobby');
 if (!lobbyId) { location.replace('index.html'); throw new Error('no lobby in url'); }
@@ -264,8 +274,8 @@ function renderSubmissions() {
         }
         return html;
       }).join('');
-      const title = isBonus ? `Question ${i + 1} <span class="bonus-tag">bonus</span>` : `Question ${i + 1}`;
-      qhtml += `<div class="q-block"><div class="q-title">${title}</div>${rows}</div>`;
+      const bonusRow = isBonus ? `<div class="bonus-row">BONUS</div>` : '';
+      qhtml += `<div class="q-block"><div class="q-title">Question ${i + 1}</div>${bonusRow}${rows}</div>`;
     }
     const body = qhtml || '<p class="muted">No questions.</p>';
     return `<div class="cat-block" data-cat="${c.id}">
@@ -349,11 +359,36 @@ async function submitCategoryGrades(catId) {
   }
 }
 
+// Reset the Pub Quiz back to lobby-creation defaults: reseed categories (which
+// wipes submissions + grades, both children of the quiz node) and clear every
+// team's published PQ score so the scoreboard drops the column.
+async function resetQuiz() {
+  await set(ref(db, `${LOBBY}/quiz`), { categories: seedCategories() });
+  for (const t of teams) await set(ref(db, `${LOBBY}/scores/${t.id}/PQ`), null);
+  for (const k of Object.keys(pending)) delete pending[k];
+}
+
+function renderDangerZone() {
+  const el = document.getElementById('dangerZone');
+  if (!isAdmin) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="danger-zone"><button class="btn-danger" id="resetQuiz">Reset quiz</button></div>`;
+  el.querySelector('#resetQuiz').addEventListener('click', () => {
+    openModal({
+      title: '⚠️ Reset quiz',
+      bodyHtml: `<p>Reset the Pub Quiz to the lobby default state (4 categories, 8 questions each)? This clears all categories, team answers, grades, and published Pub Quiz scores. This cannot be undone.</p>`,
+      confirmLabel: 'Reset quiz',
+      danger: true,
+      onConfirm: resetQuiz,
+    });
+  });
+}
+
 function renderAll() {
   document.getElementById('subtitle').textContent =
     `Lobby ${lobbyId} · ${orderedCategories(categories).length} categories · ${teams.length} teams`;
   renderCatEditor();
   renderSubmissions();
+  renderDangerZone();
 }
 
 (async () => {

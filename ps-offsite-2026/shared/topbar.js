@@ -33,7 +33,7 @@ function buildHeader({ lobbyId, teamId }, activePage, admin) {
 
   const nav = admin
     ? `<a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>
-       <a data-nav="quiz-admin" href="${quizAdminHref}">Quiz Admin</a>`
+       <a data-nav="quiz-admin" href="${quizAdminHref}">Quiz</a>`
     : `<a data-nav="games" href="${gamesHref}">Games</a>
        <a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>`;
   const info = admin
