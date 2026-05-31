@@ -39,6 +39,7 @@
   }
   .tile.play   { border-color: rgba(0,212,255,0.35); }
   .tile.manual { border-color: rgba(255,0,170,0.30); }
+  .tile.quiz   { border-color: rgba(150,90,255,0.40); }
   .tile.soon   { opacity: 0.4; pointer-events: none; border-style: dashed; }
   .tile.locked { opacity: 0.5; pointer-events: none; border-style: dashed; border-color: rgba(255,77,109,0.4); }
   .tile.locked .tile-tag { background: rgba(255,77,109,0.12); color: #ff4d6d; }
@@ -79,6 +80,7 @@
   }
   .tile.play   .tile-tag { background: rgba(0,212,255,0.12); color: var(--accent); }
   .tile.manual .tile-tag { background: rgba(255,0,170,0.12); color: var(--accent-2); }
+  .tile.quiz   .tile-tag { background: rgba(150,90,255,0.14); color: #b794ff; }
   .tile.soon   .tile-tag { background: rgba(255,255,255,0.08); color: var(--muted); }
   .tile .check {
     position: absolute; top: 10px; right: 12px;
@@ -138,6 +140,7 @@ function tileHref(key, g) {
   const q = `?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
   if (g.kind === 'play')   return `${g.href}${q}`;
   if (g.kind === 'manual') return `games/manual.html?key=${key}&lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
+  if (g.kind === 'quiz')   return `games/quiz.html${q}`;
   return null;
 }
 
@@ -146,7 +149,7 @@ function render() {
   const html = Object.entries(GAMES).map(([key, g]) => {
     const lockedTile = g.kind !== 'soon' && resolveLock(currentLocks, key, session.teamId) === 'locked';
     const href = lockedTile ? null : tileHref(key, g);
-    const baseTag = g.kind === 'play' ? 'Playable' : g.kind === 'manual' ? 'Manual entry' : 'Coming soon';
+    const baseTag = g.kind === 'play' ? 'Playable' : g.kind === 'manual' ? 'Manual entry' : g.kind === 'quiz' ? 'Quiz' : 'Coming soon';
     const tag = lockedTile ? 'Locked' : baseTag;
     const score = scoresForTeam?.[key];
     const tick = score !== undefined ? '<div class="check" title="Submitted">✓</div>' : '';
@@ -154,7 +157,7 @@ function render() {
       ? `<div class="score-line">Score: <strong>${esc(String(score))}</strong></div>`
       : '';
     const lockBadge = lockedTile ? '<div class="lock-badge" title="Locked by host">🔒</div>' : '';
-    const mins = g.kind === 'manual' ? resolveTimer(currentTimers, key, session.teamId) : undefined;
+    const mins = (g.kind === 'manual' || g.kind === 'quiz') ? resolveTimer(currentTimers, key, session.teamId) : undefined;
     const hasTimer = mins !== undefined;
     // Intercept ENTRY with a warning only for a fresh, unlocked, unsubmitted timed game.
     // The minute info itself shows whenever a timer is set (incl. after submit / when locked).
