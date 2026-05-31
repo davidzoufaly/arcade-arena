@@ -70,8 +70,12 @@ Routed to by the `quiz` kind (same pattern as `manual.html`).
 
 - **Lock gate:** game-level lock via `game-gate.js`, default locked — identical
   to manual games. Locked → full-page 🔒 modal.
-- **Rules:** render `GAMES.PQ.rules` at top using the shared `renderRules`
-  helper (same look/feel as non-playable games).
+- **Rules:** render the resolved rules (admin override via `quiz/.. rules` node,
+  falling back to `GAMES.PQ.rules`) at top using the shared `renderRules`
+  helper; live re-render on rules change (same as `manual.html`).
+- **Countdown:** if a timer is set for PQ (`resolveTimer`), show the countdown
+  exactly like manual games. On expiry, auto-submit score 0 for PQ (manual
+  parity).
 - **Current category:** the first category (by `order`) without a submission
   for this team. Show its name + N answer inputs labelled `Question 1..N` + a
   **Submit Category** button.
@@ -98,8 +102,9 @@ Routed to by the `quiz` kind (same pattern as `manual.html`).
 ### 5. Scoreboard — `scoreboard.html`
 
 - PQ auto-appears in the lock grid (now an entered kind).
-- Lock/unlock only for PQ — suppress the timer and rules edit buttons for PQ
-  (no timer concept; rules are static). All other games unchanged.
+- Full manual parity for PQ: lock/unlock **+** countdown timer **+** rules
+  override edit buttons — same actions as non-playable games, for consistency.
+  All other games unchanged.
 
 ### 6. Tests — `tests/games-catalog.test.js`
 
@@ -108,7 +113,6 @@ Routed to by the `quiz` kind (same pattern as `manual.html`).
 
 ## Out of scope (YAGNI)
 
-- No timer for the quiz.
 - No live reconciliation if the admin edits categories mid-play — assume the
   admin configures structure before unlocking the game (best-effort otherwise).
 - No admin grading — scoring is self-report only.
