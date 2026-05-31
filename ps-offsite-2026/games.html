@@ -157,7 +157,7 @@ function render() {
       ? `<div class="score-line">Score: <strong>${esc(String(score))}</strong></div>`
       : '';
     const lockBadge = lockedTile ? '<div class="lock-badge" title="Locked by host">🔒</div>' : '';
-    const mins = (g.kind === 'manual' || g.kind === 'quiz') ? resolveTimer(currentTimers, key, session.teamId) : undefined;
+    const mins = (g.kind === 'manual') ? resolveTimer(currentTimers, key, session.teamId) : undefined;
     const hasTimer = mins !== undefined;
     // Intercept ENTRY with a warning only for a fresh, unlocked, unsubmitted timed game.
     // The minute info itself shows whenever a timer is set (incl. after submit / when locked).
