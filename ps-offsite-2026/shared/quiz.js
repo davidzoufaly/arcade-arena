@@ -1,0 +1,56 @@
+// ps-offsite-2026/shared/quiz.js
+// Pure helpers for the Pub Quiz category/question flow. No Firebase imports
+// (so this is unit-testable and usable inside the Firebase-free lobby.js).
+//
+// Category map (Firebase node lobbies/{id}/quiz/categories):
+//   { [catId]: { order:int, name:string, questionCount:int } }
+// Submissions for ONE team (lobbies/{id}/quiz/submissions/{teamId}):
+//   { [catId]: { submittedAt:int, answers: { [idx]: string } } }
+
+export const DEFAULT_CATEGORY_COUNT = 4;
+export const DEFAULT_QUESTION_COUNT = 8;
+
+// Seed map for a new lobby. Deterministic keys c1..cN so it can be created
+// inside the Firebase-free createLobby() (which cannot mint push ids).
+export function seedCategories(count = DEFAULT_CATEGORY_COUNT, questionCount = DEFAULT_QUESTION_COUNT) {
+  const out = {};
+  for (let i = 0; i < count; i++) {
+    out[`c${i + 1}`] = { order: i, name: `Category ${i + 1}`, questionCount };
+  }
+  return out;
+}
+
+// Categories sorted by order, as [{ id, order, name, questionCount }].
+export function orderedCategories(categories) {
+  return Object.entries(categories || {})
+    .map(([id, c]) => ({
+      id,
+      order: c?.order ?? 0,
+      name: c?.name ?? '',
+      questionCount: c?.questionCount ?? 0,
+    }))
+    .sort((a, b) => a.order - b.order);
+}
+
+// First category (by order) the team has NOT submitted, or null if every
+// category is submitted / there are no categories.
+export function currentCategoryId(categories, submissions) {
+  const subs = submissions || {};
+  for (const cat of orderedCategories(categories)) {
+    if (!subs[cat.id]) return cat.id;
+  }
+  return null;
+}
+
+// True iff there is >=1 category and the team submitted all of them.
+export function allCategoriesSubmitted(categories, submissions) {
+  return orderedCategories(categories).length > 0
+    && currentCategoryId(categories, submissions) === null;
+}
+
+// Order int for a newly added category (append after the current max).
+export function nextOrder(categories) {
+  const ordered = orderedCategories(categories);
+  if (!ordered.length) return 0;
+  return Math.max(...ordered.map(c => c.order)) + 1;
+}

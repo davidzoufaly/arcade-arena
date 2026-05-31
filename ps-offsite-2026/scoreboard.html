@@ -684,7 +684,7 @@ function editButtonsHtml(g, teamId) {
     : (isCell ? 'Unlocked for this team — click to lock' : 'Unlocked for all teams — click to lock');
   const teamAttr = isCell ? ` data-team="${teamId}"` : '';
   let html = `<button class="lock-btn" data-game="${g}"${teamAttr} title="${lockTitle}">${lockIcon}</button>`;
-  if (GAMES[g].kind === 'manual') {
+  if (GAMES[g].kind === 'manual' || GAMES[g].kind === 'quiz') {
     const mins = resolveOverride(draft.timers, g, teamId);
     const minsSet = hasOverride(draft.timers, g, teamId);
     const clockTitle = minsSet ? `Time limit: ${mins} min — click to change` : 'Set time limit (minutes)';

@@ -10,7 +10,7 @@ export const GAMES = {
   GD: { name: 'Gandalf',         emoji: '🧙', kind: 'manual', rules: 'Prompt-injection challenge. Each cracked level scores points.\n\n- Submit total points reached.' },
   HD: { name: 'Hidden Document', emoji: '📄', kind: 'manual', rules: 'Some files were never meant to be found.\nOne of them still exists.\nHidden somewhere deep inside the internety is a file connected to the past.\nYou will receive five hints throughout the day.\n\nFind it.\nUnlock it.\nComplete what it asks.\nThe fastest team will be rewarded.' },
   DG: { name: 'Draw & Guess',    emoji: '🎨', kind: 'manual', rules: 'The announcer will present four different drawing prompts. For each prompt, your team will have exactly four minutes to create a single masterpiece. Once all drawings are complete, take one photo per prompt and post them to the #services-all Slack channel, making sure to include your team number. All submissions will be publicly evaluated by Gemini AI to determine the winners.' },
-  PQ: { name: 'Pub Quiz',        emoji: '🎤', kind: 'soon' },
+  PQ: { name: 'Pub Quiz',        emoji: '🎤', kind: 'quiz', rules: 'The host reads each question aloud. Type your team\'s answer for every question in the current category, then submit to lock it in and reveal the next category.\n\n- One category at a time — once you submit, those answers can\'t be changed.\n- After the last category, enter your raw score (number of correct answers), same as the other manual games.' },
 };
 
 export function getGame(key) {
@@ -23,6 +23,10 @@ export function playableKeys() {
 
 export function manualKeys() {
   return Object.keys(GAMES).filter(k => GAMES[k].kind === 'manual');
+}
+
+export function quizKeys() {
+  return Object.keys(GAMES).filter(k => GAMES[k].kind === 'quiz');
 }
 
 export function allEnteredKeys() {

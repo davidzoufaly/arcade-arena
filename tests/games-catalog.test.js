@@ -1,7 +1,7 @@
 // tests/games-catalog.test.js
 import { describe, it, expect } from 'vitest';
 import {
-  GAMES, getGame, playableKeys, manualKeys, allEnteredKeys,
+  GAMES, getGame, playableKeys, manualKeys, quizKeys, allEnteredKeys,
 } from '../ps-offsite-2026/shared/games-catalog.js';
 
 describe('GAMES catalog', () => {
@@ -11,7 +11,7 @@ describe('GAMES catalog', () => {
     for (const k of keys) {
       expect(GAMES[k].name).toBeTruthy();
       expect(GAMES[k].emoji).toBeTruthy();
-      expect(['play', 'manual', 'soon']).toContain(GAMES[k].kind);
+      expect(['play', 'manual', 'quiz']).toContain(GAMES[k].kind);
     }
   });
 
@@ -27,13 +27,15 @@ describe('GAMES catalog', () => {
     for (const k of ks) expect(typeof GAMES[k].rules).toBe('string');
   });
 
-  it('marks Pub Quiz as soon (no href, no rules)', () => {
-    expect(GAMES.PQ.kind).toBe('soon');
+  it('marks Pub Quiz as the sole quiz game with rules', () => {
+    expect(quizKeys()).toEqual(['PQ']);
+    expect(GAMES.PQ.kind).toBe('quiz');
+    expect(typeof GAMES.PQ.rules).toBe('string');
   });
 
-  it('allEnteredKeys excludes soon', () => {
-    expect(allEnteredKeys()).not.toContain('PQ');
-    expect(allEnteredKeys()).toHaveLength(10);
+  it('allEnteredKeys now includes PQ (no soon games remain)', () => {
+    expect(allEnteredKeys()).toContain('PQ');
+    expect(allEnteredKeys()).toHaveLength(11);
   });
 
   it('getGame returns null for unknown key', () => {
