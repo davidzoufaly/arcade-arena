@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   seedCategories, orderedCategories, currentCategoryId,
-  allCategoriesSubmitted, nextOrder,
+  allCategoriesSubmitted, nextOrder, bonusIndices,
   DEFAULT_CATEGORY_COUNT, DEFAULT_QUESTION_COUNT,
 } from '../ps-offsite-2026/shared/quiz.js';
 
@@ -27,11 +27,20 @@ describe('orderedCategories', () => {
   it('sorts by order and carries id', () => {
     const cats = { b: { order: 1, name: 'B', questionCount: 3 }, a: { order: 0, name: 'A', questionCount: 2 } };
     expect(orderedCategories(cats).map(c => c.id)).toEqual(['a', 'b']);
-    expect(orderedCategories(cats)[0]).toEqual({ id: 'a', order: 0, name: 'A', questionCount: 2 });
+    expect(orderedCategories(cats)[0]).toEqual({ id: 'a', order: 0, name: 'A', questionCount: 2, bonus: {} });
   });
   it('returns [] for null/empty', () => {
     expect(orderedCategories(null)).toEqual([]);
     expect(orderedCategories({})).toEqual([]);
+  });
+  it('carries the bonus map (default {} when absent)', () => {
+    const cats = {
+      a: { order: 0, name: 'A', questionCount: 3, bonus: { 1: true } },
+      b: { order: 1, name: 'B', questionCount: 2 },
+    };
+    const out = orderedCategories(cats);
+    expect(out[0].bonus).toEqual({ 1: true });
+    expect(out[1].bonus).toEqual({});
   });
 });
 
@@ -69,5 +78,24 @@ describe('nextOrder', () => {
   });
   it('avoids collision when categories share an order', () => {
     expect(nextOrder({ a: { order: 2 }, b: { order: 2 } })).toBe(3);
+  });
+});
+
+describe('bonusIndices', () => {
+  it('returns flagged indices as sorted numbers', () => {
+    expect(bonusIndices({ questionCount: 5, bonus: { 3: true, 1: true } })).toEqual([1, 3]);
+  });
+  it('coerces string keys (Firebase) to numbers', () => {
+    expect(bonusIndices({ questionCount: 5, bonus: { '2': true } })).toEqual([2]);
+  });
+  it('filters out indices >= questionCount (stale flags)', () => {
+    expect(bonusIndices({ questionCount: 3, bonus: { 1: true, 4: true } })).toEqual([1]);
+  });
+  it('returns [] when no bonus map', () => {
+    expect(bonusIndices({ questionCount: 4 })).toEqual([]);
+  });
+  it('returns [] for empty/undefined category', () => {
+    expect(bonusIndices({})).toEqual([]);
+    expect(bonusIndices()).toEqual([]);
   });
 });
