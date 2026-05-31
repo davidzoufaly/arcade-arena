@@ -34,6 +34,14 @@
     background: var(--card); border: 1px solid rgba(255,255,255,0.06);
     border-radius: 12px; padding: 12px 14px;
   }
+  .cat { display: flex; flex-direction: column; gap: 8px; }
+  .qchips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 4px 4px; }
+  .qchips-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-right: 4px; }
+  .qchip {
+    background: var(--bg-2); border: 1px solid rgba(255,255,255,0.12); color: var(--muted);
+    border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .qchip.on { background: rgba(255,0,170,0.16); border-color: rgba(255,0,170,0.5); color: #ff7ad0; }
   .cat-row .cat-name {
     flex: 1; background: var(--bg-2); color: var(--text);
     border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
@@ -62,6 +70,9 @@
   .sub-row .team { min-width: 120px; color: var(--accent); font-weight: 700; }
   .sub-row .ans { flex: 1; }
   .sub-row .ans.empty { color: var(--muted); }
+  .sub-bonus .team { color: var(--muted); }
+  .sub-row .ans.bonus-ans { color: #ff7ad0; }
+  .q-title .bonus-tag { color: #ff7ad0; font-weight: 800; margin-left: 6px; }
 </style>
 </head>
 <body>
@@ -116,25 +127,36 @@ function renderCatEditor() {
     <h2>Categories</h2>
     <div class="cats">
       ${ordered.map(c => `
-        <div class="cat-row" data-id="${c.id}">
-          <input class="cat-name" type="text" value="${esc(c.name)}" />
-          <div class="qcount">
-            <button class="qminus" title="Fewer questions">−</button>
-            <span class="qnum">${c.questionCount}</span>
-            <button class="qplus" title="More questions">+</button>
+        <div class="cat" data-id="${c.id}">
+          <div class="cat-row">
+            <input class="cat-name" type="text" value="${esc(c.name)}" />
+            <div class="qcount">
+              <button class="qminus" title="Fewer questions">−</button>
+              <span class="qnum">${c.questionCount}</span>
+              <button class="qplus" title="More questions">+</button>
+            </div>
+            <button class="cat-remove" title="Remove category">✕</button>
           </div>
-          <button class="cat-remove" title="Remove category">✕</button>
+          <div class="qchips">
+            <span class="qchips-label">Bonus:</span>
+            ${Array.from({ length: c.questionCount || 0 }, (_, i) =>
+              `<button class="qchip ${c.bonus?.[i] ? 'on' : ''}" data-idx="${i}" title="Toggle bonus for question ${i + 1}">Q${i + 1}</button>`
+            ).join('')}
+          </div>
         </div>`).join('')}
     </div>
     <button id="addCat" class="primary">+ Add category</button>`;
-  for (const row of el.querySelectorAll('.cat-row')) {
-    const id = row.dataset.id;
-    row.querySelector('.cat-name').addEventListener('change', e => {
+  for (const catEl of el.querySelectorAll('.cat')) {
+    const id = catEl.dataset.id;
+    catEl.querySelector('.cat-name').addEventListener('change', e => {
       set(ref(db, `${LOBBY}/quiz/categories/${id}/name`), e.target.value.trim() || 'Category');
     });
-    row.querySelector('.qplus').addEventListener('click', () => changeCount(id, +1));
-    row.querySelector('.qminus').addEventListener('click', () => changeCount(id, -1));
-    row.querySelector('.cat-remove').addEventListener('click', () => removeCat(id));
+    catEl.querySelector('.qplus').addEventListener('click', () => changeCount(id, +1));
+    catEl.querySelector('.qminus').addEventListener('click', () => changeCount(id, -1));
+    catEl.querySelector('.cat-remove').addEventListener('click', () => removeCat(id));
+    for (const chip of catEl.querySelectorAll('.qchip')) {
+      chip.addEventListener('click', () => toggleBonus(id, Number(chip.dataset.idx)));
+    }
   }
   el.querySelector('#addCat').addEventListener('click', addCat);
 }
@@ -146,6 +168,16 @@ function curCount(id) {
 async function changeCount(id, delta) {
   const next = Math.max(1, curCount(id) + delta);
   await set(ref(db, `${LOBBY}/quiz/categories/${id}/questionCount`), next);
+  if (delta < 0) {
+    const bonus = (categories || {})[id]?.bonus || {};
+    for (const k of Object.keys(bonus)) {
+      if (Number(k) >= next) await set(ref(db, `${LOBBY}/quiz/categories/${id}/bonus/${k}`), null);
+    }
+  }
+}
+async function toggleBonus(id, idx) {
+  const cur = (categories || {})[id]?.bonus?.[idx];
+  await set(ref(db, `${LOBBY}/quiz/categories/${id}/bonus/${idx}`), cur ? null : true);
 }
 async function removeCat(id) {
   if (!confirm('Remove this category? Existing team submissions for it stay in the database but are hidden here.')) return;
@@ -169,14 +201,22 @@ function renderSubmissions() {
     const n = c.questionCount || 0;
     let qhtml = '';
     for (let i = 0; i < n; i++) {
+      const isBonus = !!c.bonus?.[i];
       const rows = teams.map(t => {
         const sub = submissions?.[t.id]?.[c.id];
         const submitted = !!sub;
         const a = sub?.answers?.[i];
         const text = submitted ? (a && a.length ? esc(a) : '(blank)') : '—';
-        return `<div class="sub-row"><span class="team">${esc(t.name)}</span><span class="ans ${a && a.length ? '' : 'empty'}">${text}</span></div>`;
+        let html = `<div class="sub-row"><span class="team">${esc(t.name)}</span><span class="ans ${a && a.length ? '' : 'empty'}">${text}</span></div>`;
+        if (isBonus) {
+          const b = sub?.bonusAnswers?.[i];
+          const btext = submitted ? (b && b.length ? esc(b) : '(blank)') : '—';
+          html += `<div class="sub-row sub-bonus"><span class="team">↳ Bonus</span><span class="ans bonus-ans ${b && b.length ? '' : 'empty'}">${btext}</span></div>`;
+        }
+        return html;
       }).join('');
-      qhtml += `<div class="q-block"><div class="q-title">Question ${i + 1}</div>${rows}</div>`;
+      const title = isBonus ? `Question ${i + 1} <span class="bonus-tag">bonus</span>` : `Question ${i + 1}`;
+      qhtml += `<div class="q-block"><div class="q-title">${title}</div>${rows}</div>`;
     }
     return `<div class="cat-block"><h3>${esc(c.name)}</h3>${qhtml || '<p class="muted">No questions.</p>'}</div>`;
   }).join('');

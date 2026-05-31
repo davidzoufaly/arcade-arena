@@ -3,7 +3,7 @@
 // (so this is unit-testable and usable inside the Firebase-free lobby.js).
 //
 // Category map (Firebase node lobbies/{id}/quiz/categories):
-//   { [catId]: { order:int, name:string, questionCount:int } }
+//   { [catId]: { order:int, name:string, questionCount:int, bonus?:{ [idx]: true } } }
 // Submissions for ONE team (lobbies/{id}/quiz/submissions/{teamId}):
 //   { [catId]: { submittedAt:int, answers: { [idx]: string } } }
 
@@ -20,7 +20,7 @@ export function seedCategories(count = DEFAULT_CATEGORY_COUNT, questionCount = D
   return out;
 }
 
-// Categories sorted by order, as [{ id, order, name, questionCount }].
+// Categories sorted by order, as [{ id, order, name, questionCount, bonus }].
 export function orderedCategories(categories) {
   return Object.entries(categories || {})
     .map(([id, c]) => ({
@@ -28,6 +28,7 @@ export function orderedCategories(categories) {
       order: c?.order ?? 0,
       name: c?.name ?? '',
       questionCount: c?.questionCount ?? 0,
+      bonus: c?.bonus ?? {},
     }))
     .sort((a, b) => a.order - b.order);
 }
@@ -53,4 +54,16 @@ export function nextOrder(categories) {
   const ordered = orderedCategories(categories);
   if (!ordered.length) return 0;
   return Math.max(...ordered.map(c => c.order)) + 1;
+}
+
+// Sorted integer indices flagged as bonus AND within the question count.
+// Firebase stores bonus keys as strings and only the value `true`; a cleared
+// flag is deleted (absent), never false. Accepts any object with
+// { questionCount, bonus } — an orderedCategories item or a raw category node.
+export function bonusIndices({ questionCount = 0, bonus } = {}) {
+  return Object.keys(bonus || {})
+    .filter(k => bonus[k])
+    .map(Number)
+    .filter(i => Number.isInteger(i) && i >= 0 && i < questionCount)
+    .sort((a, b) => a - b);
 }
