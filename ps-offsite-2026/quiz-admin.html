@@ -73,6 +73,16 @@
   .sub-bonus .team { color: var(--muted); }
   .sub-row .ans.bonus-ans { color: #ff7ad0; }
   .q-title .bonus-tag { color: #ff7ad0; font-weight: 800; margin-left: 6px; }
+  .sub-row .mark {
+    margin-left: auto; width: 34px; height: 30px; flex: 0 0 auto;
+    background: var(--bg-2); border: 1px solid rgba(255,255,255,0.12); color: var(--bad);
+    border-radius: 8px; font-size: 15px; font-weight: 800; cursor: pointer; font-family: inherit;
+  }
+  .sub-row .mark.ok { background: rgba(0,230,118,0.16); border-color: rgba(0,230,118,0.5); color: var(--good); }
+  .grade-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .grade-status { font-size: 14px; }
+  .grade-status.good { color: var(--good); }
+  .grade-status.bad { color: var(--bad); }
 </style>
 </head>
 <body>
@@ -85,12 +95,13 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getDatabase, ref, set, push, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { getDatabase, ref, get, set, update, push, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from './firebase-config.js';
 import { mountTopbar } from './shared/topbar.js';
 import { requireAdmin } from './shared/admin-gate.js';
 import { getSession, isAdminSession } from './shared/lobby.js';
-import { orderedCategories, nextOrder } from './shared/quiz.js';
+import { orderedCategories, nextOrder, teamQuizScore } from './shared/quiz.js';
+import { submitScore, firebaseWriter } from './shared/score-submit.js';
 
 const lobbyId = new URLSearchParams(location.search).get('lobby');
 if (!lobbyId) { location.replace('index.html'); throw new Error('no lobby in url'); }
@@ -109,7 +120,9 @@ const LOBBY = `lobbies/${lobbyId}`;
 const session = getSession();
 const isAdmin = isAdminSession(session) && session.lobbyId === lobbyId;
 
-let categories = null, submissions = null, teams = [];
+let categories = null, submissions = null, teams = [], grades = null;
+const pending = {};               // pending[teamId][catId][idx] = { q:bool, b:bool }
+const writer = firebaseWriter({ db, ref, update, push });
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -180,7 +193,7 @@ async function toggleBonus(id, idx) {
   await set(ref(db, `${LOBBY}/quiz/categories/${id}/bonus/${idx}`), cur ? null : true);
 }
 async function removeCat(id) {
-  if (!confirm('Remove this category? Existing team submissions for it stay in the database but are hidden here.')) return;
+  if (!confirm('Remove this category? Team submissions and any grades for it stay in the database but are hidden here — and the next time you submit a category, its points drop out of the published totals.')) return;
   await set(ref(db, `${LOBBY}/quiz/categories/${id}`), null);
 }
 async function addCat() {
@@ -190,14 +203,43 @@ async function addCat() {
   });
 }
 
+// Seed local marks from saved grades — ONCE per cell. Never re-hydrate a cell
+// the admin has already touched, so a live grades echo can't wipe edits.
+function seedPending() {
+  const g = grades || {};
+  for (const teamId of Object.keys(g)) {
+    for (const catId of Object.keys(g[teamId] || {})) {
+      const marks = g[teamId][catId] || {};
+      pending[teamId] ??= {};
+      pending[teamId][catId] ??= {};
+      for (const idx of Object.keys(marks)) {
+        if (!(idx in pending[teamId][catId])) {
+          const m = marks[idx] || {};
+          pending[teamId][catId][idx] = { q: !!m.q, b: !!m.b };
+        }
+      }
+    }
+  }
+}
+function getMark(teamId, catId, idx) {
+  return pending[teamId]?.[catId]?.[idx] || { q: false, b: false };
+}
+function toggleMark(teamId, catId, idx, field) {
+  pending[teamId] ??= {};
+  pending[teamId][catId] ??= {};
+  const cur = pending[teamId][catId][idx] || { q: false, b: false };
+  cur[field] = !cur[field];
+  pending[teamId][catId][idx] = cur;
+}
+
 function renderSubmissions() {
   const el = document.getElementById('submissionsView');
   const ordered = orderedCategories(categories);
   if (ordered.length === 0) {
-    el.innerHTML = `<h2>Submissions</h2><p class="muted">No categories yet.</p>`;
+    el.innerHTML = `<h2>Grading</h2><p class="muted">No categories yet.</p>`;
     return;
   }
-  el.innerHTML = `<h2>Submissions</h2>` + ordered.map(c => {
+  el.innerHTML = `<h2>Grading</h2>` + ordered.map(c => {
     const n = c.questionCount || 0;
     let qhtml = '';
     for (let i = 0; i < n; i++) {
@@ -207,19 +249,92 @@ function renderSubmissions() {
         const submitted = !!sub;
         const a = sub?.answers?.[i];
         const text = submitted ? (a && a.length ? esc(a) : '(blank)') : '—';
-        let html = `<div class="sub-row"><span class="team">${esc(t.name)}</span><span class="ans ${a && a.length ? '' : 'empty'}">${text}</span></div>`;
+        const mark = getMark(t.id, c.id, i);
+        const toggle = submitted
+          ? `<button class="mark ${mark.q ? 'ok' : ''}" data-team="${t.id}" data-cat="${c.id}" data-idx="${i}" data-field="q">${mark.q ? '✓' : '✗'}</button>`
+          : '';
+        let html = `<div class="sub-row"><span class="team">${esc(t.name)}</span><span class="ans ${a && a.length ? '' : 'empty'}">${text}</span>${toggle}</div>`;
         if (isBonus) {
           const b = sub?.bonusAnswers?.[i];
           const btext = submitted ? (b && b.length ? esc(b) : '(blank)') : '—';
-          html += `<div class="sub-row sub-bonus"><span class="team">↳ Bonus</span><span class="ans bonus-ans ${b && b.length ? '' : 'empty'}">${btext}</span></div>`;
+          const bToggle = submitted
+            ? `<button class="mark ${mark.b ? 'ok' : ''}" data-team="${t.id}" data-cat="${c.id}" data-idx="${i}" data-field="b">${mark.b ? '✓' : '✗'}</button>`
+            : '';
+          html += `<div class="sub-row sub-bonus"><span class="team">↳ Bonus</span><span class="ans bonus-ans ${b && b.length ? '' : 'empty'}">${btext}</span>${bToggle}</div>`;
         }
         return html;
       }).join('');
       const title = isBonus ? `Question ${i + 1} <span class="bonus-tag">bonus</span>` : `Question ${i + 1}`;
       qhtml += `<div class="q-block"><div class="q-title">${title}</div>${rows}</div>`;
     }
-    return `<div class="cat-block"><h3>${esc(c.name)}</h3>${qhtml || '<p class="muted">No questions.</p>'}</div>`;
+    const body = qhtml || '<p class="muted">No questions.</p>';
+    return `<div class="cat-block" data-cat="${c.id}">
+      <h3>${esc(c.name)}</h3>${body}
+      <div class="grade-actions"><button class="primary submit-cat" data-cat="${c.id}">Submit category</button><span class="grade-status muted" data-cat="${c.id}"></span></div>
+    </div>`;
   }).join('');
+
+  for (const btn of el.querySelectorAll('.mark')) {
+    btn.addEventListener('click', () => {
+      toggleMark(btn.dataset.team, btn.dataset.cat, Number(btn.dataset.idx), btn.dataset.field);
+      const on = getMark(btn.dataset.team, btn.dataset.cat, Number(btn.dataset.idx))[btn.dataset.field];
+      btn.classList.toggle('ok', on);
+      btn.textContent = on ? '✓' : '✗';
+    });
+  }
+  for (const btn of el.querySelectorAll('.submit-cat')) {
+    btn.addEventListener('click', () => submitCategoryGrades(btn.dataset.cat));
+  }
+}
+
+// Persist marks for one category (all teams that submitted it), then recompute
+// + publish each affected team's PQ total. The recompute uses LOCAL pending for
+// the just-submitted category (the live grades listener has not echoed the
+// write yet) merged over the live grades snapshot for every other category.
+async function submitCategoryGrades(catId) {
+  const cat = (categories || {})[catId];
+  if (!cat) return;
+  const n = cat.questionCount || 0;
+  const status = document.querySelector(`.grade-status[data-cat="${catId}"]`);
+  const btn = document.querySelector(`.submit-cat[data-cat="${catId}"]`);
+  if (btn) btn.disabled = true;
+  if (status) { status.className = 'grade-status muted'; status.textContent = 'Saving…'; }
+  try {
+    const affected = teams.filter(t => submissions?.[t.id]?.[catId]);
+    let updated = 0;
+    for (const t of affected) {
+      // Build this category's grade node from local pending.
+      const node = {};
+      for (let i = 0; i < n; i++) {
+        const m = getMark(t.id, catId, i);
+        const entry = {};
+        if (m.q) entry.q = true;
+        if (cat.bonus?.[i] && m.q && m.b) entry.b = true;
+        if (Object.keys(entry).length) node[i] = entry;
+      }
+      const hasMarks = Object.keys(node).length > 0;
+      await set(ref(db, `${LOBBY}/quiz/grades/${t.id}/${catId}`), hasMarks ? node : null);
+
+      // Recompute full total: other categories from the live snapshot, this
+      // category from the freshly built node.
+      const teamGrades = { ...(grades?.[t.id] || {}) };
+      if (hasMarks) teamGrades[catId] = node; else delete teamGrades[catId];
+      const total = teamQuizScore(teamGrades, categories);
+
+      // No-op guard: only write PQ (and push history) when the total changed.
+      const cur = await get(ref(db, `${LOBBY}/scores/${t.id}/PQ`));
+      const prev = cur.exists() ? cur.val() : null;
+      if (prev !== total) {
+        await submitScore({ writer, lobbyId, teamId: t.id, gameKey: 'PQ', score: total });
+        updated++;
+      }
+    }
+    if (status) { status.className = 'grade-status good'; status.textContent = `Graded · ${affected.length} teams · ${updated} score${updated === 1 ? '' : 's'} updated`; }
+  } catch (e) {
+    if (status) { status.className = 'grade-status bad'; status.textContent = 'Save failed: ' + (e.message || 'unknown error'); }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function renderAll() {
@@ -249,6 +364,9 @@ function renderAll() {
   });
   onValue(ref(db, `${LOBBY}/quiz/submissions`), snap => {
     submissions = snap.exists() ? snap.val() : null; renderSubmissions();
+  });
+  onValue(ref(db, `${LOBBY}/quiz/grades`), snap => {
+    grades = snap.exists() ? snap.val() : null; seedPending(); renderSubmissions();
   });
 })();
 </script>
