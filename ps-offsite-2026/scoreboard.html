@@ -4,16 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scoreboard</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script>(function(){try{var t=localStorage.getItem('ps-theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <style>
   :root {
-    --bg: #0a0e1a;
-    --bg-2: #131a2e;
-    --card: #1b2540;
-    --card-hover: #243056;
-    --text: #f5f7fb;
-    --muted: #8b95b5;
-    --accent: #00d4ff;
-    --accent-2: #ff00aa;
+    --bg: #09090C;
+    --bg-2: #18181B;
+    --card: #222224;
+    --card-hover: #3A3A3D;
+    --text: #FFFFFF;
+    --muted: #848486;
+    --accent: #DAFE85;
+    --accent-2: #657BC7;
     --gold: #ffd84d;
     --silver: #d6d8dc;
     --bronze: #d49a6a;
@@ -24,7 +28,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    background: radial-gradient(circle at 20% 0%, #1f2a4a 0%, var(--bg) 60%);
+    background: radial-gradient(circle at 20% 0%, var(--bg-2) 0%, var(--bg) 60%);
     color: var(--text);
     min-height: 100vh;
     overflow-x: hidden;
@@ -34,10 +38,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid var(--border);
     backdrop-filter: blur(8px);
     position: sticky; top: 56px; z-index: 10;
-    background: rgba(10,14,26,0.85);
+    background: var(--card);
   }
   header h1 {
     font-size: 28px;
@@ -65,7 +69,7 @@
   }
   button {
     background: var(--card);
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid var(--border);
     color: var(--text);
     padding: 10px 18px;
     border-radius: 10px;
@@ -80,16 +84,16 @@
     transform: translateY(-1px);
   }
   button.primary {
-    background: linear-gradient(135deg, var(--accent), #0099cc);
+    background: linear-gradient(135deg, var(--accent), #657BC7);
     border: none;
-    color: #001;
+    color: var(--btn-on-accent);
   }
   button.danger { color: var(--bad); }
   main { padding: 40px; max-width: 1600px; margin: 0 auto; }
   .matrix-wrap {
     background: var(--card);
     border-radius: 16px;
-    border: 1px solid rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
     overflow-x: auto;
   }
   .matrix {
@@ -100,7 +104,7 @@
     grid-template-columns: 56px minmax(120px, 0.6fr) repeat(var(--game-cols, 10), 84px) 132px;
     align-items: center;
     padding: 14px 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid var(--border);
     transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
@@ -110,7 +114,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.15), transparent);
+    background: linear-gradient(90deg, transparent, rgba(218,254,133,0.15), transparent);
     animation: shine 1.5s ease-out;
     pointer-events: none;
   }
@@ -120,7 +124,7 @@
   }
   .matrix-head {
     align-items: end;
-    background: rgba(0,0,0,0.28);
+    background: var(--bg-2);
     font-size: 13px;
     color: var(--muted);
     text-transform: uppercase;
@@ -178,8 +182,8 @@
   .cell-game.edit { padding: 0 4px; }
   .cell-input {
     width: 100%;
-    background: rgba(0,0,0,0.32);
-    border: 1px solid rgba(0,212,255,0.4);
+    background: var(--bg-2);
+    border: 1px solid rgba(218,254,133,0.4);
     color: var(--text);
     border-radius: 8px;
     padding: 6px 4px;
@@ -189,7 +193,7 @@
     font-family: inherit;
     font-variant-numeric: tabular-nums;
   }
-  .cell-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,0.25); }
+  .cell-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(218,254,133,0.25); }
   .lock-btn {
     background: transparent; border: none; cursor: pointer;
     font-size: 16px; line-height: 1; padding: 2px 4px; margin-top: 4px;
@@ -245,9 +249,9 @@
     line-height: 1;
   }
   .game-status.open {
-    background: rgba(0,212,255,0.15);
+    background: rgba(218,254,133,0.15);
     color: var(--accent);
-    border: 1px solid rgba(0,212,255,0.35);
+    border: 1px solid rgba(218,254,133,0.35);
   }
   .game-status.closed {
     background: rgba(0,230,118,0.15);
@@ -343,7 +347,8 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from './firebase-config.js';
-import { GAMES, allEnteredKeys } from './shared/games-catalog.js';
+import { GAMES, allEnteredKeys, quizKeys } from './shared/games-catalog.js';
+import { allCategoriesSubmitted } from './shared/quiz.js';
 import { rankPointsByTeam } from './shared/ranking.js';
 import { requireAdmin } from './shared/admin-gate.js';
 import { getSession, isAdminSession } from './shared/lobby.js';
@@ -365,10 +370,10 @@ const LOBBY_PATH = `lobbies/${lobbyId}`;
 
 function showSetupNeeded(msg) {
   document.body.innerHTML = `
-    <div style="max-width:640px;margin:80px auto;padding:32px;background:#1b2540;border-radius:16px;border:1px solid rgba(255,255,255,0.06);color:#f5f7fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.6">
-      <h1 style="font-size: 24px;margin-bottom:16px;background:linear-gradient(90deg,#00d4ff,#ff00aa);-webkit-background-clip:text;background-clip:text;color:transparent">Firebase setup needed</h1>
-      <p style="color:#8b95b5;margin-bottom:16px">${msg}</p>
-      <p>Follow <a href="SETUP.md" style="color:#00d4ff">SETUP.md</a> to create a Firebase project, then copy <code>firebase-config.example.js</code> to <code>firebase-config.js</code> and fill in your values.</p>
+    <div style="max-width:640px;margin:80px auto;padding:32px;background:var(--card);border-radius:16px;border:1px solid var(--border);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.6">
+      <h1 style="font-size: 24px;margin-bottom:16px;background:linear-gradient(90deg,#DAFE85,#657BC7);-webkit-background-clip:text;background-clip:text;color:transparent">Firebase setup needed</h1>
+      <p style="color:#848486;margin-bottom:16px">${msg}</p>
+      <p>Follow <a href="SETUP.md" style="color:var(--accent)">SETUP.md</a> to create a Firebase project, then copy <code>firebase-config.example.js</code> to <code>firebase-config.js</code> and fill in your values.</p>
     </div>`;
 }
 
@@ -684,10 +689,17 @@ function render() {
     .map(t => {
       let total = 0;
       for (const g of gameKeys) total += rankByGame[g]?.[t.id] ?? 0;
+      // Count a team's submitted games. Pub Quiz publishes its score only after
+      // the host grades, so a finished-but-ungraded quiz has no score key yet —
+      // count it as submitted once the team has submitted every category.
+      const submittedGames = new Set(Object.keys(t.scores));
+      for (const qk of quizKeys()) {
+        if (allCategoriesSubmitted(quiz?.categories, quiz?.submissions?.[t.id])) submittedGames.add(qk);
+      }
       return {
         ...t,
         total,
-        gameCount: Object.keys(t.scores).length,
+        gameCount: submittedGames.size,
       };
     })
     .sort((a, b) => b.total - a.total || a.id - b.id);
@@ -766,9 +778,13 @@ function render() {
   list.style.setProperty('--game-cols', gameKeys.length);
   list.innerHTML = head + rows;
   if (editing) wireEditButtons();
+  // Count distinct team+game pairs, not raw history pushes — Pub Quiz publishes
+  // a score per graded category and again on every regrade, so a raw push count
+  // over-reports PQ. One pair = "this team submitted this game".
+  const submissionCount = new Set(state.history.map(h => `${h.teamId}:${h.gameKey}`)).size;
   document.getElementById('subtitle').textContent = editing
     ? `Editing the lobby. Save to apply`
-    : `${state.teams.length} teams · ${state.history.length} submissions`;
+    : `${state.teams.length} teams · ${submissionCount} submissions`;
 }
 
 function escapeHtml(s) {
@@ -777,7 +793,7 @@ function escapeHtml(s) {
 
 function confetti() {
   const wrap = document.getElementById('confetti');
-  const colors = ['#00d4ff','#ff00aa','#ffd84d','#00e676','#ff4d6d'];
+  const colors = ['#DAFE85','#657BC7','#ffd84d','#00e676','#ff4d6d'];
   for (let i = 0; i < 60; i++) {
     const s = document.createElement('span');
     s.style.left = Math.random() * 100 + 'vw';

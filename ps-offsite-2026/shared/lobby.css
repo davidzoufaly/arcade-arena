@@ -7,7 +7,7 @@
 }
 .lobby-card {
   background: var(--card);
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 28px;
   display: flex;
@@ -31,7 +31,7 @@
 }
 .lobby-card input {
   background: var(--bg-2);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--border);
   color: var(--text);
   padding: 12px 14px;
   border-radius: 10px;
@@ -42,12 +42,12 @@
 .lobby-card input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0,212,255,0.15);
+  box-shadow: 0 0 0 3px rgba(218,254,133,0.15);
 }
 .lobby-card button {
-  background: linear-gradient(135deg, var(--accent), #0099cc);
+  background: linear-gradient(135deg, var(--accent), #657BC7);
   border: none;
-  color: #001;
+  color: var(--btn-on-accent);
   padding: 12px 18px;
   border-radius: 10px;
   font-size: 17px;
@@ -71,7 +71,7 @@
 
 .lobby-credentials {
   background: var(--card);
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 28px;
   margin-top: 24px;
@@ -97,7 +97,7 @@
 .lobby-credentials th, .lobby-credentials td {
   text-align: left;
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--border);
   font-size: 16px;
 }
 .lobby-credentials th {
@@ -112,7 +112,7 @@
 }
 .lobby-credentials .copy-btn {
   background: var(--bg-2);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--border);
   color: var(--text);
   border-radius: 8px;
   padding: 4px 10px;
@@ -123,9 +123,9 @@
 .lobby-credentials .copy-btn:hover { background: var(--card); }
 .lobby-credentials .continue {
   margin-top: 24px;
-  background: linear-gradient(135deg, var(--accent), #0099cc);
+  background: linear-gradient(135deg, var(--accent), #657BC7);
   border: none;
-  color: #001;
+  color: var(--btn-on-accent);
   padding: 12px 22px;
   border-radius: 10px;
   font-size: 17px;
@@ -139,7 +139,7 @@
   align-items: center;
   justify-content: space-between;
   background: var(--card);
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 14px 20px;
   margin-bottom: 24px;
@@ -148,7 +148,7 @@
 .lobby-strip .info .code { font-family: ui-monospace, monospace; color: var(--accent); letter-spacing: 1.5px; }
 .lobby-strip button {
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid var(--border);
   color: var(--muted);
   padding: 8px 14px;
   border-radius: 8px;
@@ -176,7 +176,7 @@
   box-sizing: border-box;
   padding: 8px 12px;
   background: var(--bg-2);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
   border-radius: 10px;
   cursor: pointer;
   font-size: 15px;

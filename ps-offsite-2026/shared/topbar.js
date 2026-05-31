@@ -4,6 +4,7 @@ import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10
 import { firebaseConfig } from '../firebase-config.js';
 import { allEnteredKeys } from './games-catalog.js';
 import { rankPointsByTeam } from './ranking.js';
+import { createToggle, removeFloating } from './theme.js';
 
 function prefix() {
   const p = location.pathname;
@@ -52,10 +53,14 @@ function buildHeader({ lobbyId, teamId }, activePage, admin) {
   `;
   const activeLink = header.querySelector(`a[data-nav="${activePage}"]`);
   if (activeLink) activeLink.setAttribute('aria-current', 'page');
-  header.querySelector('.ps-topbar-leave').addEventListener('click', () => {
+  const leaveBtn = header.querySelector('.ps-topbar-leave');
+  leaveBtn.addEventListener('click', () => {
     clearSession();
     location.href = indexHref;
   });
+  // Theme toggle lives right next to Leave; drop the floating fallback theme.js mounted.
+  removeFloating();
+  leaveBtn.insertAdjacentElement('afterend', createToggle());
   return header;
 }
 

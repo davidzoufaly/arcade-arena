@@ -1,6 +1,6 @@
 /* ps-offsite-2026/shared/modal.css — shared dialog used via shared/modal.js */
 .modal-box {
-  background: var(--card); border: 1px solid rgba(255,255,255,0.12);
+  background: var(--card); border: 1px solid var(--border);
   border-radius: 14px; padding: 24px; width: min(460px, 92vw);
   box-shadow: var(--shadow, 0 8px 32px rgba(0,0,0,0.4));
   color: var(--text); margin: auto;   /* center: the global `* { margin: 0 }` reset kills the UA dialog centering */
@@ -14,16 +14,16 @@
 }
 .modal-body input, .modal-body textarea {
   width: 100%; background: var(--bg-2); color: var(--text);
-  border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+  border: 1px solid var(--border); border-radius: 10px;
   padding: 12px; font-size: 16px; font-family: inherit;
 }
 .modal-body textarea { resize: vertical; min-height: 140px; line-height: 1.5; }
 .modal-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
 .modal-actions button {
-  background: var(--bg-2); border: 1px solid rgba(255,255,255,0.12); color: var(--text);
+  background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
   border-radius: 8px; padding: 10px 16px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
 }
 .modal-actions button.danger { background: rgba(255,77,109,0.12); border-color: rgba(255,77,109,0.5); color: var(--bad); }
 .modal-actions button.primary {
-  background: linear-gradient(135deg, var(--accent), #0099cc); color: #001; border: none;
+  background: linear-gradient(135deg, var(--accent), #657BC7); color: var(--btn-on-accent); border: none;
 }

@@ -4,17 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PS Offsite 2026 — Games</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script>(function(){try{var t=localStorage.getItem('ps-theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="stylesheet" href="shared/topbar.css">
 <style>
   :root {
-    --bg: #0a0e1a; --bg-2: #131a2e; --card: #1b2540;
-    --text: #f5f7fb; --muted: #8b95b5;
-    --accent: #00d4ff; --accent-2: #ff00aa; --good: #00e676;
+    --bg: #09090C; --bg-2: #18181B; --card: #222224;
+    --text: #FFFFFF; --muted: #848486;
+    --accent: #DAFE85; --accent-2: #657BC7; --good: #00e676;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    background: radial-gradient(circle at 50% 0%, #1f2a4a 0%, var(--bg) 60%);
+    background: radial-gradient(circle at 50% 0%, var(--bg-2) 0%, var(--bg) 60%);
     color: var(--text); min-height: 100vh;
   }
   main { max-width: 1100px; margin: 0 auto; padding: 40px; }
@@ -31,27 +35,27 @@
   }
   .tile {
     background: var(--card); border-radius: 14px; padding: 18px;
-    border: 1px solid rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
     color: var(--text); text-decoration: none;
     display: flex; flex-direction: column; gap: 8px;
     transition: all 0.15s; position: relative; overflow: hidden;
     min-height: 130px;
   }
-  .tile.play   { border-color: rgba(0,212,255,0.35); }
-  .tile.manual { border-color: rgba(255,0,170,0.30); }
-  .tile.quiz   { border-color: rgba(150,90,255,0.40); }
+  .tile.play   { border-color: rgba(218,254,133,0.35); }
+  .tile.manual { border-color: rgba(101,123,199,0.30); }
+  .tile.quiz   { border-color: rgba(101,123,199,0.40); }
   .tile.soon   { opacity: 0.4; pointer-events: none; border-style: dashed; }
   .tile.locked { opacity: 0.5; pointer-events: none; border-style: dashed; border-color: rgba(255,77,109,0.4); }
   .tile.locked .tile-tag { background: rgba(255,77,109,0.12); color: #ff4d6d; }
   .tile .timer-line {           /* in-flow pill — never overlaps the emoji or the ✓, shows even after submit */
     align-self: flex-start;
     font-size: 12px; font-weight: 800; color: var(--accent);
-    background: rgba(0,212,255,0.12); padding: 2px 8px; border-radius: 999px;
+    background: rgba(218,254,133,0.12); padding: 2px 8px; border-radius: 999px;
   }
   .tile.timed { cursor: pointer; }
 
   .tw-box {
-    background: var(--card); border: 1px solid rgba(255,255,255,0.12);
+    background: var(--card); border: 1px solid var(--border);
     border-radius: 14px; padding: 26px; width: min(440px, 92vw); text-align: center;
     color: var(--text); margin: auto;   /* center: the global `* { margin: 0 }` reset kills the UA dialog centering */
   }
@@ -61,11 +65,11 @@
   .tw-box strong { color: var(--text); }
   .tw-actions { display: flex; gap: 10px; justify-content: center; }
   .tw-actions button {
-    background: var(--card); border: 1px solid rgba(255,255,255,0.12); color: var(--text);
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
     padding: 12px 18px; border-radius: 10px; font-size: 16px; font-weight: 700;
     cursor: pointer; font-family: inherit;
   }
-  .tw-actions button.go { background: linear-gradient(135deg, var(--accent), #0099cc); border: none; color: #001; }
+  .tw-actions button.go { background: linear-gradient(135deg, var(--accent), #657BC7); border: none; color: var(--btn-on-accent); }
   .tile:not(.soon):hover {
     transform: translateY(-2px);
     box-shadow: 0 12px 30px rgba(0,0,0,0.35);
@@ -77,9 +81,9 @@
     font-size: 12px; font-weight: 700; padding: 3px 8px;
     border-radius: 999px; text-transform: uppercase; letter-spacing: 1px;
   }
-  .tile.play   .tile-tag { background: rgba(0,212,255,0.12); color: var(--accent); }
-  .tile.manual .tile-tag { background: rgba(255,0,170,0.12); color: var(--accent-2); }
-  .tile.quiz   .tile-tag { background: rgba(150,90,255,0.14); color: #b794ff; }
+  .tile.play   .tile-tag { background: rgba(218,254,133,0.12); color: var(--accent); }
+  .tile.manual .tile-tag { background: rgba(101,123,199,0.12); color: var(--accent-2); }
+  .tile.quiz   .tile-tag { background: rgba(101,123,199,0.14); color: #657BC7; }
   .tile.soon   .tile-tag { background: rgba(255,255,255,0.08); color: var(--muted); }
   .tile .check {
     position: absolute; top: 10px; right: 12px;
@@ -108,9 +112,10 @@ import { mountTopbar } from './shared/topbar.js';
 import { GAMES } from './shared/games-catalog.js';
 import { resolveLock } from './shared/game-lock.js';
 import { resolveTimer } from './shared/game-config.js';
+import { allCategoriesSubmitted } from './shared/quiz.js';
 
 if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
-  document.body.innerHTML = '<div style="max-width:640px;margin:80px auto;padding:32px;background:#1b2540;border-radius:16px;color:#f5f7fb;font-family:system-ui">Firebase config missing. See SETUP.md.</div>';
+  document.body.innerHTML = '<div style="max-width:640px;margin:80px auto;padding:32px;background:var(--card);border-radius:16px;color:var(--text);font-family:system-ui">Firebase config missing. See SETUP.md.</div>';
   throw new Error('firebase config not filled in');
 }
 
@@ -130,6 +135,17 @@ const subtitle = document.getElementById('subtitle');
 let currentScores = null;
 let currentLocks = null;
 let currentTimers = null;
+let currentQuizCats = null;   // quiz/categories
+let currentQuizSubs = null;   // quiz/submissions/{teamId} for THIS team
+
+// A game is "submitted" by this team. For Pub Quiz the score is published by the
+// host after grading, so a finished-but-ungraded quiz has no score yet — treat
+// all-categories-submitted as submitted instead of waiting on the PQ score key.
+function isGameSubmitted(key, g) {
+  if (g.kind === 'soon') return false;
+  if (g.kind === 'quiz') return allCategoriesSubmitted(currentQuizCats, currentQuizSubs);
+  return currentScores?.[key] !== undefined;
+}
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -151,10 +167,11 @@ function render() {
     const baseTag = g.kind === 'play' ? 'Playable' : g.kind === 'manual' ? 'Manual entry' : g.kind === 'quiz' ? 'Quiz' : 'Coming soon';
     const tag = lockedTile ? 'Locked' : baseTag;
     const score = scoresForTeam?.[key];
-    const tick = score !== undefined ? '<div class="check" title="Submitted">✓</div>' : '';
+    const submitted = isGameSubmitted(key, g);
+    const tick = submitted ? '<div class="check" title="Submitted">✓</div>' : '';
     const scoreLine = score !== undefined
       ? `<div class="score-line">Score: <strong>${esc(String(score))}</strong></div>`
-      : '';
+      : (submitted ? `<div class="score-line">Awaiting host scoring…</div>` : '');
     const mins = (g.kind === 'manual') ? resolveTimer(currentTimers, key, session.teamId) : undefined;
     const hasTimer = mins !== undefined;
     // Intercept ENTRY with a warning only for a fresh, unlocked, unsubmitted timed game.
@@ -183,7 +200,7 @@ function render() {
     el.addEventListener('click', () => openTimeWarning(el.dataset.href, el.dataset.name, el.dataset.mins));
   }
 
-  const submitted = scoresForTeam ? Object.keys(scoresForTeam).length : 0;
+  const submitted = Object.entries(GAMES).filter(([key, g]) => isGameSubmitted(key, g)).length;
   const total = Object.values(GAMES).filter(g => g.kind !== 'soon').length;
   subtitle.textContent = `${submitted}/${total} games submitted`;
 }
@@ -218,6 +235,16 @@ onValue(ref(db, `lobbies/${session.lobbyId}/locks`), snap => {
 
 onValue(ref(db, `lobbies/${session.lobbyId}/timers`), snap => {
   currentTimers = snap.exists() ? snap.val() : null;
+  render();
+});
+
+onValue(ref(db, `lobbies/${session.lobbyId}/quiz/categories`), snap => {
+  currentQuizCats = snap.exists() ? snap.val() : null;
+  render();
+});
+
+onValue(ref(db, `lobbies/${session.lobbyId}/quiz/submissions/${session.teamId}`), snap => {
+  currentQuizSubs = snap.exists() ? snap.val() : null;
   render();
 });
 </script>

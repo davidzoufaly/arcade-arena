@@ -4,14 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Game 3 — Dino Dash</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script>(function(){try{var t=localStorage.getItem('ps-theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <style>
   :root {
-    --bg: #0a0e1a;
-    --bg-2: #131a2e;
-    --card: #1b2540;
-    --text: #f5f7fb;
-    --muted: #8b95b5;
-    --accent: #00d4ff;
+    --bg: #09090C;
+    --bg-2: #18181B;
+    --card: #222224;
+    --text: #FFFFFF;
+    --muted: #848486;
+    --accent: #DAFE85;
     --good: #00e676;
     --bad: #ff4d6d;
     --gold: #ffd84d;
@@ -19,7 +23,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    background: radial-gradient(circle at 20% 0%, #1f2a4a 0%, var(--bg) 60%);
+    background: radial-gradient(circle at 20% 0%, var(--bg-2) 0%, var(--bg) 60%);
     color: var(--text);
     min-height: 100vh;
     overflow-x: hidden;
@@ -29,7 +33,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid var(--border);
   }
   header h1 { font-size: 22px; font-weight: 800; }
   main { max-width: 1200px; margin: 0 auto; padding: 32px; }
@@ -37,7 +41,7 @@
     background: var(--card);
     border-radius: 20px;
     padding: 28px;
-    border: 1px solid rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
     margin-bottom: 20px;
   }
   .briefing { font-size: 17px; line-height: 1.6; color: var(--muted); }
@@ -45,7 +49,7 @@
   .setup { display: flex; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap; }
   input, select {
     background: var(--bg-2);
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid var(--border);
     color: var(--text);
     padding: 12px 16px;
     border-radius: 10px;
@@ -53,8 +57,8 @@
     font-family: inherit;
   }
   button {
-    background: linear-gradient(135deg, var(--accent), #0099cc);
-    border: none; color: #001;
+    background: linear-gradient(135deg, var(--accent), #657BC7);
+    border: none; color: var(--btn-on-accent);
     padding: 12px 24px; border-radius: 10px;
     font-size: 18px; font-weight: 700; cursor: pointer;
     font-family: inherit; transition: all 0.15s;
@@ -63,12 +67,12 @@
   button:disabled { opacity: 0.4; cursor: not-allowed; }
   button.secondary {
     background: var(--card);
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid var(--border);
     color: var(--text);
   }
 
   .video-wrap {
-    position: relative; background: #000;
+    position: relative; background: #000; border: 2px solid var(--accent);
     border-radius: 20px; overflow: hidden; aspect-ratio: 4/3;
     box-shadow: 0 0 0 0 rgba(0,230,118,0);
     transition: box-shadow 0.15s ease-out;
@@ -133,7 +137,7 @@
   .dot {
     flex: 1; aspect-ratio: 1;
     background: var(--bg-2);
-    border: 2px solid rgba(255,255,255,0.06);
+    border: 2px solid var(--border);
     border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
     font-size: 28px;
@@ -145,7 +149,7 @@
   }
   .dot.flashing {
     border-color: var(--accent);
-    box-shadow: 0 0 24px rgba(0,212,255,0.5);
+    box-shadow: 0 0 24px rgba(218,254,133,0.5);
   }
 
   .progress-bar {
@@ -229,7 +233,8 @@
     width: 100%; max-width: max(320px, calc((100vh - 320px) * 16 / 9)); aspect-ratio: 16 / 9;
     background: var(--bg); border-radius: 16px; display: block;
     margin: 0 auto;
-    border: 1px solid rgba(255,255,255,0.06);
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 0 1px var(--border), 0 8px 32px rgba(0,0,0,0.35);
   }
   .cam-preview {
     width: 240px; height: 135px; object-fit: cover;
@@ -238,7 +243,7 @@
   .palm-dots { display: flex; gap: 6px; justify-content: center; margin-top: 10px; }
   .palm-dots .pip {
     width: 14px; height: 18px; border-radius: 4px;
-    border: 1px solid rgba(0,212,255,0.3); background: rgba(0,212,255,0.06);
+    border: 1px solid rgba(218,254,133,0.3); background: rgba(218,254,133,0.06);
   }
   .palm-dots .pip.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
   .jump-meter { height: 10px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden; margin-top: 10px; }
@@ -249,7 +254,7 @@
     padding: 6px 10px; border-radius: 8px;
     background: rgba(255,255,255,0.06); color: var(--muted);
   }
-  .pose-state.jump  { background: rgba(0,212,255,0.18);  color: var(--accent); }
+  .pose-state.jump  { background: rgba(218,254,133,0.18);  color: var(--accent); }
   .pose-state.duck  { background: rgba(255,77,109,0.18); color: var(--bad); }
   .pose-state.ready { background: rgba(0,230,118,0.18);  color: var(--good); }
   .toast {

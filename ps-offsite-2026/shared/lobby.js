@@ -1,4 +1,6 @@
 // ps-offsite-2026/shared/lobby.js
+import './theme.css';      // global theming — loaded on every page via lobby.js
+import './theme.js';       // mounts light/dark switcher
 import { seedCategories } from './quiz.js';
 export const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const LOBBY_ID_RE = /^PS-[A-HJ-NP-Z2-9]{4}$/;

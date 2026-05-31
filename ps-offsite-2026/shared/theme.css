@@ -1,0 +1,67 @@
+/* GoodData 2026 theming — dark default + light override, toggled via [data-theme] on <html>. */
+
+/* Text color sitting ON the accent (buttons). Dark mode: accent is light (lime) -> near-black text.
+   Light mode: accent is dark (plum) -> white text. Set per-mode below. */
+:root { --btn-on-accent: #09090C; --border: rgba(255,255,255,0.12); }
+
+:root[data-theme="light"] {
+  --bg: #F2F2F2;          /* gray-100 page */
+  --bg-2: #E6E6E7;        /* gray-150 */
+  --card: #FFFFFF;        /* white raised cards */
+  --card-hover: #E6E6E7;
+  --text: #09090C;        /* gray-900 */
+  --muted: #6B6B6D;       /* gray-600 */
+  --accent: #285D92;      /* plum-700 — link/text accent (lime fails contrast on light) */
+  --accent-2: #164E87;    /* plum-900 — gradient partner */
+  --good: #1C7A43;        /* darkened green for light-bg contrast */
+  --bad: #C32F4C;         /* darkened red */
+  --gold: #B8860B;
+  --silver: #9A9DA3;
+  --bronze: #A9743F;
+  --btn-on-accent: #FFFFFF;
+  --border: rgba(0,0,0,0.16);
+  --shadow: 0 4px 24px rgba(0,0,0,0.10);
+}
+
+/* Topbar redefines --tb-* on .ps-topbar itself, so the light overrides must match
+   that selector (higher specificity than :root[data-theme=light]) to win. */
+:root[data-theme="light"] .ps-topbar {
+  --tb-bg: rgba(255,255,255,0.92);
+  --tb-border: rgba(0,0,0,0.10);
+  --tb-text: #09090C;
+  --tb-muted: #6B6B6D;
+  --tb-accent: #285D92;
+  --tb-accent-2: #164E87;
+  --tb-bad: #C32F4C;
+}
+
+/* Hairline borders are hardcoded white-alpha across pages; give shared chrome real edges on light. */
+:root[data-theme="light"] .modal-box { border-color: rgba(0,0,0,0.12); }
+:root[data-theme="light"] .modal-actions button:not(.primary):not(.danger),
+:root[data-theme="light"] .modal-field input,
+:root[data-theme="light"] .modal-field select { border-color: rgba(0,0,0,0.18); }
+
+/* Theme switcher — pill button. Base style; floats only when .is-float (pages w/o topbar). */
+.ps-theme-toggle {
+  height: 38px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--tb-border, rgba(255,255,255,0.15));
+  background: var(--card); color: var(--text);
+  font: 600 13px/1 system-ui, sans-serif; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+  transition: border-color .15s, transform .12s;
+}
+.ps-theme-toggle:hover { border-color: var(--accent); }
+.ps-theme-toggle:active { transform: scale(0.96); }
+
+.ps-theme-toggle.is-float {
+  position: fixed; right: 16px; bottom: 16px; z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+}
+
+/* In-topbar variant: compact icon-only square, same height/border as the Leave button. */
+.ps-topbar .ps-theme-toggle {
+  width: 32px; height: 32px; padding: 0; border-radius: 8px;
+  font-size: 15px; line-height: 1; gap: 0;
+  border: 1px solid var(--tb-muted); background: transparent; color: var(--tb-text);
+}
+.ps-topbar .ps-theme-toggle:hover { border-color: var(--tb-accent); color: var(--tb-accent); }

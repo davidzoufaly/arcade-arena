@@ -1,10 +1,10 @@
 .ps-topbar {
-  --tb-bg: rgba(10, 14, 26, 0.92);
+  --tb-bg: rgba(9,9,12, 0.92);
   --tb-border: rgba(255, 255, 255, 0.08);
-  --tb-text: #f5f7fb;
-  --tb-muted: #8b95b5;
-  --tb-accent: #00d4ff;
-  --tb-accent-2: #ff00aa;
+  --tb-text: #FFFFFF;
+  --tb-muted: #848486;
+  --tb-accent: #DAFE85;
+  --tb-accent-2: #657BC7;
   --tb-bad: #ff4d6d;
 
   position: fixed;
@@ -37,14 +37,17 @@
 .ps-topbar-nav {
   display: flex;
   gap: 4px;
+  align-self: stretch;        /* fill topbar height so the underline can sit at its bottom */
 }
 
 .ps-topbar-nav a {
+  position: relative;
+  display: flex;
+  align-items: center;
   color: var(--tb-muted);
   text-decoration: none;
-  padding: 8px 12px;
+  padding: 0 12px;
   font-size: 16px;
-  border-bottom: 2px solid transparent;
 }
 
 .ps-topbar-nav a:hover {
@@ -53,7 +56,18 @@
 
 .ps-topbar-nav a[aria-current="page"] {
   color: var(--tb-accent);
-  border-bottom-color: var(--tb-accent);
+}
+
+/* Underline: flush with the topbar's bottom edge, only as wide as the text. */
+.ps-topbar-nav a[aria-current="page"]::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  background: var(--tb-accent);
+  border-radius: 2px 2px 0 0;
 }
 
 .ps-topbar-info {

@@ -5,17 +5,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PS Offsite 2026 — Pub Quiz</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script>(function(){try{var t=localStorage.getItem('ps-theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="stylesheet" href="../shared/topbar.css">
 <style>
   :root {
-    --bg: #0a0e1a; --bg-2: #131a2e; --card: #1b2540;
-    --text: #f5f7fb; --muted: #8b95b5;
-    --accent: #00d4ff; --accent-2: #ff00aa; --good: #00e676; --bad: #ff4d6d;
+    --bg: #09090C; --bg-2: #18181B; --card: #222224;
+    --text: #FFFFFF; --muted: #848486;
+    --accent: #DAFE85; --accent-2: #657BC7; --good: #00e676; --bad: #ff4d6d;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    background: radial-gradient(circle at 50% 0%, #1f2a4a 0%, var(--bg) 60%);
+    background: radial-gradient(circle at 50% 0%, var(--bg-2) 0%, var(--bg) 60%);
     color: var(--text); min-height: 100vh;
   }
   main { max-width: 720px; margin: 0 auto; padding: 40px; }
@@ -23,15 +27,15 @@
   .head .emoji { font-size: 48px; }
   h1 { font-size: 32px; font-weight: 900; letter-spacing: -1px; }
   .rules {
-    background: var(--card); border: 1px solid rgba(255,255,255,0.06);
+    background: var(--card); border: 1px solid var(--border);
     border-radius: 14px; padding: 20px; margin-bottom: 24px;
-    line-height: 1.65; color: #d8def0; font-size: 16px;
+    line-height: 1.65; color: var(--text); font-size: 16px;
   }
   .rules p { margin-bottom: 10px; }
   .rules ul { margin: 6px 0 6px 22px; }
   .progress { color: var(--muted); font-size: 13px; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
   .panel {
-    background: var(--card); border: 1px solid rgba(255,255,255,0.06);
+    background: var(--card); border: 1px solid var(--border);
     border-radius: 14px; padding: 22px;
   }
   .panel h2 { font-size: 22px; margin-bottom: 16px; }
@@ -39,14 +43,14 @@
   .q label { display: block; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 6px; }
   .q input[type=text] {
     background: var(--bg-2); color: var(--text);
-    border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+    border: 1px solid var(--border); border-radius: 10px;
     padding: 12px 14px; font-size: 17px; font-family: inherit; width: 100%;
   }
   .q.bonus label { color: var(--accent-2); }
-  .q.bonus input[type=text] { border-color: rgba(255,0,170,0.45); }
+  .q.bonus input[type=text] { border-color: rgba(101,123,199,0.45); }
   .panel button {
-    background: linear-gradient(135deg, var(--accent), #0099cc);
-    border: none; color: #001; font-weight: 800; font-size: 17px;
+    background: linear-gradient(135deg, var(--accent), #657BC7);
+    border: none; color: var(--btn-on-accent); font-weight: 800; font-size: 17px;
     padding: 12px 18px; border-radius: 10px; cursor: pointer; font-family: inherit;
   }
   .panel button:disabled { opacity: 0.5; cursor: default; }
