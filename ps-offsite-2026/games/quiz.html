@@ -79,14 +79,13 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getDatabase, ref, get, set, update, push, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { getDatabase, ref, get, set, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from '../firebase-config.js';
 import { resolveSession } from '../shared/lobby.js';
 import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import { mountTopbar } from '../shared/topbar.js';
 import { getGame } from '../shared/games-catalog.js';
-import { submitScore, firebaseWriter } from '../shared/score-submit.js';
-import { resolveTimer, resolveRule, deadlineFor, isExpired, formatMMSS } from '../shared/game-config.js';
+import { resolveRule } from '../shared/game-config.js';
 import { orderedCategories, currentCategoryId } from '../shared/quiz.js';
 
 const KEY = 'PQ';
@@ -114,11 +113,8 @@ function renderRules(text) {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const writer = firebaseWriter({ db, ref, update, push });
 
 const LOBBY = `lobbies/${session.lobbyId}`;
-const scorePath = `${LOBBY}/scores/${session.teamId}/${KEY}`;
-const startPath = `${LOBBY}/timerStarts/${KEY}/${session.teamId}`;
 const subsPath  = `${LOBBY}/quiz/submissions/${session.teamId}`;
 
 // live state
@@ -126,20 +122,7 @@ let categories = null;
 let catsLoaded = false;
 let submissions = null;
 let currentRules = null;
-let currentScore = null;   // PQ score (null until final submit)
-// timer state (mirrors manual.html)
-let minutes;
-let startTs = null;
-let timerId = null;
-let settled = false;
-let timeUp = false;
 
-function settle() {
-  if (settled) return false;
-  settled = true;
-  if (timerId !== null) { clearInterval(timerId); timerId = null; }
-  return true;
-}
 function rulesText() {
   return resolveRule(currentRules, KEY, session.teamId, game.rules);
 }
@@ -147,23 +130,20 @@ function rulesText() {
 function shell(inner) {
   return `
     <div class="head"><div class="emoji">${game.emoji}</div><h1>${esc(game.name)}</h1></div>
-    <div class="countdown" id="countdown" ${minutes ? '' : 'hidden'}></div>
     <div class="rules">${renderRules(rulesText())}</div>
     ${inner}`;
 }
 
 function render() {
-  if (timeUp) { renderTimeUp(); return; }
   if (!catsLoaded) return; // keep "Loading…" until first categories snapshot
   const ordered = orderedCategories(categories);
   if (ordered.length === 0) {
     container.innerHTML = shell(`<div class="panel"><h2>Quiz not ready</h2><p class="current">The host hasn't set up any categories yet. Check back soon.</p><a class="back-link" href="${catalogHref}">← Back to catalog</a></div>`);
-    if (minutes) paintCountdown();
     return;
   }
   const curId = currentCategoryId(categories, submissions);
   if (curId !== null) { renderCategory(ordered.find(c => c.id === curId), ordered); return; }
-  renderScore(ordered);
+  renderDone(ordered);
 }
 
 function renderCategory(cat, ordered) {
@@ -185,13 +165,10 @@ function renderCategory(cat, ordered) {
       <div id="banner"></div>
       <a class="back-link" href="${catalogHref}">← Back to catalog</a>
     </div>`);
-  if (minutes) paintCountdown();
   document.getElementById('submitCat').addEventListener('click', () => submitCategory(cat));
 }
 
 async function submitCategory(cat) {
-  if (timeUp) return;
-  if (minutes && isExpired(startTs, minutes, Date.now())) return;
   const btn = document.getElementById('submitCat');
   const banner = document.getElementById('banner');
   const n = cat.questionCount || 0;
@@ -219,131 +196,19 @@ async function submitCategory(cat) {
   }
 }
 
-function renderScore(ordered) {
-  const submitted = currentScore !== null;
-  // Timed games are one-shot: after a submit, lock the input (mirrors manual).
-  const readOnly = minutes && submitted;
+function renderDone(ordered) {
   container.innerHTML = shell(`
     <div class="progress">All ${ordered.length} categories submitted</div>
     <div class="panel">
-      ${submitted ? `<div class="current">Currently submitted: <strong>${esc(String(currentScore))}</strong> pts</div>` : ''}
-      <label class="score-label" for="score">${submitted ? 'Resubmit raw score' : 'Raw score'}</label>
-      <input id="score" type="number" min="0" step="1" inputmode="numeric" value="${submitted ? esc(String(currentScore)) : ''}" ${readOnly ? 'disabled' : ''} />
-      <button id="submitScore" ${readOnly ? 'disabled' : ''}>${submitted ? 'Resubmit' : 'Submit score'}</button>
-      <div id="banner"></div>
+      <p class="current">You're done — the host will mark your answers and score your team. Nothing more to do here.</p>
       <a class="back-link" href="${catalogHref}">← Back to catalog</a>
     </div>`);
-  if (minutes) paintCountdown();
-  const btn = document.getElementById('submitScore');
-  if (btn) btn.addEventListener('click', onSubmitScore);
-}
-
-async function onSubmitScore() {
-  const input = document.getElementById('score');
-  const btn = document.getElementById('submitScore');
-  const banner = document.getElementById('banner');
-  const raw = parseInt(input.value, 10);
-  if (!Number.isFinite(raw) || raw < 0) {
-    banner.className = 'banner bad'; banner.textContent = 'Enter a non-negative integer.'; return;
-  }
-  // Timed: settle FIRST (sync, before any await) to win the race vs auto-0.
-  if (minutes) { if (!settle()) return; }
-  btn.disabled = true; banner.className = ''; banner.textContent = '';
-  try {
-    if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: KEY })) {
-      banner.className = 'banner bad'; banner.textContent = 'Locked — score not saved.';
-      if (minutes) rearmCountdown();
-      btn.disabled = false; return;
-    }
-    const late = minutes && isExpired(startTs, minutes, Date.now());
-    const toSave = late ? 0 : raw;
-    const saved = await submitScore({ writer, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: KEY, score: toSave });
-    currentScore = saved;
-    banner.className = late ? 'banner bad' : 'banner ok';
-    banner.innerHTML = late ? `⏱ Time's up — <strong>0</strong> recorded.` : `Saved <strong>${esc(String(saved))}</strong> pts.`;
-    const cd = document.getElementById('countdown'); if (cd) cd.hidden = true;
-  } catch (e) {
-    banner.className = 'banner bad'; banner.textContent = 'Save failed: ' + (e.message || 'unknown error');
-    if (minutes) rearmCountdown();
-    btn.disabled = false;
-  } finally {
-    if (!minutes) btn.disabled = false;
-  }
-}
-
-async function autoZero() {
-  if (!settle()) return;
-  timeUp = true;
-  try {
-    await submitScore({ writer, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: KEY, score: 0 });
-  } catch (e) {
-    console.error('auto-0 failed', e);
-  }
-  renderTimeUp();
-}
-
-function renderTimeUp() {
-  container.innerHTML = shell(`
-    <div class="panel">
-      <div class="banner bad">⏱ Time's up — <strong>0</strong> recorded.</div>
-      <a class="back-link" href="${catalogHref}">← Back to catalog</a>
-    </div>`);
-  const cd = document.getElementById('countdown');
-  if (cd) { cd.hidden = false; cd.classList.add('low'); cd.textContent = "⏱ Time's up"; }
-}
-
-function rearmCountdown() {
-  settled = false;
-  if (isExpired(startTs, minutes, Date.now())) autoZero();
-  else startCountdown();
-}
-
-function paintCountdown() {
-  const cd = document.getElementById('countdown');
-  if (!cd || startTs === null) return;
-  const remaining = deadlineFor(startTs, minutes) - Date.now();
-  cd.hidden = false;
-  cd.textContent = `⏱ ${formatMMSS(remaining)} left`;
-  cd.classList.toggle('low', remaining <= 30000);
-}
-
-function startCountdown() {
-  const tick = () => {
-    const remaining = deadlineFor(startTs, minutes) - Date.now();
-    const cd = document.getElementById('countdown');
-    if (cd) {
-      cd.hidden = false;
-      cd.textContent = `⏱ ${formatMMSS(remaining)} left`;
-      cd.classList.toggle('low', remaining <= 30000);
-    }
-    if (remaining <= 0) autoZero();
-  };
-  tick();
-  timerId = setInterval(tick, 1000);
 }
 
 (async () => {
   if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: KEY })) {
     renderLockedScreen(catalogHref);
     return;
-  }
-  // Read the existing PQ score + timer once at entry (mirrors manual.html).
-  // A live score listener would re-render and wipe the submit confirmation banner.
-  const [scoreSnap, timersSnap] = await Promise.all([
-    get(ref(db, scorePath)),
-    get(ref(db, `${LOBBY}/timers`)),
-  ]);
-  currentScore = scoreSnap.exists() ? scoreSnap.val() : null;
-  minutes = resolveTimer(timersSnap.exists() ? timersSnap.val() : null, KEY, session.teamId);
-  if (minutes) {
-    const startSnap = await get(ref(db, startPath));
-    if (startSnap.exists()) {
-      startTs = startSnap.val();
-    } else {
-      startTs = Date.now();
-      await set(ref(db, startPath), startTs);
-    }
-    if (isExpired(startTs, minutes, Date.now())) { timeUp = true; autoZero(); return; }
   }
   // Attach live listeners only AFTER the lock gate passes, so a locked team
   // never briefly sees quiz content.
@@ -358,7 +223,6 @@ function startCountdown() {
     const el = container.querySelector('.rules');
     if (el) el.innerHTML = renderRules(rulesText());
   });
-  if (minutes) startCountdown();
 })();
 </script>
 </body>
