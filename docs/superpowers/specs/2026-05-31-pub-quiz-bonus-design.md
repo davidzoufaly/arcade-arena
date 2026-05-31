@@ -50,15 +50,26 @@ quiz/submissions/{teamId}/{catId}/bonusAnswers/{idx}: string
   flag map alongside `{id, order, name, questionCount}`.
 - New `bonusIndices(category)` → sorted array of integer indices that are
   flagged AND `< questionCount` (filters stale flags). Pure, unit-tested.
-  Signature: `bonusIndices({ questionCount, bonus })`.
+  - **Input contract:** accepts any object carrying `{ questionCount, bonus }` —
+    both an `orderedCategories` item (play page passes `cat`) and a raw Firebase
+    category node satisfy this; tests pass a literal `{ questionCount, bonus }`.
+  - **Firebase string keys:** `bonus` keys arrive as strings (`"3"`). Coerce with
+    `Number(k)` before the `< questionCount` comparison and before the numeric
+    sort. Filter on truthiness (Firebase only stores `true`; a cleared flag is
+    deleted via `set(...,null)`, i.e. absent, never `false`).
 
 ### 3. Team play page — `games/quiz.html`
 
 - In `renderCategory`, for each question `i` in `0..questionCount-1`:
-  - Always render the main input, labelled `Question i+1`.
-  - If `cat.bonus?.[i]` is truthy, render a second input directly under it,
-    labelled `Question i+1 — Bonus`, visually distinct (a `.bonus` class —
-    accent-2 / magenta tint).
+  - Always render the main input `#q${i}`, labelled `Question i+1`.
+  - If `cat.bonus?.[i]` is truthy, render a second input `#qb${i}` directly under
+    it, labelled `Question i+1 — Bonus`, visually distinct (a `.bonus` class —
+    accent-2 / magenta tint). `#qb${i}` does not collide with existing IDs
+    (`q{i}`, `submitCat`, `banner`, `countdown`, `score`, `submitScore`).
+  - The `i < questionCount` loop bound means stale bonus flags (`idx >= count`)
+    are never read on the play page — no extra filtering needed here.
+  - This relies on the §2 change: `cat` is an `orderedCategories` item (from
+    `ordered.find(...)`), so it carries `bonus` only after that lands.
 - On `submitCategory`, collect as today into `answers:{i:str}`, and additionally
   build `bonusAnswers:{i:str}` for flagged indices only (trimmed). Write the
   submission node as `{ submittedAt, answers, bonusAnswers }`. Omit
@@ -69,15 +80,21 @@ quiz/submissions/{teamId}/{catId}/bonusAnswers/{idx}: string
 ### 4. Admin page — `quiz-admin.html`
 
 - **Categories editor:** below each category row, add a chip row of buttons
-  `Q1 … QN` (N = questionCount). A chip is highlighted when that index is bonus.
-  Clicking a chip toggles it: `set(quiz/categories/{id}/bonus/{idx}, true)` to
-  flag, `set(..., null)` to clear. The chip row re-renders with the count.
+  `Q1 … QN` iterated over `0..questionCount-1` (count-driven, NOT
+  `Object.keys(bonus)`, so stale flags above the count get no chip). A chip is
+  highlighted when that index is bonus. Clicking a chip toggles it:
+  `set(quiz/categories/{id}/bonus/{idx}, true)` to flag, `set(..., null)` to
+  clear. The toggle fires a categories `onValue` echo → `renderCatEditor`
+  rebuild, same as the existing `qplus`/`qminus` buttons; chips are buttons (not
+  text inputs) so the `.cat-name` focus-guard does not block them and rebuild
+  only costs a transient `:focus` ring (cosmetic, acceptable).
 - **`changeCount` decrease:** after writing the new count, prune any bonus flags
   with `idx >= newCount` (so shrinking a category drops orphaned flags).
 - **Submissions view:** for a bonus question index, render the team's main
-  answer and, on a second line, the labelled `Bonus:` answer (same
-  not-submitted `—` / submitted-blank `(blank)` treatment). Non-bonus questions
-  render exactly as before.
+  answer and, on a second line, the labelled `Bonus:` answer read via
+  `sub?.bonusAnswers?.[i]` (optional chaining — handles the omitted-node case,
+  yielding the same `—` / `(blank)` treatment as `answers`). The index is bonus
+  iff `c.bonus?.[i]` is truthy. Non-bonus questions render exactly as before.
 
 ### 5. Rules text (minor)
 
@@ -88,10 +105,15 @@ quiz/submissions/{teamId}/{catId}/bonusAnswers/{idx}: string
 ## Tests
 
 `tests/quiz.test.js`:
-- `bonusIndices`: returns flagged indices sorted; filters out indices
-  `>= questionCount`; `[]` when no `bonus` map; `[]` for empty.
-- `orderedCategories`: carries the `bonus` map through (default `{}` when
-  absent).
+- **Update the existing exact-match assertion** (`orderedCategories(cats)[0]`
+  `toEqual({id,order,name,questionCount})`): it now must include `bonus: {}`,
+  else `toEqual` deep-equality fails. (The `seedCategories` assertions are
+  unaffected — seed emits no `bonus` key.)
+- `orderedCategories`: add an assertion that a category WITH a `bonus` map
+  carries it through unchanged, and one without gets `bonus: {}`.
+- `bonusIndices`: returns flagged indices as numbers, sorted ascending; filters
+  out indices `>= questionCount`; coerces string keys (`{"3": true}` → `3`);
+  `[]` when no `bonus` map; `[]` for empty category.
 
 No new tests for the HTML pages (consistent with the repo — pages are untested).
 
