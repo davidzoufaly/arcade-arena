@@ -67,4 +67,7 @@ describe('nextOrder', () => {
   it('is max order + 1', () => {
     expect(nextOrder({ a: { order: 0 }, b: { order: 5 } })).toBe(6);
   });
+  it('avoids collision when categories share an order', () => {
+    expect(nextOrder({ a: { order: 2 }, b: { order: 2 } })).toBe(3);
+  });
 });

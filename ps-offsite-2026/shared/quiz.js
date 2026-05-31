@@ -48,8 +48,9 @@ export function allCategoriesSubmitted(categories, submissions) {
     && currentCategoryId(categories, submissions) === null;
 }
 
-// Order int for a newly added category (append to the end).
+// Order int for a newly added category (append after the current max).
 export function nextOrder(categories) {
   const ordered = orderedCategories(categories);
-  return ordered.length ? ordered[ordered.length - 1].order + 1 : 0;
+  if (!ordered.length) return 0;
+  return Math.max(...ordered.map(c => c.order)) + 1;
 }
