@@ -144,7 +144,7 @@ const LOBBY = `lobbies/${lobbyId}`;
 const session = getSession();
 const isAdmin = isAdminSession(session) && session.lobbyId === lobbyId;
 
-let categories = null, submissions = null, teams = [], grades = null;
+let categories = null, submissions = null, teams = [], grades = null, gradedFlags = null;
 const pending = {};               // pending[teamId][catId][idx] = { q:bool, b:bool }
 const gradeStatus = {};           // gradeStatus[catId] = { cls, text } — survives re-renders
 const submitting = new Set();     // catIds with an in-flight submit (keeps button disabled)
@@ -287,10 +287,12 @@ function toggleMark(teamId, catId, idx, field) {
   pending[teamId][catId][idx] = cur;
 }
 
-// A category counts as "graded" if it was submitted this session or any team
-// already has saved grades for it (so the ✓ survives a reload).
+// A category counts as "graded" if it was submitted this session, has a
+// persisted graded flag, or any team has saved grades for it (so the ✓ survives
+// a reload even when the category scored zero correct answers).
 function isCategoryGraded(catId) {
   if (gradedCats.has(catId)) return true;
+  if (gradedFlags?.[catId]) return true;
   const g = grades || {};
   for (const tid of Object.keys(g)) if (g[tid] && g[tid][catId]) return true;
   return false;
@@ -413,6 +415,9 @@ async function submitCategoryGrades(catId) {
         updated++;
       }
     }
+    // Persisted marker: the scoreboard reads quiz/graded/{catId} to know the
+    // quiz is only "closed" once every category has been graded.
+    await set(ref(db, `${LOBBY}/quiz/graded/${catId}`), true);
     gradedCats.add(catId);
     const tail = updated > 0
       ? `${updated} score${updated === 1 ? '' : 's'} updated`
@@ -498,6 +503,9 @@ function renderAll() {
   });
   onValue(ref(db, `${LOBBY}/quiz/grades`), snap => {
     grades = snap.exists() ? snap.val() : null; seedPending(); renderSubmissions();
+  });
+  onValue(ref(db, `${LOBBY}/quiz/graded`), snap => {
+    gradedFlags = snap.exists() ? snap.val() : null; renderSubmissions();
   });
 })();
 </script>

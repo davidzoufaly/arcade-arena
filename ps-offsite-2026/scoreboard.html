@@ -385,7 +385,7 @@ let initialized = false;
 let editing = false;
 let lastUpdate = null;
 let connected = true;
-let locks = null, timers = null, rules = null;  // latest live nodes
+let locks = null, timers = null, rules = null, quiz = null;  // latest live nodes
 let draft = null;                                // { locks, timers, rules } while editing
 let dirty = { locks: false, timers: false, rules: false };
 let pendingScores = null;
@@ -409,6 +409,7 @@ onValue(ref(db, LOBBY_PATH), snap => {
   locks = snap.val()?.locks ?? null;
   timers = snap.val()?.timers ?? null;
   rules = snap.val()?.rules ?? null;
+  quiz = snap.val()?.quiz ?? null;
   state = snapshotToState(snap);
   const leader = computeLeader();
   const leaderId = leader?.id ?? null;
@@ -698,9 +699,20 @@ function render() {
     submittedByGame[g] = n;
   }
   const headCells = gameKeys.map(g => {
-    const closed = submittedByGame[g] === teamCount && teamCount > 0;
+    let closed, label;
+    if (GAMES[g].kind === 'quiz') {
+      // Pub Quiz publishes a team's score after EACH category is graded, so a
+      // PQ score alone doesn't mean the quiz is over. It's only "closed" once
+      // the admin has graded every category (tracked at quiz/graded/{catId}).
+      const catIds = quiz?.categories ? Object.keys(quiz.categories) : [];
+      const gradedCount = catIds.filter(id => quiz?.graded?.[id]).length;
+      closed = catIds.length > 0 && gradedCount === catIds.length;
+      label = closed ? 'closed' : `${gradedCount}/${catIds.length}`;
+    } else {
+      closed = submittedByGame[g] === teamCount && teamCount > 0;
+      label = closed ? 'closed' : `${submittedByGame[g]}/${teamCount}`;
+    }
     const cls = closed ? 'closed' : 'open';
-    const label = closed ? 'closed' : `${submittedByGame[g]}/${teamCount}`;
     if (editing) {
       const gs = resolveGameLock(draft.locks, g);
       return `<div class="cell-game ${cls} lk-${gs}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span><br>${editButtonsHtml(g)}</div>`;
