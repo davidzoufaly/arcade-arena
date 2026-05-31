@@ -209,11 +209,17 @@
     font-family: inherit;
   }
   .cfg-btn:hover { opacity: 1; transform: scale(1.1); }
-  .cfg-btn.set { opacity: 1; color: var(--accent); font-weight: 800; }
+  /* ⏱ is an emoji — `color` barely changes it; mark "set" with a filled accent pill + ring instead. */
+  .cfg-btn.set {
+    opacity: 1; font-weight: 800;
+    background: var(--accent); color: var(--btn-on-accent);
+    border-radius: 999px; padding: 2px 6px;
+    box-shadow: 0 0 0 1px var(--accent);
+  }
 
-  .cell-game.edit.locked .cell-input { border-color: rgba(255,77,109,0.6); box-shadow: inset 0 0 0 1px rgba(255,77,109,0.22); }
-  .cell-game.edit.unlocked .cell-input { border-color: rgba(0,230,118,0.55); }
-  .matrix-head .cell-game.lk-locked { color: #ff4d6d; }
+  .cell-game.edit.locked .cell-input { border: 2px solid var(--bad); box-shadow: inset 0 0 0 1px var(--bad); }
+  .cell-game.edit.unlocked .cell-input { border: 2px solid var(--good); box-shadow: inset 0 0 0 1px var(--good); }
+  .matrix-head .cell-game.lk-locked { color: var(--bad); }
   .matrix-head .cell-game.lk-unlocked { color: var(--good); }
   .lock-all { white-space: nowrap; }
   .cell-total {

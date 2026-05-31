@@ -12,7 +12,7 @@
   --text: #09090C;        /* gray-900 */
   --muted: #6B6B6D;       /* gray-600 */
   --accent: #285D92;      /* plum-700 — link/text accent (lime fails contrast on light) */
-  --accent-2: #164E87;    /* plum-900 — gradient partner */
+  --accent-2: #657BC7;    /* plum-400 — lighter, so gradient headings read as a gradient (not flat) */
   --good: #1C7A43;        /* darkened green for light-bg contrast */
   --bad: #C32F4C;         /* darkened red */
   --gold: #B8860B;
@@ -31,7 +31,7 @@
   --tb-text: #09090C;
   --tb-muted: #6B6B6D;
   --tb-accent: #285D92;
-  --tb-accent-2: #164E87;
+  --tb-accent-2: #657BC7;
   --tb-bad: #C32F4C;
 }
 

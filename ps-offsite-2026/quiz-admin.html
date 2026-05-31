@@ -13,9 +13,9 @@
 <link rel="stylesheet" href="./shared/modal.css">
 <style>
   :root {
-    --bg: #09090C; --bg-2: #18181B; --card: #222224;
+    --bg: #09090C; --bg-2: #18181B; --card: #222224; --card-hover: #3A3A3D;
     --text: #FFFFFF; --muted: #848486;
-    --accent: #DAFE85; --accent-2: #657BC7; --good: #00e676; --bad: #ff4d6d;
+    --accent: #DAFE85; --accent-2: #657BC7; --good: #00e676; --bad: #ff4d6d; --gold: #ffd84d;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -46,7 +46,7 @@
     background: var(--bg-2); border: 1px solid var(--border); color: var(--muted);
     border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
   }
-  .qchip.on { background: rgba(101,123,199,0.16); border-color: rgba(101,123,199,0.5); color: var(--accent); }
+  .qchip.on { background: rgba(255,216,77,0.16); border-color: rgba(255,216,77,0.55); color: var(--gold); }
   .cat-row .cat-name {
     flex: 1; background: var(--bg-2); color: var(--text);
     border: 1px solid var(--border); border-radius: 8px;
@@ -81,9 +81,9 @@
   .sub-row .team { min-width: 120px; color: var(--accent); font-weight: 700; }
   .sub-row .ans { flex: 1; }
   .sub-row .ans.empty { color: var(--muted); }
-  .sub-bonus .team { color: var(--accent); }
-  .sub-row .ans.bonus-ans { color: var(--accent); }
-  .bonus-row { color: var(--accent); font-weight: 800; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; margin: 2px 0 6px; }
+  .sub-bonus .team { color: var(--gold); }
+  .sub-row .ans.bonus-ans { color: var(--gold); }
+  .bonus-row { color: var(--gold); font-weight: 800; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; margin: 2px 0 6px; }
   .sub-row .mark {
     margin-left: auto; width: 34px; height: 30px; flex: 0 0 auto;
     background: var(--bg-2); border: 1px solid var(--border); color: var(--bad);
@@ -103,10 +103,11 @@
     border-radius: 8px; padding: 10px 16px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
   }
   .btn-danger {
-    background: rgba(255,77,109,0.12); border: 1px solid rgba(255,77,109,0.5); color: var(--bad);
-    border-radius: 8px; padding: 10px 16px; font-size: 15px; font-weight: 800; cursor: pointer; font-family: inherit;
+    background: var(--card); border: 1px solid var(--border); color: var(--bad);
+    border-radius: 10px; padding: 10px 18px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit;
+    transition: all 0.15s;
   }
-  .btn-danger:hover { background: rgba(255,77,109,0.2); }
+  .btn-danger:hover { background: var(--card-hover); transform: translateY(-1px); }
 </style>
 </head>
 <body>
@@ -460,7 +461,7 @@ function renderHeadActions() {
   const editBtns = dirtyCats
     ? `<button class="btn-ghost" id="cancelCats">Cancel</button><button class="primary" id="saveCats">Save</button>`
     : '';
-  el.innerHTML = `${editBtns}<button class="btn-danger" id="resetQuiz">Reset quiz</button>`;
+  el.innerHTML = `${editBtns}<button class="btn-danger" id="resetQuiz">Reset</button>`;
   if (dirtyCats) {
     el.querySelector('#cancelCats').addEventListener('click', cancelCats);
     el.querySelector('#saveCats').addEventListener('click', saveCats);
