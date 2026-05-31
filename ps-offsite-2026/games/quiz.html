@@ -42,6 +42,8 @@
     border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
     padding: 12px 14px; font-size: 17px; font-family: inherit; width: 100%;
   }
+  .q.bonus label { color: var(--accent-2); }
+  .q.bonus input[type=text] { border-color: rgba(255,0,170,0.45); }
   .panel input[type=number] {
     background: var(--bg-2); color: var(--text);
     border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
@@ -170,6 +172,9 @@ function renderCategory(cat, ordered) {
   let qs = '';
   for (let i = 0; i < n; i++) {
     qs += `<div class="q"><label for="q${i}">Question ${i + 1}</label><input id="q${i}" type="text" autocomplete="off" /></div>`;
+    if (cat.bonus?.[i]) {
+      qs += `<div class="q bonus"><label for="qb${i}">Question ${i + 1} — Bonus</label><input id="qb${i}" type="text" autocomplete="off" /></div>`;
+    }
   }
   container.innerHTML = shell(`
     <div class="progress">Category ${done + 1} of ${ordered.length}</div>
@@ -191,13 +196,22 @@ async function submitCategory(cat) {
   const banner = document.getElementById('banner');
   const n = cat.questionCount || 0;
   const answers = {};
-  for (let i = 0; i < n; i++) answers[i] = document.getElementById(`q${i}`).value.trim();
+  const bonusAnswers = {};
+  for (let i = 0; i < n; i++) {
+    answers[i] = document.getElementById(`q${i}`).value.trim();
+    if (cat.bonus?.[i]) {
+      const bEl = document.getElementById(`qb${i}`);
+      if (bEl) bonusAnswers[i] = bEl.value.trim();
+    }
+  }
   btn.disabled = true;
   try {
     if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: KEY })) {
       banner.className = 'banner bad'; banner.textContent = 'Locked — not saved.'; btn.disabled = false; return;
     }
-    await set(ref(db, `${subsPath}/${cat.id}`), { submittedAt: Date.now(), answers });
+    const payload = { submittedAt: Date.now(), answers };
+    if (Object.keys(bonusAnswers).length) payload.bonusAnswers = bonusAnswers;
+    await set(ref(db, `${subsPath}/${cat.id}`), payload);
     // the live submissions listener re-renders -> next category (or score) appears
   } catch (e) {
     banner.className = 'banner bad'; banner.textContent = 'Save failed: ' + (e.message || 'unknown error');
