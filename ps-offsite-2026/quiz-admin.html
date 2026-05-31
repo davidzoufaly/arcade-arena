@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PS Offsite 2026 — Quiz Admin</title>
+<title>PS Offsite 2026 — Quiz</title>
 <link rel="stylesheet" href="./shared/topbar.css">
 <link rel="stylesheet" href="./shared/modal.css">
 <style>
@@ -64,7 +64,13 @@
     background: var(--card); border: 1px solid rgba(255,255,255,0.06);
     border-radius: 12px; padding: 16px 18px; margin-bottom: 14px;
   }
-  .cat-block h3 { font-size: 18px; margin-bottom: 10px; }
+  .cat-block h3 { font-size: 18px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .cat-check {
+    font-size: 13px; font-weight: 800; color: var(--good);
+    background: rgba(0,230,118,0.12); padding: 4px 10px; border-radius: 999px;
+    white-space: nowrap; flex: 0 0 auto;
+  }
+  .cat-block.graded { border-color: rgba(0,230,118,0.3); }
   .q-block { margin-bottom: 12px; }
   .q-title { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 4px; }
   .sub-row { display: flex; gap: 12px; padding: 4px 0; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.04); }
@@ -85,21 +91,29 @@
   .grade-status.good { color: var(--good); }
   .grade-status.bad { color: var(--bad); }
 
-  .danger-zone { margin-top: 28px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 18px; }
+  .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .head-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+  .head-actions button { white-space: nowrap; }
+  .btn-ghost {
+    background: var(--bg-2); border: 1px solid rgba(255,255,255,0.12); color: var(--text);
+    border-radius: 8px; padding: 10px 16px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
   .btn-danger {
     background: rgba(255,77,109,0.12); border: 1px solid rgba(255,77,109,0.5); color: var(--bad);
-    border-radius: 8px; padding: 12px 18px; font-size: 16px; font-weight: 800; cursor: pointer; font-family: inherit;
+    border-radius: 8px; padding: 10px 16px; font-size: 15px; font-weight: 800; cursor: pointer; font-family: inherit;
   }
   .btn-danger:hover { background: rgba(255,77,109,0.2); }
 </style>
 </head>
 <body>
 <main>
-  <h1>Quiz Admin</h1>
+  <div class="page-head">
+    <h1>Quiz</h1>
+    <div class="head-actions" id="headActions"></div>
+  </div>
   <div class="subtitle" id="subtitle">Loading…</div>
   <section id="catEditor"></section>
   <section id="submissionsView"></section>
-  <section id="dangerZone"></section>
 </main>
 
 <script type="module">
@@ -109,7 +123,7 @@ import { firebaseConfig } from './firebase-config.js';
 import { mountTopbar } from './shared/topbar.js';
 import { requireAdmin } from './shared/admin-gate.js';
 import { getSession, isAdminSession } from './shared/lobby.js';
-import { orderedCategories, nextOrder, teamQuizScore, seedCategories } from './shared/quiz.js';
+import { orderedCategories, nextOrder, teamQuizScore, seedCategories, DEFAULT_QUESTION_COUNT } from './shared/quiz.js';
 import { submitScore, firebaseWriter } from './shared/score-submit.js';
 import { openModal } from './shared/modal.js';
 
@@ -132,7 +146,21 @@ const isAdmin = isAdminSession(session) && session.lobbyId === lobbyId;
 
 let categories = null, submissions = null, teams = [], grades = null;
 const pending = {};               // pending[teamId][catId][idx] = { q:bool, b:bool }
+const gradeStatus = {};           // gradeStatus[catId] = { cls, text } — survives re-renders
+const submitting = new Set();     // catIds with an in-flight submit (keeps button disabled)
+const gradedCats = new Set();     // catIds submitted this session (✓ + "Resubmit")
 const writer = firebaseWriter({ db, ref, update, push });
+
+// Category editor is buffered: every name/count/bonus/add/remove edit mutates a
+// local clone (draftCats) and nothing hits the DB until Save. Cancel drops the
+// clone and falls back to the live `categories` node. tmpSeq mints local-only
+// keys for added categories (they have no submissions yet, so the key is free).
+let draftCats = null, dirtyCats = false, tmpSeq = 0;
+function catSource() { return dirtyCats ? draftCats : categories; }
+function ensureDraft() {
+  if (!dirtyCats) { draftCats = categories ? JSON.parse(JSON.stringify(categories)) : {}; dirtyCats = true; }
+  return draftCats;
+}
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -145,7 +173,7 @@ function renderCatEditor() {
   // mid-typing a name (it would discard the in-progress text + drop focus).
   // The blur-triggered 'change' handler still commits the edit.
   if (el.contains(document.activeElement) && document.activeElement.classList.contains('cat-name')) return;
-  const ordered = orderedCategories(categories);
+  const ordered = orderedCategories(catSource());
   el.innerHTML = `
     <h2>Categories</h2>
     <div class="cats">
@@ -171,9 +199,7 @@ function renderCatEditor() {
     <button id="addCat" class="primary">+ Add category</button>`;
   for (const catEl of el.querySelectorAll('.cat')) {
     const id = catEl.dataset.id;
-    catEl.querySelector('.cat-name').addEventListener('change', e => {
-      set(ref(db, `${LOBBY}/quiz/categories/${id}/name`), e.target.value.trim() || 'Category');
-    });
+    catEl.querySelector('.cat-name').addEventListener('change', e => changeName(id, e.target.value));
     catEl.querySelector('.qplus').addEventListener('click', () => changeCount(id, +1));
     catEl.querySelector('.qminus').addEventListener('click', () => changeCount(id, -1));
     catEl.querySelector('.cat-remove').addEventListener('click', () => removeCat(id));
@@ -184,33 +210,52 @@ function renderCatEditor() {
   el.querySelector('#addCat').addEventListener('click', addCat);
 }
 
-function curCount(id) {
-  const c = (categories || {})[id];
-  return c ? (c.questionCount || 0) : 0;
+// --- Buffered editor mutations: local draft only, no DB writes until Save. ---
+function changeName(id, val) {
+  const d = ensureDraft();
+  if (d[id]) d[id].name = val.trim() || 'Category';
+  renderHeadActions();
 }
-async function changeCount(id, delta) {
-  const next = Math.max(1, curCount(id) + delta);
-  await set(ref(db, `${LOBBY}/quiz/categories/${id}/questionCount`), next);
-  if (delta < 0) {
-    const bonus = (categories || {})[id]?.bonus || {};
-    for (const k of Object.keys(bonus)) {
-      if (Number(k) >= next) await set(ref(db, `${LOBBY}/quiz/categories/${id}/bonus/${k}`), null);
-    }
+function changeCount(id, delta) {
+  const d = ensureDraft();
+  if (!d[id]) return;
+  const next = Math.max(1, (d[id].questionCount || 0) + delta);
+  d[id].questionCount = next;
+  if (delta < 0 && d[id].bonus) {
+    for (const k of Object.keys(d[id].bonus)) if (Number(k) >= next) delete d[id].bonus[k];
   }
+  renderCatEditor(); renderHeadActions();
 }
-async function toggleBonus(id, idx) {
-  const cur = (categories || {})[id]?.bonus?.[idx];
-  await set(ref(db, `${LOBBY}/quiz/categories/${id}/bonus/${idx}`), cur ? null : true);
+function toggleBonus(id, idx) {
+  const d = ensureDraft();
+  if (!d[id]) return;
+  d[id].bonus ??= {};
+  if (d[id].bonus[idx]) delete d[id].bonus[idx]; else d[id].bonus[idx] = true;
+  renderCatEditor(); renderHeadActions();
 }
-async function removeCat(id) {
-  if (!confirm('Remove this category? Team submissions and any grades for it stay in the database but are hidden here — and the next time you submit a category, its points drop out of the published totals.')) return;
-  await set(ref(db, `${LOBBY}/quiz/categories/${id}`), null);
+function removeCat(id) {
+  const d = ensureDraft();
+  delete d[id];
+  renderCatEditor(); renderHeadActions();
 }
-async function addCat() {
-  const order = nextOrder(categories);
-  await push(ref(db, `${LOBBY}/quiz/categories`), {
-    order, name: `Category ${order + 1}`, questionCount: 8,
-  });
+function addCat() {
+  const d = ensureDraft();
+  const order = nextOrder(d);
+  d[`tmp_${tmpSeq++}`] = { order, name: `Category ${order + 1}`, questionCount: DEFAULT_QUESTION_COUNT };
+  renderCatEditor(); renderHeadActions();
+}
+
+// Save commits the whole categories node at once (replacing it). Cancel drops
+// the draft. Both reset dirty state and re-render from the live node.
+async function saveCats() {
+  if (!dirtyCats) return;
+  await set(ref(db, `${LOBBY}/quiz/categories`), draftCats);
+  dirtyCats = false; draftCats = null;
+  renderAll();
+}
+function cancelCats() {
+  dirtyCats = false; draftCats = null;
+  renderAll();
 }
 
 // Seed local marks from saved grades — ONCE per cell. Never re-hydrate a cell
@@ -240,6 +285,15 @@ function toggleMark(teamId, catId, idx, field) {
   const cur = pending[teamId][catId][idx] || { q: false, b: false };
   cur[field] = !cur[field];
   pending[teamId][catId][idx] = cur;
+}
+
+// A category counts as "graded" if it was submitted this session or any team
+// already has saved grades for it (so the ✓ survives a reload).
+function isCategoryGraded(catId) {
+  if (gradedCats.has(catId)) return true;
+  const g = grades || {};
+  for (const tid of Object.keys(g)) if (g[tid] && g[tid][catId]) return true;
+  return false;
 }
 
 function renderSubmissions() {
@@ -278,9 +332,14 @@ function renderSubmissions() {
       qhtml += `<div class="q-block"><div class="q-title">Question ${i + 1}</div>${bonusRow}${rows}</div>`;
     }
     const body = qhtml || '<p class="muted">No questions.</p>';
-    return `<div class="cat-block" data-cat="${c.id}">
-      <h3>${esc(c.name)}</h3>${body}
-      <div class="grade-actions"><button class="primary submit-cat" data-cat="${c.id}">Submit category</button><span class="grade-status muted" data-cat="${c.id}"></span></div>
+    const gs = gradeStatus[c.id];
+    const disabled = submitting.has(c.id) ? ' disabled' : '';
+    const graded = isCategoryGraded(c.id);
+    const check = graded ? '<span class="cat-check" title="Graded">✓ Submitted</span>' : '';
+    const btnLabel = graded ? 'Resubmit' : 'Submit category';
+    return `<div class="cat-block${graded ? ' graded' : ''}" data-cat="${c.id}">
+      <h3>${esc(c.name)}${check}</h3>${body}
+      <div class="grade-actions"><button class="primary submit-cat" data-cat="${c.id}"${disabled}>${btnLabel}</button><span class="grade-status ${gs ? gs.cls : 'muted'}" data-cat="${c.id}">${gs ? esc(gs.text) : ''}</span></div>
     </div>`;
   }).join('');
 
@@ -319,14 +378,17 @@ function buildGradeNode(cat, teamId) {
 // this admin or another — is never missed, then overlays the just-built node
 // for this category. Writes are sequential and NOT atomic across teams; on a
 // mid-loop failure the status reports how many teams were saved.
+// Status is written into gradeStatus[catId] (not a captured DOM node), because
+// the grades write below triggers a live onValue echo that rebuilds the whole
+// submissions view mid-flight — any DOM ref grabbed here is detached before the
+// final message lands. renderSubmissions re-renders the stored status + disabled
+// state, so feedback survives the rebuild.
 async function submitCategoryGrades(catId) {
   const cat = (categories || {})[catId];
   if (!cat) return;
   const catObj = { ...cat, id: catId };
-  const status = document.querySelector(`.grade-status[data-cat="${catId}"]`);
-  const btn = document.querySelector(`.submit-cat[data-cat="${catId}"]`);
-  if (btn) btn.disabled = true;
-  if (status) { status.className = 'grade-status muted'; status.textContent = 'Saving…'; }
+  submitting.add(catId);
+  setGradeStatus(catId, 'muted', 'Saving…');
   const affected = teams.filter(t => submissions?.[t.id]?.[catId]);
   let saved = 0, updated = 0;
   try {
@@ -351,27 +413,49 @@ async function submitCategoryGrades(catId) {
         updated++;
       }
     }
-    if (status) { status.className = 'grade-status good'; status.textContent = `Graded · ${affected.length} teams · ${updated} score${updated === 1 ? '' : 's'} updated`; }
+    gradedCats.add(catId);
+    const tail = updated > 0
+      ? `${updated} score${updated === 1 ? '' : 's'} updated`
+      : 'scores already up to date';
+    setGradeStatus(catId, 'good', `Graded · ${affected.length} teams · ${tail}`);
+    renderSubmissions();   // repaint ✓ header + "Resubmit" label
   } catch (e) {
-    if (status) { status.className = 'grade-status bad'; status.textContent = `Save failed after ${saved}/${affected.length} teams: ` + (e.message || 'unknown error'); }
+    setGradeStatus(catId, 'bad', `Save failed after ${saved}/${affected.length} teams: ` + (e.message || 'unknown error'));
   } finally {
+    submitting.delete(catId);
+    const btn = document.querySelector(`.submit-cat[data-cat="${catId}"]`);
     if (btn) btn.disabled = false;
   }
+}
+
+// Persist + paint a category's grade status so it survives re-renders.
+function setGradeStatus(catId, cls, text) {
+  gradeStatus[catId] = { cls, text };
+  const el = document.querySelector(`.grade-status[data-cat="${catId}"]`);
+  if (el) { el.className = `grade-status ${cls}`; el.textContent = text; }
 }
 
 // Reset the Pub Quiz back to lobby-creation defaults: reseed categories (which
 // wipes submissions + grades, both children of the quiz node) and clear every
 // team's published PQ score so the scoreboard drops the column.
 async function resetQuiz() {
+  dirtyCats = false; draftCats = null;   // drop any buffered editor edits
   await set(ref(db, `${LOBBY}/quiz`), { categories: seedCategories() });
   for (const t of teams) await set(ref(db, `${LOBBY}/scores/${t.id}/PQ`), null);
   for (const k of Object.keys(pending)) delete pending[k];
 }
 
-function renderDangerZone() {
-  const el = document.getElementById('dangerZone');
+function renderHeadActions() {
+  const el = document.getElementById('headActions');
   if (!isAdmin) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="danger-zone"><button class="btn-danger" id="resetQuiz">Reset quiz</button></div>`;
+  const editBtns = dirtyCats
+    ? `<button class="btn-ghost" id="cancelCats">Cancel</button><button class="primary" id="saveCats">Save</button>`
+    : '';
+  el.innerHTML = `${editBtns}<button class="btn-danger" id="resetQuiz">Reset quiz</button>`;
+  if (dirtyCats) {
+    el.querySelector('#cancelCats').addEventListener('click', cancelCats);
+    el.querySelector('#saveCats').addEventListener('click', saveCats);
+  }
   el.querySelector('#resetQuiz').addEventListener('click', () => {
     openModal({
       title: '⚠️ Reset quiz',
@@ -385,10 +469,10 @@ function renderDangerZone() {
 
 function renderAll() {
   document.getElementById('subtitle').textContent =
-    `Lobby ${lobbyId} · ${orderedCategories(categories).length} categories · ${teams.length} teams`;
+    `${orderedCategories(catSource()).length} categories · ${teams.length} teams`;
   renderCatEditor();
   renderSubmissions();
-  renderDangerZone();
+  renderHeadActions();
 }
 
 (async () => {

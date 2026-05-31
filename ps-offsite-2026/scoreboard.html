@@ -756,7 +756,7 @@ function render() {
   if (editing) wireEditButtons();
   document.getElementById('subtitle').textContent = editing
     ? `Editing the lobby. Save to apply`
-    : `Lobby ${lobbyId} · ${state.teams.length} teams · ${state.history.length} submissions`;
+    : `${state.teams.length} teams · ${state.history.length} submissions`;
 }
 
 function escapeHtml(s) {
