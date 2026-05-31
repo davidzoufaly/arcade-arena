@@ -74,7 +74,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getDatabase, ref, get, set, push, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { getDatabase, ref, set, push, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from './firebase-config.js';
 import { mountTopbar } from './shared/topbar.js';
 import { requireAdmin } from './shared/admin-gate.js';
@@ -107,6 +107,10 @@ function esc(s) {
 function renderCatEditor() {
   const el = document.getElementById('catEditor');
   if (!isAdmin) { el.innerHTML = ''; return; }
+  // A live categories echo must not rebuild the editor while the admin is
+  // mid-typing a name (it would discard the in-progress text + drop focus).
+  // The blur-triggered 'change' handler still commits the edit.
+  if (el.contains(document.activeElement) && document.activeElement.classList.contains('cat-name')) return;
   const ordered = orderedCategories(categories);
   el.innerHTML = `
     <h2>Categories</h2>
