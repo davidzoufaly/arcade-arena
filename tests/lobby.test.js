@@ -147,6 +147,11 @@ describe('createLobbyApi.createLobby', () => {
     expect(stored.meta.teamCount).toBe(4);
     expect(stored.meta.adminPwd).toBe(result.adminPwd);
     expect(stored.teams[1].pwd).toBe(result.teams[0].pwd);
+
+    // quiz pre-seed: 4 categories c1..c4, 8 questions each
+    expect(Object.keys(stored.quiz.categories)).toEqual(['c1', 'c2', 'c3', 'c4']);
+    expect(stored.quiz.categories.c1).toEqual({ order: 0, name: 'Category 1', questionCount: 8 });
+    expect(stored.quiz.categories.c4.order).toBe(3);
   });
 
   it('retries on collision up to 5 times', async () => {

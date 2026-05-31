@@ -1,4 +1,5 @@
 // ps-offsite-2026/shared/lobby.js
+import { seedCategories } from './quiz.js';
 export const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const LOBBY_ID_RE = /^PS-[A-HJ-NP-Z2-9]{4}$/;
 
@@ -90,6 +91,7 @@ export function createLobbyApi({ get, set }) {
     await set(`lobbies/${lobbyId}`, {
       meta: { createdAt: Date.now(), teamCount, adminPwd },
       teams: teamsObj,
+      quiz: { categories: seedCategories() },
     });
     return { lobbyId, adminPwd, teams };
   }
