@@ -56,6 +56,31 @@ export function nextOrder(categories) {
   return Math.max(...ordered.map(c => c.order)) + 1;
 }
 
+// Total Pub Quiz points for ONE team's grade map. grades is
+// { [catId]: { [idx]: { q?:true, b?:true } } }; categories is the lobby
+// category map (for questionCount bounds + bonus flags). +1 per correct base
+// question (q), +1 extra only when the index is flagged bonus AND the base is
+// also correct. Stale categories, out-of-range indices, and bonus marks on
+// non-bonus indices are ignored so old grades never inflate the score.
+export function teamQuizScore(grades, categories) {
+  const cats = categories || {};
+  let total = 0;
+  for (const [catId, marks] of Object.entries(grades || {})) {
+    const cat = cats[catId];
+    if (!cat) continue;
+    const qc = cat.questionCount ?? 0;
+    const bonus = cat.bonus || {};
+    for (const [k, m] of Object.entries(marks || {})) {
+      const i = Number(k);
+      if (!Number.isInteger(i) || i < 0 || i >= qc) continue;
+      if (!m || !m.q) continue;
+      total += 1;
+      if (bonus[i] && m.b) total += 1;
+    }
+  }
+  return total;
+}
+
 // Sorted integer indices flagged as bonus AND within the question count.
 // Firebase stores bonus keys as strings and only the value `true`; a cleared
 // flag is deleted (absent), never false. Accepts any object with

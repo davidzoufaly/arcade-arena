@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   seedCategories, orderedCategories, currentCategoryId,
-  allCategoriesSubmitted, nextOrder, bonusIndices,
+  allCategoriesSubmitted, nextOrder, bonusIndices, teamQuizScore,
   DEFAULT_CATEGORY_COUNT, DEFAULT_QUESTION_COUNT,
 } from '../ps-offsite-2026/shared/quiz.js';
 
@@ -97,5 +97,44 @@ describe('bonusIndices', () => {
   it('returns [] for empty/undefined category', () => {
     expect(bonusIndices({})).toEqual([]);
     expect(bonusIndices()).toEqual([]);
+  });
+});
+
+describe('teamQuizScore', () => {
+  const cats = {
+    c1: { order: 0, name: 'A', questionCount: 3, bonus: { 1: true } },
+    c2: { order: 1, name: 'B', questionCount: 2 },
+  };
+
+  it('returns 0 for empty/missing grades', () => {
+    expect(teamQuizScore(null, cats)).toBe(0);
+    expect(teamQuizScore({}, cats)).toBe(0);
+  });
+
+  it('scores 1 per correct base question', () => {
+    const grades = { c1: { 0: { q: true }, 2: { q: true } }, c2: { 0: { q: true } } };
+    expect(teamQuizScore(grades, cats)).toBe(3);
+  });
+
+  it('adds +1 extra only when the index is flagged bonus and base is correct', () => {
+    expect(teamQuizScore({ c1: { 1: { q: true, b: true } } }, cats)).toBe(2);
+    expect(teamQuizScore({ c1: { 0: { q: true, b: true } } }, cats)).toBe(1);
+  });
+
+  it('scores 0 for a lone bonus with no correct base', () => {
+    expect(teamQuizScore({ c1: { 1: { b: true } } }, cats)).toBe(0);
+  });
+
+  it('ignores indices >= questionCount and grades for absent categories', () => {
+    const grades = {
+      c1: { 5: { q: true } },
+      gone: { 0: { q: true } },
+    };
+    expect(teamQuizScore(grades, cats)).toBe(0);
+  });
+
+  it('coerces Firebase string keys and sums across categories', () => {
+    const grades = { c1: { '0': { q: true }, '1': { q: true, b: true } }, c2: { '1': { q: true } } };
+    expect(teamQuizScore(grades, cats)).toBe(4);
   });
 });
