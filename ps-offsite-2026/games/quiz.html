@@ -186,6 +186,7 @@ function renderCategory(cat, ordered) {
 
 async function submitCategory(cat) {
   if (timeUp) return;
+  if (minutes && isExpired(startTs, minutes, Date.now())) return;
   const btn = document.getElementById('submitCat');
   const banner = document.getElementById('banner');
   const n = cat.questionCount || 0;
@@ -243,6 +244,7 @@ async function onSubmitScore() {
     const late = minutes && isExpired(startTs, minutes, Date.now());
     const toSave = late ? 0 : raw;
     const saved = await submitScore({ writer, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: KEY, score: toSave });
+    currentScore = saved;
     banner.className = late ? 'banner bad' : 'banner ok';
     banner.innerHTML = late ? `⏱ Time's up — <strong>0</strong> recorded.` : `Saved <strong>${esc(String(saved))}</strong> pts.`;
     const cd = document.getElementById('countdown'); if (cd) cd.hidden = true;
@@ -311,8 +313,13 @@ function startCountdown() {
     renderLockedScreen(catalogHref);
     return;
   }
-  // Resolve the timer once at entry (mirrors manual.html).
-  const timersSnap = await get(ref(db, `${LOBBY}/timers`));
+  // Read the existing PQ score + timer once at entry (mirrors manual.html).
+  // A live score listener would re-render and wipe the submit confirmation banner.
+  const [scoreSnap, timersSnap] = await Promise.all([
+    get(ref(db, scorePath)),
+    get(ref(db, `${LOBBY}/timers`)),
+  ]);
+  currentScore = scoreSnap.exists() ? scoreSnap.val() : null;
   minutes = resolveTimer(timersSnap.exists() ? timersSnap.val() : null, KEY, session.teamId);
   if (minutes) {
     const startSnap = await get(ref(db, startPath));
@@ -331,9 +338,6 @@ function startCountdown() {
   });
   onValue(ref(db, subsPath), snap => {
     submissions = snap.exists() ? snap.val() : null; render();
-  });
-  onValue(ref(db, scorePath), snap => {
-    currentScore = snap.exists() ? snap.val() : null; render();
   });
   onValue(ref(db, `${LOBBY}/rules`), snap => {
     currentRules = snap.exists() ? snap.val() : null;
