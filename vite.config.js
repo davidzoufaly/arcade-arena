@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         index: resolve(__dirname, root, 'index.html'),
         scoreboard: resolve(__dirname, root, 'scoreboard.html'),
+        'quiz-admin': resolve(__dirname, root, 'quiz-admin.html'),
         dino: resolve(__dirname, root, 'games/3-dino.html'),
         flappy: resolve(__dirname, root, 'games/4-flappy.html'),
         game1: resolve(__dirname, root, 'games/1-gesture-lock.html'),
