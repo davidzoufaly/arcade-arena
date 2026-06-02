@@ -19,6 +19,7 @@ export default defineConfig({
         flappy: resolve(__dirname, root, 'games/4-flappy.html'),
         game1: resolve(__dirname, root, 'games/1-gesture-lock.html'),
         game2: resolve(__dirname, root, 'games/2-pantomime.html'),
+        quiz: resolve(__dirname, root, 'games/quiz.html'),
         games: resolve(__dirname, root, 'games.html'),
         manual: resolve(__dirname, root, 'games/manual.html'),
       },
