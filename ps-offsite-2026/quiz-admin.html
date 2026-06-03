@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PS Offsite 2026 — Quiz</title>
+<title>Project Future is US! 2026 — Quiz</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -342,8 +342,8 @@ function renderSubmissions() {
     const gs = gradeStatus[c.id];
     const disabled = submitting.has(c.id) ? ' disabled' : '';
     const graded = isCategoryGraded(c.id);
-    const check = graded ? '<span class="cat-check" title="Graded">✓ Submitted</span>' : '';
-    const btnLabel = graded ? 'Resubmit' : 'Submit category';
+    const check = graded ? '<span class="cat-check" title="Graded">✓ Completed</span>' : '';
+    const btnLabel = graded ? 'Redo' : 'Complete category';
     return `<div class="cat-block${graded ? ' graded' : ''}" data-cat="${c.id}">
       <h3>${esc(c.name)}${check}</h3>${body}
       <div class="grade-actions"><button class="primary submit-cat" data-cat="${c.id}"${disabled}>${btnLabel}</button><span class="grade-status ${gs ? gs.cls : 'muted'}" data-cat="${c.id}">${gs ? esc(gs.text) : ''}</span></div>

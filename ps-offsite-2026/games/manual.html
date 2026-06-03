@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PS Offsite 2026 — Manual Game</title>
+<title>Project Future is US! 2026 — Manual Mission</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -25,6 +25,7 @@
   main { max-width: 720px; margin: 0 auto; padding: 40px; }
   .head { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
   .head .emoji { font-size: 48px; }
+  .head .icon { width: 72px; height: 72px; object-fit: cover; border-radius: 16px; flex: none; }
   h1 { font-size: 32px; font-weight: 900; letter-spacing: -1px; }
   .rules {
     background: var(--card); border: 1px solid var(--border);
@@ -32,7 +33,7 @@
     line-height: 1.65; color: var(--text); font-size: 16px;
   }
   .rules p { margin-bottom: 10px; }
-  .rules ul { margin: 6px 0 6px 22px; }
+  .rules ul { margin: 6px 0 14px 22px; }
   .panel {
     background: var(--card); border: 1px solid var(--border);
     border-radius: 14px; padding: 22px;
@@ -104,8 +105,8 @@ function esc(s) {
 
 if (!game || game.kind !== 'manual') {
   container.innerHTML = `
-    <h1>Unknown game</h1>
-    <p style="color:#848486;margin-top:10px">No manual game registered for key <code>${esc(key ?? '(none)')}</code>.</p>
+    <h1>Unknown mission</h1>
+    <p style="color:#848486;margin-top:10px">No manual mission registered for key <code>${esc(key ?? '(none)')}</code>.</p>
     <a class="back-link" href="${catalogHref}">← Back to catalog</a>
   `;
   throw new Error('unknown manual game');
@@ -132,14 +133,17 @@ function settle() {
   return true;
 }
 
+function linkify(escaped) {
+  return escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
 function renderRules(text) {
   const blocks = String(text || '').split(/\n\s*\n/);
   return blocks.map(b => {
     const lines = b.split('\n');
     if (lines.every(l => l.startsWith('- '))) {
-      return `<ul>${lines.map(l => `<li>${esc(l.slice(2))}</li>`).join('')}</ul>`;
+      return `<ul>${lines.map(l => `<li>${linkify(esc(l.slice(2)))}</li>`).join('')}</ul>`;
     }
-    return `<p>${esc(b.replace(/\n/g, ' '))}</p>`;
+    return `<p>${linkify(esc(b.replace(/\n/g, ' ')))}</p>`;
   }).join('');
 }
 
@@ -156,17 +160,17 @@ function renderShell(current, mode) {
   const submitted = current !== null;
   const readOnly = mode === 'readonly' || mode === 'expired';
   const showCountdown = mode === 'countdown' || mode === 'expired';
-  const btnLabel = submitted ? 'Resubmit' : 'Submit score';
+  const btnLabel = submitted ? 'Redo' : 'Complete';
   container.innerHTML = `
     <div class="head">
-      <div class="emoji">${game.emoji}</div>
+      ${game.icon ? `<img class="icon" src="${game.icon}" alt="${esc(game.name)}">` : `<div class="emoji">${game.emoji}</div>`}
       <h1>${esc(game.name)}</h1>
     </div>
     <div class="countdown" ${showCountdown ? '' : 'hidden'} id="countdown"></div>
     <div class="rules"></div>
     <div class="panel">
-      ${submitted ? `<div class="current">Currently submitted: <strong>${esc(String(current))}</strong> pts</div>` : ''}
-      <label for="score">${submitted ? 'Resubmit raw score' : 'Raw score'}</label>
+      ${submitted ? `<div class="current">Currently completed: <strong>${esc(String(current))}</strong> pts</div>` : ''}
+      <label for="score">${submitted ? 'Redo raw score' : 'Raw score'}</label>
       <input id="score" type="number" min="0" step="1" inputmode="numeric" value="${submitted ? esc(String(current)) : ''}" ${readOnly ? 'disabled' : ''} />
       <button id="submitBtn" ${readOnly ? 'disabled' : ''}>${btnLabel}</button>
       <div id="banner"></div>

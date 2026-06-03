@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Game 2 — Human Mimic Checkpoint</title>
+<title>Mission 2 — Human Mimic Checkpoint</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -53,7 +53,7 @@
   }
   button {
     background: linear-gradient(135deg, var(--accent), #3C5096);
-    border: none; color: #fff;
+    border: none; color: var(--btn-on-accent);
     padding: 12px 24px; border-radius: 10px;
     font-size: 18px; font-weight: 700; cursor: pointer;
     font-family: inherit; transition: transform 0.15s;
@@ -312,7 +312,7 @@
   <div class="card hidden" id="phase-setup">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup">
-      <button id="startBtn">Start game</button>
+      <button id="startBtn">Start mission</button>
     </div>
     <div class="briefing" style="margin-top: 12px; font-size: 15px;">
       Place the laptop at least 2 m from the person — full body must fit in frame (head to ankles). Plain background helps a lot.
@@ -393,7 +393,7 @@
     <div class="breakdown" id="resBreakdown"></div>
     <div id="saveStatus" class="save-status">SAVING…</div>
     <div class="result-row" style="margin-top: 14px;">
-      <button onclick="replayFromFinal()">Restart game</button>
+      <button onclick="replayFromFinal()">Restart mission</button>
       <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
     </div>
     <p style="font-size: 14px;color:var(--muted);margin-top:10px">Something went wrong? Restart requires the admin password.</p>

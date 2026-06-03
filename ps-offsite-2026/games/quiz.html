@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PS Offsite 2026 — Mission Completion Briefing</title>
+<title>Project Future is US! 2026 — Mission Completion Briefing</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -25,6 +25,7 @@
   main { max-width: 720px; margin: 0 auto; padding: 40px; }
   .head { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
   .head .emoji { font-size: 48px; }
+  .head .icon { width: 72px; height: 72px; object-fit: cover; border-radius: 16px; flex: none; }
   h1 { font-size: 32px; font-weight: 900; letter-spacing: -1px; }
   .rules {
     background: var(--card); border: 1px solid var(--border);
@@ -126,7 +127,7 @@ function rulesText() {
 
 function shell(inner) {
   return `
-    <div class="head"><div class="emoji">${game.emoji}</div><h1>${esc(game.name)}</h1></div>
+    <div class="head">${game.icon ? `<img class="icon" src="${game.icon}" alt="${esc(game.name)}">` : `<div class="emoji">${game.emoji}</div>`}<h1>${esc(game.name)}</h1></div>
     <div class="rules">${renderRules(rulesText())}</div>
     ${inner}`;
 }
@@ -153,7 +154,7 @@ function render() {
   }
   if (curId === null) {
     panels += `<div class="panel done">
-      <div class="progress">All ${ordered.length} categories submitted</div>
+      <div class="progress">All ${ordered.length} categories completed</div>
       <p class="current">You're done — the host will mark your answers and score your team. Nothing more to do here.</p>
     </div>`;
   }
@@ -175,7 +176,7 @@ function submittedPanel(cat, sub, pos, total) {
   }
   return `<div class="panel done">
     <div class="progress">Category ${pos} of ${total}</div>
-    <div class="cat-head"><h2>${esc(cat.name)}</h2><span class="cat-badge">✓ Submitted</span></div>
+    <div class="cat-head"><h2>${esc(cat.name)}</h2><span class="cat-badge">✓ Completed</span></div>
     ${qs}
   </div>`;
 }
@@ -194,7 +195,7 @@ function activePanel(cat, pos, total) {
     <div class="progress">Category ${pos} of ${total}</div>
     <h2>${esc(cat.name)}</h2>
     ${qs}
-    <button id="submitCat">Submit category</button>
+    <button id="submitCat">Complete category</button>
     <div id="banner"></div>
   </div>`;
 }

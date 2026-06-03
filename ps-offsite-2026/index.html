@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PS Offsite 2026</title>
+<title>Project Future is US! 2026</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -17,6 +17,7 @@
     --muted: #848486;
     --accent: #DAFE85;
     --accent-2: #657BC7;
+    --gold: #ffd84d;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -31,13 +32,85 @@
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   .subtitle { color: var(--muted); font-size: 18px; margin-bottom: 40px; }
+
+  /* ---- mission hero ---- */
+  .hero {
+    position: relative; border-radius: 20px; overflow: hidden; margin-bottom: 36px;
+    min-height: 660px;
+    background-image: url('/assets/landing-page.png');
+    background-size: cover; background-position: center;
+  }
+  .hero-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(9,9,12,0.25) 0%, rgba(9,9,12,0.55) 45%, rgba(9,9,12,0.9) 100%);
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 40px 44px;
+  }
+  .hero-eyebrow {
+    font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
+    color: #DAFE85; margin-bottom: 6px; text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+  }
+  .hero-title {
+    font-size: clamp(30px, 5vw, 54px); font-weight: 900; letter-spacing: -1.5px; line-height: 1.02;
+    color: #fff; text-shadow: 0 2px 18px rgba(0,0,0,0.85); margin-bottom: 22px;
+  }
+  .hero-title .glow { color: #DAFE85; }
+
+  /* mission briefing — overlaid on hero image, so colors are fixed-light for legibility */
+  .mission { max-width: 820px; }
+  .mission .label {
+    font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
+    color: #DAFE85; margin-bottom: 12px; text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+  }
+  .mission .lead { font-size: 24px; line-height: 1.5; color: #fff; margin-bottom: 16px; text-shadow: 0 1px 10px rgba(0,0,0,0.85); }
+  .mission p { font-size: 18px; line-height: 1.65; color: #e6e6ea; margin-bottom: 14px; text-shadow: 0 1px 8px rgba(0,0,0,0.85); }
+  .mission p:last-child { margin-bottom: 0; }
+  .mission strong { color: #fff; font-weight: 700; }
+  .mission .accent { color: #DAFE85; font-weight: 700; }
+  .mission .atf { color: #ffd84d; font-weight: 700; }
+  @media (max-width: 640px) {
+    body { padding: 20px; }
+    .hero { min-height: 0; }
+    .hero-overlay { position: static; padding: 24px 20px; background: linear-gradient(180deg, rgba(9,9,12,0.5), rgba(9,9,12,0.92)); }
+    .mission .lead { font-size: 21px; }
+    .mission p { font-size: 17px; }
+  }
+
+  /* ---- light mode: white scrim on image + light-theme text colors ---- */
+  :root[data-theme="light"] .hero-overlay {
+    background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.57) 40%, rgba(255,255,255,0.97) 100%);
+  }
+  :root[data-theme="light"] .hero-eyebrow { color: var(--text); text-shadow: none; }
+  :root[data-theme="light"] .hero-title { color: var(--text); text-shadow: none; }
+  :root[data-theme="light"] .hero-title .glow { color: var(--accent); }
+  :root[data-theme="light"] .mission .label { color: var(--text); text-shadow: none; }
+  :root[data-theme="light"] .mission .lead { color: var(--text); text-shadow: none; }
+  :root[data-theme="light"] .mission p { color: #2a2a2e; text-shadow: none; }
+  :root[data-theme="light"] .mission strong { color: var(--text); }
+  :root[data-theme="light"] .mission .accent { color: var(--accent); }
+  :root[data-theme="light"] .mission .atf { color: var(--gold); }
+  @media (max-width: 640px) {
+    :root[data-theme="light"] .hero-overlay { background: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.96)); }
+  }
 </style>
 <link rel="stylesheet" href="shared/lobby.css">
 </head>
 <body>
 <main>
-  <h1>PS Offsite 2026</h1>
-  <div class="subtitle" id="subtitle">11 games · one winner</div>
+  <div class="hero">
+    <div class="hero-overlay">
+      <div class="hero-eyebrow">PS Offsite 2026 · Incident Response</div>
+      <div class="hero-title">Project Future is <span class="glow">US!</span></div>
+      <div class="mission">
+        <div class="label">Mission briefing</div>
+        <p class="lead">An Alien craft has locked onto your data center from low orbit. It isn't observing — it's <strong>harvesting</strong>.</p>
+        <p>The invaders call themselves <span class="accent">GoodStaff Must Not Survive</span>. They've partnered with Skynet to automate Earth's takeover: destabilize infrastructure, extract secrets, and convert humans into a controllable energy grid — power plants in a planetary machine.</p>
+        <p>Your facility is one of the last nodes still resisting. The Alien jammer is killing power, corrupting signals, and sealing physical access. Logs are distorted. Documents are hidden or replaced with decoys. An "Oracle" AI guards the final access key.</p>
+        <p>You are the <strong>Incident Response Unit: Project Future is US!</strong> Throughout the day, teams must complete missions to collect <span class="atf">Alien Tech Fragments (ATFs)</span>. At the end, you'll use them to assemble the <strong>Planet Shield Activation Key</strong> and stop the conversion protocol before it reaches critical mass.</p>
+      </div>
+    </div>
+  </div>
+
 
   <!-- ============== VIEW: create-join ============== -->
   <section id="view-create-join" hidden>
