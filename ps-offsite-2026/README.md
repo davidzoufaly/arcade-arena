@@ -1,114 +1,106 @@
-# PS Offsite 2026 — Computer Vision Game
+# Project Future is US! 2026
 
-A two-game computer-vision team competition for **10 teams × 4 people**. Pure browser, no installs, no Python, no backend. Each game is a self-contained HTML page accessed via a QR code; scores are entered manually into a central scoreboard.
+Týmová soutěž v misích pro firemní offsite, celá v prohlížeči. Mise přes kameru, jedna na hlas, pár živých výzev v místnosti a moderovaný pub quiz. Stavěné zhruba na 10 týmů, ale počet jde nastavit od 2 do 20. Skóre teče živě přes Firebase do společného scoreboardu, takže projektor ukáže výsledek hned, jak tým dohraje.
 
----
-
-## Games
-
-| # | Game | What the team does | Tech | Time |
-|---|---|---|---|---|
-| 1 | **Gesture Lock** | Unlock the vault with a 6-gesture random sequence drawn from a pool of 7 (open palm, fist, thumbs up/down, victory, point, ASL "I love you"). 35 s hard limit, every wrong gesture resets the sequence. | MediaPipe Hand Gesture Recognizer | 5–8 min |
-| 2 | **Pantomime** | Match 12 escalating poses (T-pose → Tree → Karate Kick → Arabesque) to a ghost skeleton overlay. Each pose has multiple geometric checks. Stability check — wobbling resets the hold. Tight per-pose timeouts. | MediaPipe Pose Landmarker | 12–15 min |
-
-Both games award **0–100 points** and emit a 6-character "submit code" (e.g. `GZ-7-85`) that the team takes to the central scoreboard.
+Je tu malý build krok (Vite) a jednorázové nastavení Firebase, viz SETUP.md.
 
 ---
 
-## Where are the AI models?
+## Mise
 
-**They are not in this repository.** This is intentional — both models are loaded from public CDNs at runtime. The repo only contains the HTML / JavaScript that wires them up.
+### Hrané v prohlížeči (na notebooku týmu)
 
-Two CDN providers do the heavy lifting:
+| Mise | Vstup | Co tým dělá | Technologie |
+|---|---|---|---|
+| Airlock Override [Gesture Lock] | kamera (ruce) | Nejdřív 20s kalibrace: každý zvedne jednu ruku, mise spočítá velikost týmu. Pak jednou problikne náhodná sekvence gest (4 gesta na člověka, s opakováním ze šestice: otevřená dlaň, pěst, palec nahoru, palec dolů, véčko, ukazovák nahoru). Tým ji zopakuje po paměti. Jedno špatné gesto pokus shodí, na každé gesto je 10 sekund. 5 pokusů, počítá se nejlepší. | MediaPipe Gesture Recognizer |
+| Human Mimic Checkpoint [Pantomime] | kamera (celé tělo) | Trefit 8 postupně těžších póz: 2 lehké, 2 střední, 2 těžké a na konec 2 duo pózy, kde musí být v záběru druhý člověk. Dostat všechny geometrické kontroly nad 85 % a pak chvíli vydržet bez hnutí (1,2 / 1,5 / 2 s podle obtížnosti). Klepání výdrž vynuluje. 25 s na pózu, 2 pokusy, počítá se nejlepší. | MediaPipe Pose Landmarker (heavy) |
+| Gravity Corridor [Dino Dash] | kamera (ruce) | Panáček běží a tým ho ovládá otevřenými dlaněmi. Počítají se dlaně, ne prsty, takže čím víc otevřených dlaní, tím vyšší skok. Pěst misi skrčí, véčko ji nechá v klidu. 20s kalibrace spočítá zvednuté ruce a podle velikosti týmu škáluje sílu skoku. Nekonečné, postupně zrychluje. | MediaPipe Hand Landmarker |
+| Sonic Stabilizer [Flappy Voice] | mikrofon | Celý tým řve do mikrofonu a nadnáší objekt mezi mezerami, hlasitěji = výš. Nekonečné, zrychluje. Skóre je počet branek. 5 pokusů, počítá se nejlepší. | Web Audio (hlasitost z mikrofonu, žádný ML model) |
 
-1. **jsDelivr** delivers the MediaPipe runtime library (`@mediapipe/tasks-vision`) — this is the JavaScript bridge to WebAssembly.
-2. **Google Cloud Storage** (`storage.googleapis.com/mediapipe-models/...`) delivers the actual neural-network weights — `.task` files that the MediaPipe runtime loads.
+Čtyři mise v prohlížeči dávají skóre 0 až 100 a zapíšou ho do společného scoreboardu hned, jak je tým připojený do lobby.
 
-Exact URLs used:
+### Výzvy bodované hostem
 
-| Asset | URL |
-|---|---|
-| MediaPipe runtime (vision_bundle.mjs) | `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs` |
-| MediaPipe WASM | `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm` |
-| Hand Gesture Recognizer model | `https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task` (~8 MB) |
-| Pose Landmarker (lite) model | `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task` (~6 MB) |
-
-**Why CDN instead of bundling the model files?**
-
-- Model weights (~14 MB total) would bloat the repo every time Google ships a fresh version.
-- The browser caches them after the first load — opening any game a second time skips the download.
-- Google's CDN is faster and more reliable than GitHub Pages or Netlify Drop for binary blobs.
-
-**If you want a fully offline / self-hosted version**, download the two `.task` files and the `vision_bundle.mjs` + `wasm/` directory from the URLs above into the repo (e.g. into a `vendor/` folder), then change the import URLs in `games/1-gesture-lock.html` and `games/2-pantomime.html` accordingly. The whole bundle weighs ~16 MB.
-
-### Hardware requirements per team laptop
-
-- Any laptop made in the last ~5 years. **Integrated graphics are fine** — no dedicated GPU needed.
-- Browser: **Chrome / Edge / Safari / Firefox**, current version.
-- 4 GB RAM minimum.
-- Built-in or USB webcam.
-- Stable internet only for the **first** load (~15 MB total per laptop). After that, the models are cached and games work even if WiFi dies.
-
-Real-world frame rate on a typical 2020+ ThinkPad / MacBook Air with integrated GPU: gestures ~30 fps, pose ~25–30 fps. Memory per browser tab: ~200–400 MB.
+Pár výzev se hraje mimo obrazovku a body zadává host: Analog Blackout [Math No-Brain], Systems Recalibration [Math Big-Brain], Transmission Decoder [Cipher], Oracle Breach [Gandalf], Archive Recovery [Hidden Document] a Alien Glyph Activation [Draw & Guess]. K tomu živý Pub Quiz. Tyhle body host zadává ve scoreboard.html a kvíz známkuje v quiz-admin.html.
 
 ---
 
-## Format
+## Formát
 
-### Self-paced
+### Vlastním tempem
 
-Teams move freely between the two games. After each one they get a "submit code" they take to the central scoreboard.
+Týmy se mezi misemi pohybují volně. Hrát může spousta týmů naráz, každý notebook má vlastní stránku mise připojenou do společné lobby a skóre teče živě na scoreboard.
 
-- **Duration:** 30–45 min total
-- **Games:** 2, one instance each
-- **Capacity:** 1 team at a time
-- **Scoreboard:** projector / large TV + laptop near the bar / entrance
+- Délka: 30 až 45 minut celkem.
+- Scoreboard: projektor nebo velká TV se scoreboard.html plus notebook hosta u baru nebo vchodu.
+- Backend: Firebase Realtime Database (viz SETUP.md).
 
-### Submit codes
+### Lobby a skóre
 
-After each game the team sees a 6-character code on the screen, e.g. `GZ-7-85`:
+Žádné ruční „submit kódy" nejsou, skóre jde přes lobby:
 
-- **GZ** = game (GZ Gesture Lock, PM Pantomime)
-- **7** = team number (1–10)
-- **85** = score 0–100
-
-Team brings the code to the scoreboard, organizer types it in, scoreboard parses and updates the leaderboard.
+1. Host otevře index.html, dá Vytvořit lobby a zadá počet týmů (výchozí 10, rozsah 2 až 20). Dostane ID lobby (třeba PS-7Q2K), admin heslo a heslo pro každý tým.
+2. Tým otevře připojovací odkaz nebo index.html, zadá ID lobby, vybere svůj tým a potvrdí týmovým heslem. Pak přistane na games.html.
+3. Čtyři mise v prohlížeči zapisují skóre 0 až 100 samy. Host zadává body za ručně bodované výzvy a známkuje pub quiz ve scoreboard.html a quiz-admin.html.
+4. scoreboard.html na projektoru ukazuje žebříček živě.
 
 ---
 
-## Running locally
+## Hostitelský panel (scoreboard.html)
 
-Games need camera access, which Chrome blocks on `file://`. Run a local server:
+Host řídí celý průběh ze scoreboard.html, chce to admin heslo. Mimo režim úprav je to jen živý žebříček; tlačítkem **Edit** se přepne do režimu úprav a objeví se **Save**, **Cancel**, **Lock all** a **Reset**. Všechny změny se bufferují a zapíšou se až tlačítkem **Save**, **Cancel** je zahodí.
 
-```bash
-git clone git@github.com:janpansky/ps-offsite-2026.git
-cd ps-offsite-2026
-python3 -m http.server 8765 --bind 127.0.0.1
-```
+### Zamknutí a odemknutí misí
 
-Then open **http://localhost:8765/index.html**.
+Každá mise je pro tým ve výchozím stavu **zamčená** — host ji musí odemknout, aby se dala hrát. Zamčená mise je v games.html prošedlá a needitovatelná, při pokusu o vstup tým vidí stránku „Mission locked". To řídí, kdy se která mise otevře.
 
-For mobile / tablet testing on the same WiFi, deploy to **Netlify Drop** (drag & drop the folder onto netlify.com/drop) — `getUserMedia` requires HTTPS for non-localhost URLs. **GitHub Pages** also works (Settings → Pages → branch `main`, root) and gives you `https://janpansky.github.io/ps-offsite-2026/` for free.
+- 🔒 / 🔓 v hlavičce mise zamkne/odemkne misi pro **všechny týmy** naráz.
+- 🔒 / 🔓 v buňce skóre zamkne/odemkne misi pro **jeden tým**.
+- **Lock all** / **Unlock all** přepne **všechny mise** najednou a smaže dílčí výjimky.
 
----
+Přednost: buňka > mise > globální > výchozí (zamčeno).
 
-## Files
+### Body za ručně bodované výzvy
 
-```
-ps-offsite-2026/
-├── README.md                       ← you are here
-├── index.html                      ← lobby create / join
-├── games.html                      ← games catalog (main page post-join)
-├── scoreboard.html                 ← central scoreboard for the host laptop
-└── games/
-    ├── 1-gesture-lock.html
-    └── 2-pantomime.html
-```
+U výzev bodovaných hostem (Analog Blackout [Math No-Brain], Systems Recalibration [Math Big-Brain], Transmission Decoder [Cipher], Oracle Breach [Gandalf], Archive Recovery [Hidden Document], Alien Glyph Activation [Draw & Guess]) host v režimu úprav klikne do buňky týmu a zapíše skóre (celé číslo od 0). Čtyři mise v prohlížeči si skóre zapisují samy, do těch host nesahá.
 
-Open `index.html` to create or join a lobby; you land on `games.html` afterwards. Open `scoreboard.html` on the host laptop.
+### Časový limit (⏱) a pravidla (📋)
+
+U ručně bodovaných výzev a kvízu jsou v režimu úprav dvě tlačítka:
+
+- **⏱ Time limit** — modální okno, zadá se limit v minutách (prázdné nebo 0 = bez limitu). Limit jde nastavit pro celou misi, nebo jen pro jeden tým. Tým ho vidí v games.html a před vstupem do časované mise dostane upozornění.
+- **📋 Rules** — modální okno s textem pravidel, který tým uvidí u dané výzvy. Prázdné pole spadne zpět na výchozí text z katalogu. Taky pro celou misi, nebo jeden tým.
+
+### Reset
+
+**Reset** (červené, s potvrzením) smaže všechna skóre a historii lobby. Týmy zůstanou, ale akce je nevratná a týká se všech v lobby.
 
 ---
 
-## License
+## Nastavení Pub Quizu
 
-MIT. Built for an internal off-site, but feel free to fork and adapt.
+Pub Quiz řídí host. Aplikace nedrží ani otázky, ani správné odpovědi, jen názvy kategorií, kolik má každá otázek a které jsou bonusové. Otázky čte host nahlas a odpovědi známkuje ručně.
+
+Nová lobby startuje se 4 kategoriemi po 8 otázkách (Category 1 až 4). Kvíz host poskládá v quiz-admin.html, chce to admin heslo:
+
+1. **Úprava kategorií.** Přejmenuj, přidej (+ Add category) nebo odeber kategorie, změň počet otázek (− / +) a označ libovolnou otázku jako bonusovou přepínači Q1 až Qn. Úpravy se bufferují, publikují se až tlačítkem Save.
+2. **Průběh.** Host čte otázky nahlas. V quiz.html tým napíše jednu odpověď na otázku v aktuální kategorii a odešle ji. Tím se kategorie zamkne (odpovědi už nejdou změnit) a odkryje se další. Vždycky jen jedna kategorie, zpátky to nejde.
+3. **Známkování.** Když týmy dohrají, host v panelu Grading přepne u každé odpovědi ✓ nebo ✗, u bonusové ještě druhé, a každou kategorii odešle.
+
+Bodování: +1 za každou správnou otázku a +1 navíc, když je správně i bonusová. Součet jde do řádku týmu na scoreboardu.
+
+---
+
+## AI modely
+
+Modely pro kameru (MediaPipe) se stahují z veřejných CDN až za běhu, v repu nejsou. Sonic Stabilizer žádný model nepotřebuje, čte hlasitost z mikrofonu přes Web Audio.
+
+### Co potřebuje notebook týmu
+
+- Jakýkoli notebook z posledních zhruba 5 let. Integrovaná grafika stačí, dedikovaná GPU netřeba.
+- Prohlížeč Chrome, Edge, Safari nebo Firefox v aktuální verzi.
+- Aspoň 4 GB RAM.
+- Vestavěná nebo USB kamera (kamerové mise) a funkční mikrofon (Sonic Stabilizer).
+- Internet jen na první načtení každé mise. Pak je model v cache a mise běží i bez wifi.
+
+Airlock Override a Gravity Corridor jedou na integrované grafice plynule. Human Mimic Checkpoint používá heavy model pózy, takže tam počítej s citelně nižším FPS. Na držení póz to stačí, ale je to nejnáročnější mise. Paměť na záložku prohlížeče vyjde na 200 až 400 MB, u heavy modelu víc.

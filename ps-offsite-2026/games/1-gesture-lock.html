@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Game 1 — Gesture Lock</title>
+<title>Mission 1 — Airlock Override</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -245,12 +245,13 @@
 </head>
 <body>
 <header>
-  <h1>Gesture Lock</h1>
+  <h1>Airlock Override</h1>
 </header>
 
 <main>
   <div class="card briefing" id="briefing">
-    <strong>Goal:</strong> Watch a sequence flash by once, then unlock the vault by repeating it from memory. <strong>First, a 20-second calibration:</strong> everyone raises one hand each so the game can detect team size. <strong>Who performs each gesture is your team's call — split the sequence however your strategy works best.</strong> One wrong move locks you out, and each gesture has a <strong>10 s timer</strong> — run out and the attempt fails. Go in order. <strong>5 attempts</strong>, best score counts; the faster you unlock, the higher the score.
+    The Aliens triggered a biometric lockdown on the server room. It's not a door anymore — it's an airlock. The camera verifies a gesture sequence like a living password. You don't get unlimited attempts: each failure escalates the lockout timer and alerts the craft that resistance is active.<br><br>
+    <strong>Goal:</strong> Watch a sequence flash by once, then override the airlock by repeating it from memory. <strong>First, a 20-second calibration:</strong> everyone raises one hand each so the mission can detect team size. <strong>Who performs each gesture is your team's call — split the sequence however your strategy works best.</strong> One wrong move locks you out, and each gesture has a <strong>10 s timer</strong> — run out and the attempt fails. Go in order. <strong>5 attempts</strong>, best score counts; the faster you override, the higher the score.
     <div style="margin-top: 14px;"><strong style="color:var(--text)">Gestures used:</strong> <span id="gesturePool" style="font-size:22px;letter-spacing:6px;"></span></div>
   </div>
 
@@ -261,7 +262,7 @@
   <div id="phase-setup" class="card hidden">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup">
-      <button id="startBtn">Start game</button>
+      <button id="startBtn">Start mission</button>
     </div>
     <div class="briefing" style="margin-top: 12px; font-size: 15px;">
       Allow camera access when prompted.
@@ -355,7 +356,7 @@
     <div class="score" id="resScore">0</div>
     <div id="saveStatus" class="save-status">SAVING…</div>
     <div class="result-row" style="margin-top: 14px;">
-      <button id="finalPlayAgain">Restart game</button>
+      <button id="finalPlayAgain">Restart mission</button>
       <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
     </div>
     <p style="font-size: 14px;color:var(--muted);margin-top:10px">Something went wrong? Restart requires the admin password.</p>
@@ -981,7 +982,7 @@ function enterAlreadyPlayed(existing) {
   for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
   $('phase-final').classList.remove('hidden');
   $('briefing').classList.add('hidden');
-  $('finalTitle').textContent = '✅ Already submitted';
+  $('finalTitle').textContent = '✅ Already completed';
   $('resTeam').textContent = state.teamId;
   $('resScore').textContent = existing;
   const status = $('saveStatus');
