@@ -106,7 +106,17 @@ function esc(s) {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const gamesSnap = await get(ref(db, `lobbies/${session.lobbyId}/games`));
+let gamesSnap;
+try {
+  gamesSnap = await get(ref(db, `lobbies/${session.lobbyId}/games`));
+} catch (e) {
+  container.innerHTML = `
+    <h1>Load error</h1>
+    <p style="color:#848486;margin-top:10px">Couldn't load this game. Check your connection and try again.</p>
+    <a class="back-link" href="${catalogHref}">← Back to catalog</a>
+  `;
+  throw e;
+}
 const effective = resolveCatalog(GAMES, gamesSnap.exists() ? gamesSnap.val() : null);
 const game = effective.find(g => g.key === key) || null;
 
