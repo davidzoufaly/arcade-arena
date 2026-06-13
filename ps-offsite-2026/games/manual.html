@@ -81,7 +81,8 @@ import { firebaseConfig } from '../firebase-config.js';
 import { resolveSession } from '../shared/lobby.js';
 import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import { mountTopbar } from '../shared/topbar.js';
-import { getGame } from '../shared/games-catalog.js';
+import { GAMES, getGame } from '../shared/games-catalog.js';
+import { resolveCatalog } from '../shared/lobby-games.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 import { resolveTimer, resolveRule, deadlineFor, isExpired, formatMMSS } from '../shared/game-config.js';
 
@@ -94,7 +95,6 @@ mountTopbar({ activePage: 'games' });
 
 const params = new URLSearchParams(location.search);
 const key = params.get('key');
-const game = getGame(key);
 
 const container = document.getElementById('container');
 const catalogHref = `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
@@ -102,6 +102,13 @@ const catalogHref = `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const gamesSnap = await get(ref(db, `lobbies/${session.lobbyId}/games`));
+const effective = resolveCatalog(GAMES, gamesSnap.exists() ? gamesSnap.val() : null);
+const game = effective.find(g => g.key === key) || null;
 
 if (!game || game.kind !== 'manual') {
   container.innerHTML = `
@@ -111,9 +118,6 @@ if (!game || game.kind !== 'manual') {
   `;
   throw new Error('unknown manual game');
 }
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
 const writer = firebaseWriter({ db, ref, update, push });
 
 const scorePath = `lobbies/${session.lobbyId}/scores/${session.teamId}/${key}`;
