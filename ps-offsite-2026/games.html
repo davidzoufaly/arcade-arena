@@ -123,6 +123,7 @@ import { firebaseConfig } from './firebase-config.js';
 import { resolveSession } from './shared/lobby.js';
 import { mountTopbar } from './shared/topbar.js';
 import { GAMES } from './shared/games-catalog.js';
+import { resolveCatalog, addedKeys } from './shared/lobby-games.js';
 import { resolveLock } from './shared/game-lock.js';
 import { resolveTimer } from './shared/game-config.js';
 import { allCategoriesSubmitted } from './shared/quiz.js';
@@ -151,6 +152,7 @@ let currentTimers = null;
 let currentStarts = null;     // timerStarts/{key}/{teamId} — set once a timed game is entered
 let currentQuizCats = null;   // quiz/categories
 let currentQuizSubs = null;   // quiz/submissions/{teamId} for THIS team
+let currentGamesNode = null;
 
 // A game is "submitted" by this team. For Pub Quiz the score is published by the
 // host after grading, so a finished-but-ungraded quiz has no score yet — treat
@@ -175,7 +177,10 @@ function tileHref(key, g) {
 
 function render() {
   const scoresForTeam = currentScores;
-  const html = Object.entries(GAMES).map(([key, g]) => {
+  const effective = resolveCatalog(GAMES, currentGamesNode);
+  const shown = effective.filter(g => g.added);
+  const html = shown.map(g => {
+    const key = g.key;
     const lockedTile = g.kind !== 'soon' && resolveLock(currentLocks, key, session.teamId) === 'locked';
     const href = lockedTile ? null : tileHref(key, g);
     const baseTag = g.kind === 'play' ? 'Playable' : g.kind === 'manual' ? 'Manual entry' : g.kind === 'quiz' ? 'Quiz' : 'Coming soon';
@@ -220,8 +225,8 @@ function render() {
     el.addEventListener('click', () => openTimeWarning(el.dataset.href, el.dataset.name, el.dataset.mins));
   }
 
-  const submitted = Object.entries(GAMES).filter(([key, g]) => isGameSubmitted(key, g)).length;
-  const total = Object.values(GAMES).filter(g => g.kind !== 'soon').length;
+  const submitted = shown.filter(g => isGameSubmitted(g.key, g)).length;
+  const total = shown.length;
   subtitle.textContent = `${submitted}/${total} games completed`;
 }
 
@@ -270,6 +275,11 @@ onValue(ref(db, `lobbies/${session.lobbyId}/quiz/categories`), snap => {
 
 onValue(ref(db, `lobbies/${session.lobbyId}/quiz/submissions/${session.teamId}`), snap => {
   currentQuizSubs = snap.exists() ? snap.val() : null;
+  render();
+});
+
+onValue(ref(db, `lobbies/${session.lobbyId}/games`), snap => {
+  currentGamesNode = snap.exists() ? snap.val() : null;
   render();
 });
 </script>
