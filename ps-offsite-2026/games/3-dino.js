@@ -14,6 +14,7 @@ import {
   palmCountToJumpStrength, pickCalibratedHandCount, effectivePalmCount,
   scoreAttempt, finalScore,
   runSpeed, spawnIntervalFrames, highObstacleProb,
+  SEGMENT_PLAY_S, segmentSecondsLeft, rotateSecondsLeft,
 } from '../shared/dino-logic.js';
 import { warmupSecondsLeft } from '../shared/warmup-logic.js';
 
@@ -289,8 +290,10 @@ phaseEnter.play = () => {
     // Sub-phase machine. Team size is already locked by the calibrate phase
     // (which runs before play), so play always starts in 'warmup'.
     subPhase: 'warmup',
-    subPhaseMs: performance.now(),
-    warmStartMs: performance.now(), startMs: 0,
+    warmStartMs: performance.now(),
+    liveBankMs: 0,        // banked play-ms from completed segments (drives difficulty + survival time)
+    segStartMs: 0,        // start of current play segment
+    rotateStartMs: 0,     // start of current rotate break
     // Parallax speck field — scrolls with run speed so forward motion reads
     // even in warmup (no obstacles yet). z = depth → speed, size, brightness.
     particles: Array.from({ length: 28 }, () => ({
@@ -299,6 +302,11 @@ phaseEnter.play = () => {
       z: 0.35 + Math.random() * 0.65,
     })),
   };
+
+  // Cumulative live play seconds (banked segments + current segment), the input
+  // to all difficulty ramps and the survival time. Rotate breaks never count.
+  const livePlaySec = (now) =>
+    (g.liveBankMs + (g.subPhase === 'play' ? now - g.segStartMs : 0)) / 1000;
 
   let rafId = null, cancelled = false, prevTs = performance.now(), hiddenAt = 0;
   let fpsFrames = 0, fpsLast = performance.now(), slowTicks = 0;
@@ -311,8 +319,9 @@ phaseEnter.play = () => {
     if (document.hidden) hiddenAt = performance.now();
     else if (hiddenAt) {
       const delta = performance.now() - hiddenAt;
-      if (g.subPhase === 'warmup') g.warmStartMs += delta;
-      else                         g.startMs    += delta;
+      if      (g.subPhase === 'warmup') g.warmStartMs   += delta;
+      else if (g.subPhase === 'rotate') g.rotateStartMs += delta;
+      else                              g.segStartMs    += delta;
       hiddenAt = 0;
       prevTs = performance.now();
     }
@@ -348,18 +357,21 @@ phaseEnter.play = () => {
     if (rafId) cancelAnimationFrame(rafId);
     track?.removeEventListener('ended', onEnded);
     document.removeEventListener('visibilitychange', onVis);
-    const timeSec = g.startMs ? (performance.now() - g.startMs) / 1000 : 0;
+    const timeSec = livePlaySec(performance.now());
     const score = scoreAttempt({ completed: g.score });
     state.attempts.push({ score, completed: g.score, timeSec, died, msg });
     goto('attempt-end');
   }
 
-  function step(dt, elapsedSec) {
-    const { eff, fist } = readInput();
+  function step(dt, elapsedSec, controllable) {
+    let eff = 0, fist = false;
+    if (controllable) { ({ eff, fist } = readInput()); }
     const onGround = g.y + RUNNER_H >= GROUND_Y - 0.5;
-    if (onGround && eff > 0 && g.lastEff === 0) g.vy = -palmCountToJumpStrength(eff, state.teamN ?? FALLBACK_N);
+    if (controllable && onGround && eff > 0 && g.lastEff === 0) {
+      g.vy = -palmCountToJumpStrength(eff, state.teamN ?? FALLBACK_N);
+    }
     g.lastEff = eff;
-    g.ducking = fist && onGround;
+    g.ducking = controllable && fist && onGround;
     g.vy += GRAVITY * dt;
     g.y += g.vy * dt;
     if (g.y + RUNNER_H > GROUND_Y) { g.y = GROUND_Y - RUNNER_H; g.vy = 0; }
@@ -372,7 +384,7 @@ phaseEnter.play = () => {
       if (p.x < -2) { p.x = CANVAS_W + Math.random() * 40; p.y = Math.random() * GROUND_Y; }
     }
 
-    if (g.subPhase === 'live') {
+    if (g.subPhase === 'play') {
       g.spawnTimer -= dt;
       if (g.spawnTimer <= 0) {
         spawnObstacle(elapsedSec);
@@ -390,9 +402,11 @@ phaseEnter.play = () => {
     }
     g.obs = g.obs.filter(o => o.x + o.w > 0);
 
-    const kh = g.ducking ? RUNNER_H * 0.55 : RUNNER_H;
-    const box = { x: RUNNER_X, y: g.y + (RUNNER_H - kh), w: RUNNER_W, h: kh };
-    for (const o of g.obs) { if (intersects(box, o)) { endAttempt(true); return; } }
+    if (controllable) {
+      const kh = g.ducking ? RUNNER_H * 0.55 : RUNNER_H;
+      const box = { x: RUNNER_X, y: g.y + (RUNNER_H - kh), w: RUNNER_W, h: kh };
+      for (const o of g.obs) { if (intersects(box, o)) { endAttempt(true); return; } }
+    }
   }
 
   function drawRunner() {
@@ -468,29 +482,67 @@ phaseEnter.play = () => {
     ctx.restore();
   }
 
+  function drawRotateBanner(secondsLeft) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = css('--good');
+    ctx.font = 'bold 34px system-ui, sans-serif';
+    ctx.fillText('🔄 ROTATE — swap players', CANVAS_W / 2, 70);
+    ctx.fillStyle = css('--text');
+    ctx.font = '22px system-ui, sans-serif';
+    ctx.fillText(`resume in ${secondsLeft}`, CANVAS_W / 2, 104);
+    ctx.restore();
+  }
+
   function tickWarmup(dt, now) {
     const left = warmupSecondsLeft((now - g.warmStartMs) / 1000);
     if (left <= 0) {
-      g.subPhase = 'live';
-      g.subPhaseMs = now;
-      g.startMs = now;
+      g.subPhase = 'play';
+      g.segStartMs = now;
       g.spawnTimer = 0;
-      return false; // caller falls through to tickLive this same frame
+      return false; // caller falls through to tickPlay this same frame
     }
     $('timerLabel').textContent = 'WARM UP';
-    step(dt, 0);
+    step(dt, 0, true);
     if (cancelled) return true;
     draw();
     drawWarmupBanner(left);
     return true; // handled this frame
   }
 
-  function tickLive(dt, now) {
-    const elapsed = (now - g.startMs) / 1000;
+  function tickPlay(dt, now) {
+    // Top-of-frame expiry check: segment end voids a same-frame collision (the
+    // rotate break wins the tie). Returns false to fall through to tickRotate.
+    if ((now - g.segStartMs) / 1000 >= SEGMENT_PLAY_S) {
+      g.liveBankMs += now - g.segStartMs;
+      g.subPhase = 'rotate';
+      g.rotateStartMs = now;
+      g.ducking = false;
+      g.lastEff = 0; // so the first jump after the break isn't suppressed
+      return false;
+    }
+    const elapsed = livePlaySec(now);
     $('timerLabel').textContent = elapsed.toFixed(1);
-    step(dt, elapsed);
-    if (cancelled) return;
+    step(dt, elapsed, true);
+    if (cancelled) return true;
     draw();
+    return true;
+  }
+
+  function tickRotate(dt, now) {
+    const left = rotateSecondsLeft((now - g.rotateStartMs) / 1000);
+    if (left <= 0) {
+      g.subPhase = 'play';
+      g.segStartMs = now;
+      g.spawnTimer = 0;
+      return false; // fall through to tickPlay this same frame
+    }
+    $('timerLabel').textContent = 'ROTATE';
+    step(dt, livePlaySec(now), false);
+    if (cancelled) return true;
+    draw();
+    drawRotateBanner(left);
+    return true;
   }
 
   function loop() {
@@ -510,14 +562,18 @@ phaseEnter.play = () => {
     if (g.subPhase === 'warmup') {
       const handled = tickWarmup(dt, now);
       if (cancelled) return;
-      if (handled) {
-        rafId = requestAnimationFrame(loop);
-        return;
-      }
-      // Fall through into tickLive this same frame (warmup just expired).
+      if (handled) { rafId = requestAnimationFrame(loop); return; }
+      // warmup expired → fall through to play this frame
     }
 
-    tickLive(dt, now);
+    if (g.subPhase === 'rotate') {
+      const handled = tickRotate(dt, now);
+      if (cancelled) return;
+      if (handled) { rafId = requestAnimationFrame(loop); return; }
+      // rotate expired → fall through to play this frame
+    }
+
+    tickPlay(dt, now);
     if (cancelled) return;
     rafId = requestAnimationFrame(loop);
   }
