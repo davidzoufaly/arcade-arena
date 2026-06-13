@@ -14,7 +14,7 @@ import {
   palmCountToJumpStrength, pickCalibratedHandCount, effectivePalmCount,
   scoreAttempt, finalScore,
   runSpeed, spawnIntervalFrames, highObstacleProb,
-  SEGMENT_PLAY_S, rotateSecondsLeft,
+  SEGMENT_PLAY_S, rotateSecondsLeft, segmentSecondsLeft,
 } from '../shared/dino-logic.js';
 import { warmupSecondsLeft } from '../shared/warmup-logic.js';
 
@@ -494,6 +494,15 @@ phaseEnter.play = () => {
     ctx.restore();
   }
 
+  function drawSegmentHint(secondsLeft) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = css('--muted');
+    ctx.font = 'bold 20px system-ui, sans-serif';
+    ctx.fillText(`↻ rotate in ${secondsLeft}`, CANVAS_W / 2, 40);
+    ctx.restore();
+  }
+
   function tickWarmup(dt, now) {
     const left = warmupSecondsLeft((now - g.warmStartMs) / 1000);
     if (left <= 0) {
@@ -511,8 +520,9 @@ phaseEnter.play = () => {
   }
 
   function tickPlay(dt, now) {
-    // Top-of-frame expiry check: segment end voids a same-frame collision (the
-    // rotate break wins the tie). Returns false to fall through to tickRotate.
+    // Segment expired → switch to rotate. The collision check below never runs
+    // this frame (we return first), so a crash on the exact boundary frame is
+    // voided — the rotate break wins the tie. Rotate rendering begins next frame.
     if ((now - g.segStartMs) / 1000 >= SEGMENT_PLAY_S) {
       g.liveBankMs += now - g.segStartMs;
       g.subPhase = 'rotate';
@@ -526,6 +536,8 @@ phaseEnter.play = () => {
     step(dt, elapsed, true);
     if (cancelled) return true;
     draw();
+    const segLeft = segmentSecondsLeft((now - g.segStartMs) / 1000);
+    if (segLeft <= 5) drawSegmentHint(segLeft);
     return true;
   }
 
