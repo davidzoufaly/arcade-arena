@@ -173,52 +173,6 @@ function arabesqueRef() {
   };
 }
 
-// --- Duo (2-person) reference figures ---
-// Duo ref figures: coords are relative to each figure's own 0–1 frame; the ref card renders each into its own half-panel.
-function mirrorRefX(ref) {
-  const out = {};
-  for (const k in ref) out[k] = { x: 1 - ref[k].x, y: ref[k].y };
-  return out;
-}
-function archRefLeft() {
-  return {
-    nose:  { x: 0.50, y: 0.16 },
-    lSh:   { x: 0.40, y: 0.30 }, rSh:   { x: 0.60, y: 0.30 },
-    lEl:   { x: 0.30, y: 0.18 }, rEl:   { x: 0.72, y: 0.16 },
-    lWr:   { x: 0.22, y: 0.06 }, rWr:   { x: 0.86, y: 0.04 },
-    lHip:  { x: 0.45, y: 0.62 }, rHip:  { x: 0.55, y: 0.62 },
-    lKnee: { x: 0.45, y: 0.80 }, rKnee: { x: 0.55, y: 0.80 },
-    lAnkle:{ x: 0.45, y: 0.97 }, rAnkle:{ x: 0.55, y: 0.97 },
-  };
-}
-function archRefRight() { return mirrorRefX(archRefLeft()); }
-function twinsRefLeft() {
-  return {
-    nose:  { x: 0.48, y: 0.18 },
-    lSh:   { x: 0.40, y: 0.32 }, rSh:   { x: 0.58, y: 0.32 },
-    lEl:   { x: 0.26, y: 0.34 }, rEl:   { x: 0.66, y: 0.18 },
-    lWr:   { x: 0.12, y: 0.34 }, rWr:   { x: 0.70, y: 0.04 },
-    lHip:  { x: 0.44, y: 0.62 }, rHip:  { x: 0.54, y: 0.62 },
-    lKnee: { x: 0.44, y: 0.80 }, rKnee: { x: 0.54, y: 0.80 },
-    lAnkle:{ x: 0.44, y: 0.97 }, rAnkle:{ x: 0.54, y: 0.97 },
-  };
-}
-function twinsRefRight() { return mirrorRefX(twinsRefLeft()); }
-
-// Shared duo helper: classifies a body into "one arm up, one arm out" and
-// reports which side the raised wrist is on (for the mirror check).
-function twinShape(p) {
-  const lw = p[LM.L_WRIST], rw = p[LM.R_WRIST], nose = p[LM.NOSE];
-  const shMidY = (p[LM.L_SHOULDER].y + p[LM.R_SHOULDER].y) / 2;
-  const shMidX = (p[LM.L_SHOULDER].x + p[LM.R_SHOULDER].x) / 2;
-  const raised = lw.y < rw.y ? lw : rw;   // higher wrist = smaller y
-  const out    = lw.y < rw.y ? rw : lw;
-  const raisedOK    = smoothScore(nose.y - raised.y, 0.15, 0.10);          // raised wrist above nose
-  const outLevel    = smoothScore(Math.abs(out.y - shMidY), 0, 0.15);      // other wrist near shoulder height
-  const outExtended = smoothScore(Math.abs(out.x - shMidX), 0.28, 0.18);   // ...and far out sideways
-  return { score: (raisedOK + outLevel + outExtended) / 3, raised, shMidX };
-}
-
 export const POSE_POOL = [
   {
     id: 'tpose',
@@ -637,66 +591,6 @@ export const POSE_POOL = [
       }},
     ],
   },
-  {
-    id: 'arch',
-    name: 'Human Arch',
-    emoji: '🌉',
-    difficulty: 'duo',
-    people: 2,
-    timeout: 25,
-    desc: 'Two people side by side — raise both arms overhead so your inner hands meet in the middle. Make an arch.',
-    refs: [archRefLeft(), archRefRight()],
-    checks: [
-      { name: 'Left person arms overhead', fn: (a, b) => {
-        const lUp = smoothScore(a[LM.L_SHOULDER].y - a[LM.L_WRIST].y, 0.25, 0.15);
-        const rUp = smoothScore(a[LM.R_SHOULDER].y - a[LM.R_WRIST].y, 0.25, 0.15);
-        return (lUp + rUp) / 2;
-      }},
-      { name: 'Right person arms overhead', fn: (a, b) => {
-        const lUp = smoothScore(b[LM.L_SHOULDER].y - b[LM.L_WRIST].y, 0.25, 0.15);
-        const rUp = smoothScore(b[LM.R_SHOULDER].y - b[LM.R_WRIST].y, 0.25, 0.15);
-        return (lUp + rUp) / 2;
-      }},
-      { name: 'Hands meet at apex', fn: (a, b) => {
-        // inner wrist = the wrist nearer the other person (a is left, so a's inner
-        // wrist has the larger x; b's inner wrist has the smaller x). Mirror-robust.
-        const innerA = a[LM.L_WRIST].x > a[LM.R_WRIST].x ? a[LM.L_WRIST] : a[LM.R_WRIST];
-        const innerB = b[LM.L_WRIST].x < b[LM.R_WRIST].x ? b[LM.L_WRIST] : b[LM.R_WRIST];
-        const shoulderW = dist(a[LM.L_SHOULDER], a[LM.R_SHOULDER]);
-        return smoothScore(dist(innerA, innerB) / Math.max(0.05, shoulderW), 0, 1.2);
-      }},
-      { name: 'Arms straight', fn: (a, b) => {
-        const angs = [
-          angle(a[LM.L_SHOULDER], a[LM.L_ELBOW], a[LM.L_WRIST]),
-          angle(a[LM.R_SHOULDER], a[LM.R_ELBOW], a[LM.R_WRIST]),
-          angle(b[LM.L_SHOULDER], b[LM.L_ELBOW], b[LM.L_WRIST]),
-          angle(b[LM.R_SHOULDER], b[LM.R_ELBOW], b[LM.R_WRIST]),
-        ];
-        return angs.reduce((s, ang) => s + smoothScore(ang, 175, 35), 0) / angs.length;
-      }},
-    ],
-  },
-  {
-    id: 'twins',
-    name: 'Mirror Twins',
-    emoji: '🪞',
-    difficulty: 'duo',
-    people: 2,
-    timeout: 25,
-    desc: 'Both strike the SAME shape — one arm up, one arm out to the side. Mirror each other.',
-    refs: [twinsRefLeft(), twinsRefRight()],
-    checks: [
-      { name: 'Left person: one arm up, one out', fn: (a, b) => twinShape(a).score },
-      { name: 'Right person: one arm up, one out', fn: (a, b) => twinShape(b).score },
-      { name: 'Mirrored (opposite arms up)', fn: (a, b) => {
-        const sa = twinShape(a), sb = twinShape(b);
-        const sideA = Math.sign(sa.raised.x - sa.shMidX);
-        const sideB = Math.sign(sb.raised.x - sb.shMidX);
-        // Binary by design: raised arms must be on opposite sides (true mirror) or this gates the pose.
-        return (sideA !== 0 && sideB !== 0 && sideA === -sideB) ? 1 : 0;
-      }},
-    ],
-  },
 ];
 
 function shuffle(arr) {
@@ -708,11 +602,11 @@ function shuffle(arr) {
   return copy;
 }
 
-export function samplePoses(pool, mix = { easy: 2, medium: 2, hard: 2, duo: 2 }) {
-  const byTier = { easy: [], medium: [], hard: [], duo: [] };
+export function samplePoses(pool, mix = { easy: 2, medium: 3, hard: 3 }) {
+  const byTier = { easy: [], medium: [], hard: [] };
   for (const p of pool) byTier[p.difficulty].push(p);
   const out = [];
-  // Solo tiers first, in escalating order.
+  // Tiers in escalating order: easy, then medium, then hard (the climax).
   for (const tier of ['easy', 'medium', 'hard']) {
     const n = mix[tier] || 0;
     if (byTier[tier].length < n) {
@@ -720,12 +614,6 @@ export function samplePoses(pool, mix = { easy: 2, medium: 2, hard: 2, duo: 2 })
     }
     out.push(...shuffle(byTier[tier]).slice(0, n));
   }
-  // Duo poses appended last (the climax).
-  const nDuo = mix.duo || 0;
-  if (byTier.duo.length < nDuo) {
-    throw new Error(`not enough duo poses: have ${byTier.duo.length}, need ${nDuo}`);
-  }
-  out.push(...shuffle(byTier.duo).slice(0, nDuo));
   return out;
 }
 
