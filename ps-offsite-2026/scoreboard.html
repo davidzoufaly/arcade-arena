@@ -194,34 +194,9 @@
     font-variant-numeric: tabular-nums;
   }
   .cell-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(218,254,133,0.25); }
-  .lock-btn {
-    background: transparent; border: none; cursor: pointer;
-    font-size: 16px; line-height: 1; padding: 2px 4px; margin-top: 4px;
-    opacity: 0.85;
-  }
-  .lock-btn:hover { opacity: 1; transform: scale(1.12); }
-  .lock-btn { font-size: 15px; margin-top: 0; padding: 1px 3px; }  /* match cfg-btn; margin-top from old layout, killed inside the row */
-  .edit-btns { display: flex; flex-wrap: nowrap; gap: 2px; justify-content: center; align-items: center; margin-top: 4px; }
-  .edit-btns button { font-size: 15px; line-height: 1; padding: 1px 3px; width: 22px; height: 20px; display: inline-flex; align-items: center; justify-content: center; }
-  .cfg-btn {
-    background: transparent; border: none; cursor: pointer;
-    font-size: 15px; line-height: 1; padding: 1px 3px; opacity: 0.7; color: var(--text);
-    font-family: inherit;
-  }
-  .cfg-btn:hover { opacity: 1; transform: scale(1.1); }
-  /* ⏱ is an emoji — `color` barely changes it; mark "set" with a filled accent pill + ring instead. */
-  .cfg-btn.set {
-    opacity: 1; font-weight: 800;
-    background: var(--accent); color: var(--btn-on-accent);
-    border-radius: 999px; padding: 2px 6px;
-    box-shadow: 0 0 0 1px var(--accent);
-  }
-
-  .cell-game.edit.locked .cell-input { border: 2px solid var(--bad); box-shadow: inset 0 0 0 1px var(--bad); }
-  .cell-game.edit.unlocked .cell-input { border: 2px solid var(--good); box-shadow: inset 0 0 0 1px var(--good); }
+  /* Read-only lock badge on game headers (locking is managed in the /games admin view). */
   .matrix-head .cell-game.lk-locked { color: var(--bad); }
   .matrix-head .cell-game.lk-unlocked { color: var(--good); }
-  .lock-all { white-space: nowrap; }
   .cell-total {
     text-align: right;
     font-size: 32px;
@@ -334,7 +309,7 @@
 <header>
   <div class="head-left">
     <h1>Scoreboard</h1>
-    <div class="subtitle" id="subtitle">8 games · one winner</div>
+    <div class="subtitle" id="subtitle">one winner</div>
     <div class="live-status" id="liveStatus">
       <span class="live-dot"></span>
       <span class="live-text">Live · connecting…</span>
@@ -353,18 +328,13 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from './firebase-config.js';
-import { GAMES, allEnteredKeys, quizKeys } from './shared/games-catalog.js';
+import { GAMES, quizKeys } from './shared/games-catalog.js';
+import { resolveCatalog, addedKeys } from './shared/lobby-games.js';
 import { allCategoriesSubmitted } from './shared/quiz.js';
 import { rankPointsByTeam } from './shared/ranking.js';
 import { requireAdmin } from './shared/admin-gate.js';
 import { getSession, isAdminSession } from './shared/lobby.js';
-import {
-  resolveLock, resolveGameLock, resolveAllLock,
-  toggleAll, toggleGame, toggleCell,
-} from './shared/game-lock.js';
-import {
-  resolveOverride, hasOverride, setGameOverride, setCellOverride,
-} from './shared/game-config.js';
+import { resolveGameLock } from './shared/game-lock.js';
 import { openModal } from './shared/modal.js';
 
 const lobbyId = new URLSearchParams(location.search).get('lobby');
@@ -396,9 +366,8 @@ let initialized = false;
 let editing = false;
 let lastUpdate = null;
 let connected = true;
-let locks = null, timers = null, rules = null, quiz = null;  // latest live nodes
-let draft = null;                                // { locks, timers, rules } while editing
-let dirty = { locks: false, timers: false, rules: false };
+let locks = null, quiz = null;  // latest live nodes (locks kept read-only for header badges)
+let gamesNode = null;           // lobbies/{id}/games delta node
 let pendingScores = null;
 
 function snapshotToState(snap) {
@@ -418,9 +387,8 @@ onValue(ref(db, LOBBY_PATH), snap => {
   lastUpdate = Date.now();
   renderLiveStatus();
   locks = snap.val()?.locks ?? null;
-  timers = snap.val()?.timers ?? null;
-  rules = snap.val()?.rules ?? null;
   quiz = snap.val()?.quiz ?? null;
+  gamesNode = snap.val()?.games ?? null;
   state = snapshotToState(snap);
   const leader = computeLeader();
   const leaderId = leader?.id ?? null;
@@ -473,21 +441,11 @@ function renderControls() {
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = 'Cancel';
     cancelBtn.addEventListener('click', cancelEdits);
-    const allBtn = document.createElement('button');
-    allBtn.className = 'lock-all';
-    allBtn.textContent = resolveAllLock(draft.locks) === 'locked' ? 'Unlock all' : 'Lock all';
-    allBtn.addEventListener('click', () => {
-      captureScoreInputs();
-      toggleAll(draft.locks);
-      dirty.locks = true;
-      renderControls();
-      render();
-    });
     const resetBtn = document.createElement('button');
     resetBtn.className = 'danger';
     resetBtn.textContent = 'Reset';
     resetBtn.addEventListener('click', resetAll);
-    controls.append(saveBtn, cancelBtn, allBtn, resetBtn);
+    controls.append(saveBtn, cancelBtn, resetBtn);
   } else {
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
@@ -498,12 +456,6 @@ function renderControls() {
 
 function startEdits() {
   editing = true;
-  draft = {
-    locks: locks ? JSON.parse(JSON.stringify(locks)) : {},
-    timers: timers ? JSON.parse(JSON.stringify(timers)) : {},
-    rules: rules ? JSON.parse(JSON.stringify(rules)) : {},
-  };
-  dirty = { locks: false, timers: false, rules: false };
   pendingScores = {};
   renderControls();
   render();
@@ -511,84 +463,9 @@ function startEdits() {
 
 function cancelEdits() {
   editing = false;
-  draft = null;
-  dirty = { locks: false, timers: false, rules: false };
   pendingScores = null;
   renderControls();
   render();
-}
-
-// Snapshot current score inputs so a lock-toggle re-render doesn't lose typing.
-function captureScoreInputs() {
-  pendingScores ??= {};
-  for (const el of document.querySelectorAll('.cell-input')) {
-    (pendingScores[el.dataset.team] ??= {})[el.dataset.game] = el.value;
-  }
-}
-
-// Wire lock toggle buttons after each editing render (innerHTML wipes listeners).
-function wireEditButtons() {
-  for (const btn of document.querySelectorAll('.lock-btn')) {
-    btn.addEventListener('click', () => {
-      captureScoreInputs();
-      const g = btn.dataset.game;
-      if (btn.dataset.team !== undefined) toggleCell(draft.locks, g, Number(btn.dataset.team));
-      else toggleGame(draft.locks, g);
-      dirty.locks = true;
-      render();
-    });
-  }
-  for (const btn of document.querySelectorAll('.clock-btn')) {
-    btn.addEventListener('click', () => openClockModal(btn.dataset.game, btn.dataset.team));
-  }
-  for (const btn of document.querySelectorAll('.rules-btn')) {
-    btn.addEventListener('click', () => openRulesModal(btn.dataset.game, btn.dataset.team));
-  }
-}
-
-// Prefill with the OWN-LEVEL override only (not the resolved cell>game value), so
-// clearing removes exactly this level and the modal never silently pins an
-// inherited value.
-function openClockModal(g, teamRaw) {
-  const teamId = teamRaw !== undefined ? Number(teamRaw) : undefined;
-  const cur = teamId !== undefined ? draft.timers?.cells?.[g]?.[teamId] : draft.timers?.games?.[g];
-  const level = teamId !== undefined ? `Team ${teamId}` : 'all teams';
-  openModal({
-    title: `⏱ Time limit · ${escapeHtml(GAMES[g].name)} · ${level}`,
-    bodyHtml: `<label>Minutes (blank or 0 = no limit)</label>
-      <input id="cfgInput" type="number" min="1" step="1" inputmode="numeric" value="${cur != null ? escapeHtml(String(cur)) : ''}">`,
-    onConfirm: () => {
-      const val = Number(document.getElementById('cfgInput').value);
-      captureScoreInputs();
-      if (teamId !== undefined) setCellOverride(draft.timers, g, teamId, val);
-      else setGameOverride(draft.timers, g, val);
-      dirty.timers = true;
-      render();
-    },
-  });
-}
-
-function openRulesModal(g, teamRaw) {
-  const teamId = teamRaw !== undefined ? Number(teamRaw) : undefined;
-  const cur = teamId !== undefined ? draft.rules?.cells?.[g]?.[teamId] : draft.rules?.games?.[g];
-  const level = teamId !== undefined ? `Team ${teamId}` : 'all teams';
-  const def = GAMES[g].rules || '';
-  // Prefill the catalog default as editable text (own-level override wins if set), so
-  // the admin can extend the defaults. Clearing the box falls back to the default again.
-  const text = cur != null ? String(cur) : def;
-  openModal({
-    title: `📋 Rules · ${escapeHtml(GAMES[g].name)} · ${level}`,
-    bodyHtml: `<label>Rules text (clear to fall back to the default)</label>
-      <textarea id="cfgInput" placeholder="${escapeHtml(def)}">${escapeHtml(text)}</textarea>`,
-    onConfirm: () => {
-      const val = document.getElementById('cfgInput').value.trim();
-      captureScoreInputs();
-      if (teamId !== undefined) setCellOverride(draft.rules, g, teamId, val);
-      else setGameOverride(draft.rules, g, val);
-      dirty.rules = true;
-      render();
-    },
-  });
 }
 
 async function saveEdits() {
@@ -610,12 +487,7 @@ async function saveEdits() {
     writes.push([path, n]);
   }
   for (const [path, val] of writes) await set(ref(db, path), val);
-  if (dirty.locks) await set(ref(db, `${LOBBY_PATH}/locks`), draft.locks);
-  if (dirty.timers) await set(ref(db, `${LOBBY_PATH}/timers`), draft.timers);
-  if (dirty.rules) await set(ref(db, `${LOBBY_PATH}/rules`), draft.rules);
   editing = false;
-  draft = null;
-  dirty = { locks: false, timers: false, rules: false };
   pendingScores = null;
   renderControls();
   render();
@@ -628,8 +500,14 @@ function formatPts(p) {
   return Number.isInteger(p) ? String(p) : p.toFixed(1);
 }
 
+// The lobby's added games (built-ins + customs) drive every column, ranking
+// total, and counter. Removed games stop counting; custom games count.
+function effectiveGames() {
+  return resolveCatalog(GAMES, gamesNode).filter(g => g.added);
+}
+
 function computeLeader() {
-  const gameKeys = allEnteredKeys();
+  const gameKeys = addedKeys(resolveCatalog(GAMES, gamesNode));
   const teamCount = state.teams.length;
   const rankByGame = {};
   for (const g of gameKeys) {
@@ -650,29 +528,6 @@ function computeLeader() {
   return sorted[0];
 }
 
-// Build the edit-mode button row for a game header (teamId undefined) or a cell.
-function editButtonsHtml(g, teamId) {
-  const isCell = teamId !== undefined;
-  const lockState = isCell ? resolveLock(draft.locks, g, teamId) : resolveGameLock(draft.locks, g);
-  const lockIcon = lockState === 'locked' ? '🔒' : '🔓';
-  const lockTitle = lockState === 'locked'
-    ? (isCell ? 'Locked for this team — click to unlock' : 'Locked for all teams — click to unlock')
-    : (isCell ? 'Unlocked for this team — click to lock' : 'Unlocked for all teams — click to lock');
-  const teamAttr = isCell ? ` data-team="${teamId}"` : '';
-  let html = `<button class="lock-btn" data-game="${g}"${teamAttr} title="${lockTitle}">${lockIcon}</button>`;
-  if (GAMES[g].kind === 'manual') {
-    const mins = resolveOverride(draft.timers, g, teamId);
-    const minsSet = hasOverride(draft.timers, g, teamId);
-    const clockTitle = minsSet ? `Time limit: ${mins} min — click to change` : 'Set time limit (minutes)';
-    html += `<button class="cfg-btn clock-btn ${minsSet ? 'set' : ''}" data-game="${g}"${teamAttr} title="${clockTitle}">⏱</button>`;
-  }
-  if (GAMES[g].kind === 'manual' || GAMES[g].kind === 'quiz') {
-    const rulesSet = hasOverride(draft.rules, g, teamId);
-    html += `<button class="cfg-btn rules-btn ${rulesSet ? 'set' : ''}" data-game="${g}"${teamAttr} title="Edit rules">📋</button>`;
-  }
-  return `<span class="edit-btns">${html}</span>`;
-}
-
 function render() {
   const list = document.getElementById('leaderboard');
   if (state.teams.length === 0) {
@@ -680,7 +535,11 @@ function render() {
     return;
   }
   const bumpedTeamId = bumpedTeam && bumpedTeam.until > Date.now() ? bumpedTeam.id : null;
-  const gameKeys = allEnteredKeys();
+  // Columns/ranking/counters follow the lobby's ADDED games (built-ins + customs).
+  const eff = effectiveGames();
+  const gameKeys = eff.map(g => g.key);
+  const gameKeySet = new Set(gameKeys);
+  const quizAddedKeys = quizKeys().filter(k => gameKeySet.has(k));
   const teamCount = state.teams.length;
   const rankByGame = {};
   for (const g of gameKeys) {
@@ -695,11 +554,12 @@ function render() {
     .map(t => {
       let total = 0;
       for (const g of gameKeys) total += rankByGame[g]?.[t.id] ?? 0;
-      // Count a team's submitted games. Pub Quiz publishes its score only after
-      // the host grades, so a finished-but-ungraded quiz has no score key yet —
-      // count it as submitted once the team has submitted every category.
-      const submittedGames = new Set(Object.keys(t.scores));
-      for (const qk of quizKeys()) {
+      // Count a team's submitted games among the ADDED games only. Pub Quiz
+      // publishes its score only after the host grades, so a finished-but-
+      // ungraded quiz has no score key yet — count it as submitted once the
+      // team has submitted every category.
+      const submittedGames = new Set(gameKeys.filter(g => g in t.scores));
+      for (const qk of quizAddedKeys) {
         if (allCategoriesSubmitted(quiz?.categories, quiz?.submissions?.[t.id])) submittedGames.add(qk);
       }
       return {
@@ -716,9 +576,10 @@ function render() {
     for (const t of state.teams) if (typeof t.scores[g] === 'number') n++;
     submittedByGame[g] = n;
   }
-  const headCells = gameKeys.map(g => {
+  const headCells = eff.map(game => {
+    const g = game.key;
     let closed, label;
-    if (GAMES[g].kind === 'quiz') {
+    if (game.kind === 'quiz') {
       // Pub Quiz publishes a team's score after EACH category is graded, so a
       // PQ score alone doesn't mean the quiz is over. It's only "closed" once
       // the admin has graded every category (tracked at quiz/graded/{catId}).
@@ -731,12 +592,11 @@ function render() {
       label = closed ? 'closed' : `${submittedByGame[g]}/${teamCount}`;
     }
     const cls = closed ? 'closed' : 'open';
-    if (editing) {
-      const gs = resolveGameLock(draft.locks, g);
-      return `<div class="cell-game ${cls} lk-${gs}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span><br>${editButtonsHtml(g)}</div>`;
-    }
+    // Custom games (no built-in icon) lead with their emoji; built-ins keep the
+    // existing name-only header. Lock badge is read-only (managed in /games admin).
+    const title = game.custom ? `${game.emoji} ${game.name}` : game.name;
     const gs = resolveGameLock(locks, g);
-    return `<div class="cell-game ${cls} lk-${gs}">${escapeHtml(GAMES[g].name)}<br><span class="game-status ${cls}">${label}</span></div>`;
+    return `<div class="cell-game ${cls} lk-${gs}">${escapeHtml(title)}<br><span class="game-status ${cls}">${label}</span></div>`;
   }).join('');
   const head = `
     <div class="matrix-row matrix-head">
@@ -754,10 +614,9 @@ function render() {
     const cells = gameKeys.map(g => {
       const v = t.scores[g];
       if (editing) {
-        const cs = resolveLock(draft.locks, g, t.id);
         const typed = pendingScores?.[String(t.id)]?.[g];
         const val = typed !== undefined ? typed : (v ?? '');
-        return `<div class="cell-game edit ${cs}"><input class="cell-input" type="number" min="0" step="1" inputmode="numeric" data-team="${t.id}" data-game="${g}" value="${escapeHtml(String(val))}" placeholder="-">${editButtonsHtml(g, t.id)}</div>`;
+        return `<div class="cell-game edit"><input class="cell-input" type="number" min="0" step="1" inputmode="numeric" data-team="${t.id}" data-game="${g}" value="${escapeHtml(String(val))}" placeholder="-"></div>`;
       }
       if (v === undefined) {
         return `<div class="cell-game empty">-</div>`;
@@ -783,14 +642,11 @@ function render() {
 
   list.style.setProperty('--game-cols', gameKeys.length);
   list.innerHTML = head + rows;
-  if (editing) wireEditButtons();
-  // Count distinct team+game pairs, not raw history pushes — Pub Quiz publishes
-  // a score per graded category and again on every regrade, so a raw push count
-  // over-reports PQ. One pair = "this team submitted this game".
-  const submissionCount = new Set(state.history.map(h => `${h.teamId}:${h.gameKey}`)).size;
+  // Subtitle: when not editing, a static "<n> games · one winner" derived from
+  // the added-game count; while editing, score-entry guidance.
   document.getElementById('subtitle').textContent = editing
-    ? `Editing the lobby. Save to apply`
-    : `${state.teams.length} teams · ${submissionCount} submissions`;
+    ? `Editing scores. Save to apply`
+    : `${gameKeys.length} games · one winner`;
 }
 
 function escapeHtml(s) {
