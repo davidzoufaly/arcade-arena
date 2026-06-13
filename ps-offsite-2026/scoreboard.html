@@ -194,6 +194,18 @@
     font-variant-numeric: tabular-nums;
   }
   .cell-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(218,254,133,0.25); }
+  .name-input {
+    width: 100%;
+    background: var(--bg-2);
+    border: 1px solid rgba(218,254,133,0.4);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 17px;
+    font-weight: 700;
+    font-family: inherit;
+  }
+  .name-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(218,254,133,0.25); }
   /* Read-only lock badge on game headers (locking is managed in the /games admin view). */
   .matrix-head .cell-game.lk-locked { color: var(--bad); }
   .matrix-head .cell-game.lk-unlocked { color: var(--good); }
@@ -486,6 +498,15 @@ async function saveEdits() {
     if (!Number.isFinite(n) || n === prev) continue;
     writes.push([path, n]);
   }
+  const nameInputs = document.querySelectorAll('.name-input');
+  for (const el of nameInputs) {
+    const teamId = el.dataset.team;
+    const team = state.teams.find(t => String(t.id) === teamId);
+    const next = el.value.trim().slice(0, 24);
+    if (!next) continue;
+    if (next === (team?.name ?? '')) continue;
+    writes.push([`${LOBBY_PATH}/teams/${teamId}/name`, next]);
+  }
   for (const [path, val] of writes) await set(ref(db, path), val);
   editing = false;
   pendingScores = null;
@@ -631,7 +652,9 @@ function render() {
       <div class="matrix-row team ${rankClass} ${shine}">
         <div class="cell-rank">${i + 1}</div>
         <div>
-          <div class="cell-team-name">${escapeHtml(t.name)}</div>
+          ${editing
+            ? `<input class="name-input" data-team="${t.id}" maxlength="24" value="${escapeHtml(t.name || ('Team ' + t.id))}">`
+            : `<div class="cell-team-name">${escapeHtml(t.name)}</div>`}
           <div class="cell-team-meta">${t.gameCount}/${gameKeys.length} games</div>
         </div>
         ${cells}

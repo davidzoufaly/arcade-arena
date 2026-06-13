@@ -41,7 +41,7 @@ function buildHeader({ lobbyId, teamId }, activePage, admin, teamName) {
        <a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>`;
   const info = admin
     ? `Lobby <code>${esc(lobbyId)}</code> · <strong>Admin</strong>`
-    : `Lobby <code>${esc(lobbyId)}</code> · <strong class="ps-topbar-team">${esc(teamName || `Team ${teamId}`)}</strong> · <strong class="ps-topbar-pts" title="Total rank-points across all entered games">— pts</strong>`;
+    : `Lobby <code>${esc(lobbyId)}</code> · <strong class="ps-topbar-team" title="Click to rename" style="cursor:pointer">${esc(teamName || `Team ${teamId}`)}</strong> · <strong class="ps-topbar-pts" title="Total rank-points across all entered games">— pts</strong>`;
   const brandHref = admin ? scoreHref : gamesHref;
   const leaveLabel = 'Leave';
 
@@ -111,9 +111,21 @@ export function mountTopbar({ activePage }) {
   if (!admin) {
     const ptsEl = header.querySelector('.ps-topbar-pts');
     const teamEl = header.querySelector('.ps-topbar-team');
+    teamEl.style.cursor = 'pointer';
+    teamEl.title = 'Click to rename';
+    teamEl.addEventListener('click', async () => {
+      const next = prompt('Rename your team:', teamEl.textContent);
+      if (next == null) return;
+      const name = next.trim().slice(0, 24);
+      if (!name) return;
+      const { getDatabase, ref, set } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js');
+      const { getApps, getApp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js');
+      const db = getDatabase(getApps().length ? getApp() : undefined);
+      await set(ref(db, `lobbies/${ctx.lobbyId}/teams/${ctx.teamId}/name`), name);
+    });
     subscribeTeam(ctx.lobbyId, ctx.teamId, ({ total, teamName }) => {
       ptsEl.textContent = `${formatPts(total)} pts`;
-      if (teamName) teamEl.textContent = teamName;
+      if (teamName != null) teamEl.textContent = teamName || `Team ${ctx.teamId}`;
     });
   }
 }
