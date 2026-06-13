@@ -102,7 +102,10 @@ describe('validateCustomGame', () => {
   it('rejects empty emoji', () => {
     expect(validateCustomGame({ name: 'X', emoji: '', rules: '' }).ok).toBe(false);
   });
-  it('rejects over-long emoji field', () => {
-    expect(validateCustomGame({ name: 'X', emoji: 'abcdefghi', rules: '' }).ok).toBe(false);
+  it('rejects more than one emoji', () => {
+    expect(validateCustomGame({ name: 'X', emoji: '🎤🎤', rules: '' }).ok).toBe(false);
+  });
+  it('accepts a complex single emoji (flag)', () => {
+    expect(validateCustomGame({ name: 'X', emoji: '🇨🇿', rules: '' }).ok).toBe(true);
   });
 });

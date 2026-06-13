@@ -8,6 +8,13 @@
 
 export const SAFE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
+function graphemeCount(s) {
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    return [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(s)].length;
+  }
+  return [...s].length; // fallback: code points
+}
+
 // Default visibility when no explicit `added` flag is stored.
 function defaultAdded(kind) {
   return kind === 'play';
@@ -41,7 +48,7 @@ export function resolveCatalog(staticGames, node) {
       order: typeof v.order === 'number' ? v.order : 0,
       added: typeof v.added === 'boolean' ? v.added : true,
     }))
-    .sort((a, b) => (a.order - b.order) || (a.key < b.key ? -1 : 1));
+    .sort((a, b) => (a.order - b.order) || a.key.localeCompare(b.key));
 
   return [...builtins, ...customs];
 }
@@ -64,6 +71,7 @@ export function nextCustomKey(taken, rng = Math.random) {
   throw new Error('could not allocate a free custom game key');
 }
 
+// Precondition: validateCustomGame(args).ok === true (this does not re-validate).
 export function makeCustomGame({ name, emoji, rules, order }) {
   return {
     custom: true,
@@ -82,7 +90,7 @@ export function validateCustomGame({ name, emoji, rules }) {
   if (n.length > 40) return { ok: false, error: 'Name must be 40 characters or fewer.' };
   const e = String(emoji ?? '');
   if (!e.trim()) return { ok: false, error: 'Icon (emoji) is required.' };
-  if (e.length > 8) return { ok: false, error: 'Icon must be a single emoji.' };
+  if (graphemeCount(e) > 1) return { ok: false, error: 'Icon must be a single emoji.' };
   if (rules != null && typeof rules !== 'string') return { ok: false, error: 'Rules must be text.' };
   return { ok: true };
 }
