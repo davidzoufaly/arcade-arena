@@ -14,7 +14,7 @@ import {
   palmCountToJumpStrength, pickCalibratedHandCount, effectivePalmCount,
   scoreAttempt, finalScore,
   runSpeed, spawnIntervalFrames, highObstacleProb,
-  SEGMENT_PLAY_S, segmentSecondsLeft, rotateSecondsLeft,
+  SEGMENT_PLAY_S, rotateSecondsLeft,
 } from '../shared/dino-logic.js';
 import { warmupSecondsLeft } from '../shared/warmup-logic.js';
 
