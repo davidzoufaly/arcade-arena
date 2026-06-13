@@ -36,6 +36,13 @@ export const HIGH_PROB_MIN = 0.20;                     // base high-obstacle cha
 export const SEGMENT_PLAY_S = 20;  // active obstacle play per wave
 export const ROTATE_BREAK_S = 10;  // auto-run break to swap players
 
+// Whole seconds left in the current play segment / rotate break, for the
+// on-canvas countdown. Clamped to [0, duration] — mirrors warmupSecondsLeft.
+export const segmentSecondsLeft = (elapsedSec) =>
+  Math.max(0, Math.min(SEGMENT_PLAY_S, Math.ceil(SEGMENT_PLAY_S - elapsedSec)));
+export const rotateSecondsLeft = (elapsedSec) =>
+  Math.max(0, Math.min(ROTATE_BREAK_S, Math.ceil(ROTATE_BREAK_S - elapsedSec)));
+
 // 0 palms → no jump. 1..teamN palms → jump velocity scaled so that the team's
 // own hand total equals peak jump (22). Base 7 keeps tiny-team jumps from
 // feeling identical regardless of palm count. Velocity ~7% higher than before

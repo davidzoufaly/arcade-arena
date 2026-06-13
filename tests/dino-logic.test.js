@@ -23,6 +23,8 @@ import {
   highObstacleProb,
   scoreAttempt,
   finalScore,
+  segmentSecondsLeft,
+  rotateSecondsLeft,
 } from '../ps-offsite-2026/shared/dino-logic.js';
 
 describe('constants', () => {
@@ -133,4 +135,22 @@ describe('finalScore', () => {
     expect(finalScore([{ score: 0 }, { score: 0 }, { score: 0 }])).toBe(0));
   it('picks best attempt', () =>
     expect(finalScore([{ score: 7 }, { score: 23 }, { score: 15 }])).toBe(23));
+});
+
+describe('segmentSecondsLeft', () => {
+  it('0s elapsed → 20', () => expect(segmentSecondsLeft(0)).toBe(20));
+  it('19.1s → 1', () => expect(segmentSecondsLeft(19.1)).toBe(1));
+  it('19.999s → 1 (boundary)', () => expect(segmentSecondsLeft(19.999)).toBe(1));
+  it('20s → 0 (transition)', () => expect(segmentSecondsLeft(20)).toBe(0));
+  it('25s → 0 (floored)', () => expect(segmentSecondsLeft(25)).toBe(0));
+  it('negative → 20 (clamped)', () => expect(segmentSecondsLeft(-1)).toBe(20));
+});
+
+describe('rotateSecondsLeft', () => {
+  it('0s elapsed → 10', () => expect(rotateSecondsLeft(0)).toBe(10));
+  it('9.1s → 1', () => expect(rotateSecondsLeft(9.1)).toBe(1));
+  it('9.999s → 1 (boundary)', () => expect(rotateSecondsLeft(9.999)).toBe(1));
+  it('10s → 0 (transition)', () => expect(rotateSecondsLeft(10)).toBe(0));
+  it('11s → 0 (floored)', () => expect(rotateSecondsLeft(11)).toBe(0));
+  it('negative → 10 (clamped)', () => expect(rotateSecondsLeft(-1)).toBe(10));
 });
