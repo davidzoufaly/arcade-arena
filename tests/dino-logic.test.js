@@ -11,6 +11,9 @@ import {
   SPEED_MIN, SPEED_MAX,
   SPAWN_FRAMES_MAX, SPAWN_FRAMES_MIN,
   HIGH_PROB_MAX,
+  HIGH_PROB_MIN,
+  SEGMENT_PLAY_S,
+  ROTATE_BREAK_S,
   palmCountToJumpStrength,
   pickCalibratedHandCount,
   effectivePalmCount,
@@ -31,6 +34,9 @@ describe('constants', () => {
   it('FALLBACK_N is 4', () => expect(FALLBACK_N).toBe(4));
   it('MIN_N is 1', () => expect(MIN_N).toBe(1));
   it('RAMP_S is 70', () => expect(RAMP_S).toBe(70));
+  it('HIGH_PROB_MIN is 0.20', () => expect(HIGH_PROB_MIN).toBe(0.20));
+  it('SEGMENT_PLAY_S is 20', () => expect(SEGMENT_PLAY_S).toBe(20));
+  it('ROTATE_BREAK_S is 10', () => expect(ROTATE_BREAK_S).toBe(10));
 });
 
 describe('palmCountToJumpStrength', () => {
@@ -105,12 +111,13 @@ describe('spawnIntervalFrames', () => {
 });
 
 describe('highObstacleProb', () => {
-  it('start → 0 (all low, easy)', () => expect(highObstacleProb(0)).toBe(0));
+  it('start → HIGH_PROB_MIN floor (highs from t=0)', () => expect(highObstacleProb(0)).toBeCloseTo(HIGH_PROB_MIN));
   it('peak → HIGH_PROB_MAX', () => expect(highObstacleProb(RAMP_S)).toBeCloseTo(HIGH_PROB_MAX));
-  it('half ramp → half of max', () =>
-    expect(highObstacleProb(RAMP_S / 2)).toBeCloseTo(HIGH_PROB_MAX / 2));
+  it('half ramp → midpoint of floor and max', () =>
+    expect(highObstacleProb(RAMP_S / 2)).toBeCloseTo((HIGH_PROB_MIN + HIGH_PROB_MAX) / 2));
   it('past ramp → HIGH_PROB_MAX (plateau)', () =>
     expect(highObstacleProb(RAMP_S * 2)).toBeCloseTo(HIGH_PROB_MAX));
+  it('negative → HIGH_PROB_MIN (clamped)', () => expect(highObstacleProb(-5)).toBeCloseTo(HIGH_PROB_MIN));
 });
 
 describe('scoreAttempt (endless: score = obstacles passed)', () => {

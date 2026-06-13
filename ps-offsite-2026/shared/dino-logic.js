@@ -27,9 +27,12 @@ export const MIN_N            = 1;   // lower bound on team size
 // play, then plateau at peak — hard but steady, so the score keeps climbing as
 // long as the team survives. All four numbers are safe to tune.
 export const RAMP_S = 70;
+export const SEGMENT_PLAY_S = 20;  // active obstacle play per wave
+export const ROTATE_BREAK_S = 10;  // auto-run break to swap players
 export const SPEED_MIN = 4, SPEED_MAX = 10.2;          // scroll speed (px/frame)
 export const SPAWN_FRAMES_MAX = 110, SPAWN_FRAMES_MIN = 56; // gap between spawns
 export const HIGH_PROB_MAX = 0.38;                     // chance an obstacle is "high"
+export const HIGH_PROB_MIN = 0.20;                     // base high-obstacle chance from t=0
 
 // 0 palms → no jump. 1..teamN palms → jump velocity scaled so that the team's
 // own hand total equals peak jump (22). Base 7 keeps tiny-team jumps from
@@ -82,7 +85,7 @@ export function spawnIntervalFrames(elapsedSec) {
   return SPAWN_FRAMES_MAX - (SPAWN_FRAMES_MAX - SPAWN_FRAMES_MIN) * difficultyProgress(elapsedSec);
 }
 export function highObstacleProb(elapsedSec) {
-  return HIGH_PROB_MAX * difficultyProgress(elapsedSec);
+  return HIGH_PROB_MIN + (HIGH_PROB_MAX - HIGH_PROB_MIN) * difficultyProgress(elapsedSec);
 }
 
 // Endless: the score IS the number of obstacles cleared this attempt.
