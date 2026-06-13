@@ -107,25 +107,64 @@
     font-size: 13px; color: var(--muted);
   }
   .tile .score-line strong { color: var(--good); }
+  .admin-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .admin-row {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+  }
+  .admin-row.not-added { opacity: 0.5; }
+  .admin-row .ar-emoji { font-size: 24px; width: 32px; text-align: center; }
+  .admin-row .ar-name { font-weight: 800; flex: 1; }
+  .admin-row .ar-kind { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .admin-row .ar-actions { display: flex; gap: 6px; }
+  .admin-row .ar-actions button {
+    background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 6px 9px; font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+  .admin-row .ar-actions button.on { border-color: var(--accent); color: var(--accent); }
+  .admin-newgame { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+  .admin-newgame input, .admin-newgame textarea {
+    background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 15px;
+  }
+  .admin-perteam { padding: 8px 14px 4px; display: flex; flex-direction: column; gap: 6px; }
+  .admin-perteam .apt-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .admin-perteam .apt-row .apt-name { flex: 1; color: var(--muted); }
 </style>
 </head>
 <body>
 <main>
-  <h1>Games</h1>
-  <div class="subtitle" id="subtitle">Loading…</div>
-  <div class="grid" id="grid"></div>
+  <section id="team-view">
+    <h1>Games</h1>
+    <div class="subtitle" id="subtitle">Loading…</div>
+    <div class="grid" id="grid"></div>
+  </section>
+  <section id="admin-games" hidden>
+    <h1>Manage games</h1>
+    <p class="subtitle" id="adminSub">Add games to the lobby, lock them, set rules &amp; timers, or create your own.</p>
+    <div id="adminList" class="admin-list"></div>
+    <div class="admin-newgame">
+      <h2>Create a game</h2>
+      <input id="ngName" type="text" maxlength="40" placeholder="Game name">
+      <input id="ngEmoji" type="text" maxlength="8" placeholder="Icon (emoji)">
+      <textarea id="ngRules" rows="3" placeholder="Rules (optional)"></textarea>
+      <input id="ngTimer" type="number" min="0" placeholder="Time limit (min, optional)">
+      <button id="ngCreate">Create game</button>
+      <div id="ngErr" class="lobby-banner err" hidden></div>
+    </div>
+  </section>
 </main>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { getDatabase, ref, onValue, get, set } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from './firebase-config.js';
-import { resolveSession } from './shared/lobby.js';
+import { resolveSession, isAdminSession } from './shared/lobby.js';
 import { mountTopbar } from './shared/topbar.js';
 import { GAMES } from './shared/games-catalog.js';
-import { resolveCatalog } from './shared/lobby-games.js';
-import { resolveLock } from './shared/game-lock.js';
-import { resolveTimer } from './shared/game-config.js';
+import { resolveCatalog, nextCustomKey, makeCustomGame, validateCustomGame } from './shared/lobby-games.js';
+import { resolveTimer, resolveRule, setGameOverride, setCellOverride } from './shared/game-config.js';
+import { resolveLock, setCell, toggleGame, resolveGameLock } from './shared/game-lock.js';
 import { allCategoriesSubmitted } from './shared/quiz.js';
 
 if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
@@ -143,6 +182,15 @@ mountTopbar({ activePage: 'games' });
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+if (isAdminSession(session)) {
+  document.getElementById('team-view').hidden = true;
+  mountAdminGames(db, session.lobbyId);
+} else {
+  document.getElementById('admin-games').hidden = true;
+  mountTeamGrid(db, session);
+}
+
+function mountTeamGrid(db, session) {
 const grid = document.getElementById('grid');
 const subtitle = document.getElementById('subtitle');
 
@@ -282,6 +330,164 @@ onValue(ref(db, `lobbies/${session.lobbyId}/games`), snap => {
   currentGamesNode = snap.exists() ? snap.val() : null;
   render();
 });
+}
+
+function mountAdminGames(db, lobbyId) {
+  const section = document.getElementById('admin-games');
+  section.hidden = false;
+  const listEl = document.getElementById('adminList');
+
+  let gamesNode = null, locks = null, timers = null, rules = null, teams = [];
+
+  const path = p => `lobbies/${lobbyId}/${p}`;
+  onValue(ref(db, path('games')),  s => { gamesNode = s.val() || null; render(); });
+  onValue(ref(db, path('locks')),  s => { locks = s.val() || null; render(); });
+  onValue(ref(db, path('timers')), s => { timers = s.val() || null; render(); });
+  onValue(ref(db, path('rules')),  s => { rules = s.val() || null; render(); });
+  onValue(ref(db, path('teams')),  s => { teams = s.exists() ? Object.values(s.val()) : []; render(); });
+
+  async function writeNode(name, mutate) {
+    const snap = await get(ref(db, path(name)));
+    const node = snap.exists() ? snap.val() : {};
+    mutate(node);
+    await set(ref(db, path(name)), node);
+  }
+
+  function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+  function render() {
+    const eff = resolveCatalog(GAMES, gamesNode);
+    listEl.innerHTML = eff.map(g => {
+      const added = g.added;
+      const locked = resolveGameLock(locks, g.key) === 'locked';
+      const mins = resolveTimer(timers, g.key);
+      const kindLabel = g.custom ? 'Custom' : g.kind === 'play' ? 'Playable' : g.kind === 'quiz' ? 'Quiz' : 'Host-scored';
+      const canTimer = g.kind !== 'play'; // host-scored + custom
+      return `<div class="admin-row ${added ? '' : 'not-added'}" data-key="${g.key}">
+        <span class="ar-emoji">${g.emoji}</span>
+        <span class="ar-name">${esc(g.name)} <span class="ar-kind">${kindLabel}${mins ? ` · ⏱ ${mins}m` : ''}</span></span>
+        <span class="ar-actions">
+          <button data-act="eye" class="${added ? 'on' : ''}" title="${added ? 'Remove from lobby' : 'Add to lobby'}">${added ? '👁' : '🚫'}</button>
+          <button data-act="lock" class="${locked ? '' : 'on'}" title="${locked ? 'Locked' : 'Unlocked'}">${locked ? '🔒' : '🔓'}</button>
+          <button data-act="rules" title="Edit rules">📋</button>
+          ${canTimer ? `<button data-act="timer" title="Set time limit">⏱</button>` : ''}
+          <button data-act="perteam" title="Per-team overrides">⋯</button>
+          ${g.custom ? `<button data-act="delete" title="Delete game">🗑</button>` : ''}
+        </span>
+      </div>`;
+    }).join('');
+    for (const row of listEl.querySelectorAll('.admin-row')) {
+      const key = row.dataset.key;
+      row.querySelector('[data-act="eye"]').onclick   = () => toggleAdded(key);
+      row.querySelector('[data-act="lock"]').onclick  = () => writeNode('locks', n => toggleGame(n, key));
+      row.querySelector('[data-act="rules"]').onclick = () => editRules(key);
+      const t = row.querySelector('[data-act="timer"]'); if (t) t.onclick = () => editTimer(key);
+      row.querySelector('[data-act="perteam"]').onclick = () => togglePerTeam(row, key);
+      const d = row.querySelector('[data-act="delete"]'); if (d) d.onclick = () => deleteCustom(key);
+    }
+  }
+
+  function perTeamOverridesExist(key) {
+    return !!(locks?.cells?.[key] || timers?.cells?.[key] || rules?.cells?.[key]);
+  }
+
+  async function toggleAdded(key) {
+    await writeNode('games', node => {
+      const cur = resolveCatalog(GAMES, node).find(g => g.key === key);
+      node[key] = { ...(node[key] || {}), added: !(cur?.added) };
+    });
+  }
+
+  async function editRules(key) {
+    if (perTeamOverridesExist(key) && !confirm('Setting game-level rules clears any per-team rules for this game. Continue?')) return;
+    const eff = resolveCatalog(GAMES, gamesNode).find(g => g.key === key);
+    const current = resolveRule(rules, key, undefined, eff?.rules ?? '');
+    const next = prompt('Rules for ' + (eff?.name ?? key) + ' (blank = default):', current ?? '');
+    if (next === null) return;
+    await writeNode('rules', n => setGameOverride(n, key, next));
+  }
+
+  async function editTimer(key) {
+    if (perTeamOverridesExist(key) && !confirm('Setting a game-level timer clears any per-team timers for this game. Continue?')) return;
+    const cur = resolveTimer(timers, key);
+    const raw = prompt('Time limit in minutes (blank or 0 = no limit):', cur ?? '');
+    if (raw === null) return;
+    await writeNode('timers', n => setGameOverride(n, key, Number(raw)));
+  }
+
+  function togglePerTeam(row, key) {
+    const existing = row.nextElementSibling?.classList.contains('admin-perteam');
+    if (existing) { row.nextElementSibling.remove(); return; }
+    const box = document.createElement('div');
+    box.className = 'admin-perteam';
+    box.innerHTML = teams.slice().sort((a,b)=>a.id-b.id).map(t => {
+      const locked = resolveLock(locks, key, t.id) === 'locked';
+      const mins = resolveTimer(timers, key, t.id);
+      return `<div class="apt-row" data-team="${t.id}">
+        <span class="apt-name">${esc(t.name || ('Team ' + t.id))}</span>
+        <button data-pt="lock">${locked ? '🔒' : '🔓'}</button>
+        <button data-pt="timer">⏱${mins ? ' ' + mins + 'm' : ''}</button>
+        <button data-pt="rules">📋</button>
+      </div>`;
+    }).join('');
+    for (const r of box.querySelectorAll('.apt-row')) {
+      const teamId = Number(r.dataset.team);
+      r.querySelector('[data-pt="lock"]').onclick = () => writeNode('locks', n => {
+        const cur = resolveLock(n, key, teamId) === 'locked';
+        setCell(n, key, teamId, cur ? 'unlocked' : 'locked');
+      });
+      r.querySelector('[data-pt="timer"]').onclick = async () => {
+        const cur = resolveTimer(timers, key, teamId);
+        const raw = prompt('Per-team time limit (min, blank=clear):', cur ?? '');
+        if (raw === null) return;
+        await writeNode('timers', n => setCellOverride(n, key, teamId, Number(raw)));
+      };
+      r.querySelector('[data-pt="rules"]').onclick = async () => {
+        const eff = resolveCatalog(GAMES, gamesNode).find(g => g.key === key);
+        const cur = resolveRule(rules, key, teamId, eff?.rules ?? '');
+        const next = prompt('Per-team rules (blank=clear):', cur ?? '');
+        if (next === null) return;
+        await writeNode('rules', n => setCellOverride(n, key, teamId, next));
+      };
+    }
+    row.insertAdjacentElement('afterend', box);
+  }
+
+  async function deleteCustom(key) {
+    if (!confirm('Delete this game? Its past scores are kept but hidden.')) return;
+    await set(ref(db, path('games/' + key)), null);
+  }
+
+  document.getElementById('ngCreate').onclick = async () => {
+    const errEl = document.getElementById('ngErr');
+    errEl.hidden = true;
+    const name = document.getElementById('ngName').value;
+    const emoji = document.getElementById('ngEmoji').value;
+    const rulesTxt = document.getElementById('ngRules').value;
+    const timerRaw = document.getElementById('ngTimer').value;
+    const v = validateCustomGame({ name, emoji, rules: rulesTxt });
+    if (!v.ok) { errEl.textContent = v.error; errEl.hidden = false; return; }
+    const [gSnap, sSnap, hSnap] = await Promise.all([
+      get(ref(db, path('games'))), get(ref(db, path('scores'))), get(ref(db, path('history'))),
+    ]);
+    const taken = new Set(Object.keys(GAMES));
+    if (gSnap.exists()) Object.keys(gSnap.val()).forEach(k => taken.add(k));
+    if (sSnap.exists()) Object.values(sSnap.val()).forEach(byTeam => Object.keys(byTeam || {}).forEach(k => taken.add(k)));
+    if (hSnap.exists()) Object.values(hSnap.val()).forEach(h => h?.gameKey && taken.add(h.gameKey));
+    const node = gSnap.exists() ? gSnap.val() : {};
+    const maxOrder = Math.max(0, ...Object.values(node).filter(v => v?.custom).map(v => v.order || 0));
+    const key = nextCustomKey(taken);
+    const minutes = Number(timerRaw);
+    await set(ref(db, path('games/' + key)), makeCustomGame({ name, emoji, rules: rulesTxt, order: maxOrder + 1 }));
+    if (Number.isFinite(minutes) && minutes > 0) {
+      await writeNode('timers', n => setGameOverride(n, key, minutes));
+    }
+    document.getElementById('ngName').value = '';
+    document.getElementById('ngEmoji').value = '';
+    document.getElementById('ngRules').value = '';
+    document.getElementById('ngTimer').value = '';
+  };
+}
 </script>
 </body>
 </html>
