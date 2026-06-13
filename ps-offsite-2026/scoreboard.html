@@ -654,7 +654,7 @@ function render() {
         <div>
           ${editing
             ? `<input class="name-input" data-team="${t.id}" maxlength="24" value="${escapeHtml(t.name || ('Team ' + t.id))}">`
-            : `<div class="cell-team-name">${escapeHtml(t.name)}</div>`}
+            : `<div class="cell-team-name">${escapeHtml(t.name || ('Team ' + t.id))}</div>`}
           <div class="cell-team-meta">${t.gameCount}/${gameKeys.length} games</div>
         </div>
         ${cells}

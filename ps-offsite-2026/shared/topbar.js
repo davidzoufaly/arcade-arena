@@ -1,6 +1,6 @@
 import { resolveSession, clearSession } from './lobby.js';
 import { getApps, getApp, initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from '../firebase-config.js';
 import { GAMES } from './games-catalog.js';
 import { resolveCatalog, addedKeys } from './lobby-games.js';
@@ -118,9 +118,9 @@ export function mountTopbar({ activePage }) {
       if (next == null) return;
       const name = next.trim().slice(0, 24);
       if (!name) return;
-      const { getDatabase, ref, set } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js');
-      const { getApps, getApp } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js');
-      const db = getDatabase(getApps().length ? getApp() : undefined);
+      if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) return;
+      const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+      const db = getDatabase(app);
       await set(ref(db, `lobbies/${ctx.lobbyId}/teams/${ctx.teamId}/name`), name);
     });
     subscribeTeam(ctx.lobbyId, ctx.teamId, ({ total, teamName }) => {
