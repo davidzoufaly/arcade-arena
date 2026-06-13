@@ -35,7 +35,7 @@ function buildHeader({ lobbyId, teamId }, activePage, admin) {
   const nav = admin
     ? `<a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>
        <a data-nav="quiz-admin" href="${quizAdminHref}">Quiz</a>`
-    : `<a data-nav="games" href="${gamesHref}">Missions</a>
+    : `<a data-nav="games" href="${gamesHref}">Games</a>
        <a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>`;
   const info = admin
     ? `Lobby <code>${esc(lobbyId)}</code> · <strong>Admin</strong>`
@@ -46,7 +46,7 @@ function buildHeader({ lobbyId, teamId }, activePage, admin) {
   const header = document.createElement('header');
   header.className = 'ps-topbar';
   header.innerHTML = `
-    <a class="ps-topbar-brand" href="${brandHref}">Project Future is US!</a>
+    <a class="ps-topbar-brand" href="${brandHref}">Arcade Arena</a>
     <nav class="ps-topbar-nav">${nav}</nav>
     <div class="ps-topbar-info">${info}</div>
     <button class="ps-topbar-leave" type="button">${leaveLabel}</button>

@@ -3,7 +3,7 @@ import './theme.css';      // global theming — loaded on every page via lobby.
 import './theme.js';       // mounts light/dark switcher
 import { seedCategories } from './quiz.js';
 export const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const LOBBY_ID_RE = /^PS-[A-HJ-NP-Z2-9]{4}$/;
+const LOBBY_ID_RE = /^[A-HJ-NP-Z2-9]{4}$/;
 
 function pick(n) {
   let out = '';
@@ -14,7 +14,7 @@ function pick(n) {
 }
 
 export function generateLobbyId() {
-  return `PS-${pick(4)}`;
+  return pick(4);
 }
 
 export function generatePwd(len = 6) {

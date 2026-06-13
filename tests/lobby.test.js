@@ -18,7 +18,7 @@ describe('generateLobbyId', () => {
   it('uses the safe alphabet (no 0/O/1/I)', () => {
     for (let i = 0; i < 200; i++) {
       const id = generateLobbyId();
-      expect(id).toMatch(/^PS-[A-HJ-NP-Z2-9]{4}$/);
+      expect(id).toMatch(/^[A-HJ-NP-Z2-9]{4}$/);
     }
   });
 });
@@ -37,24 +37,24 @@ describe('generatePwd', () => {
 });
 
 describe('isValidLobbyId', () => {
-  it('accepts PS-7K2X', () => {
-    expect(isValidLobbyId('PS-7K2X')).toBe(true);
+  it('accepts 7K2X', () => {
+    expect(isValidLobbyId('7K2X')).toBe(true);
   });
   it('rejects lowercase', () => {
-    expect(isValidLobbyId('ps-7k2x')).toBe(false);
+    expect(isValidLobbyId('7k2x')).toBe(false);
   });
   it('rejects ambiguous chars', () => {
-    expect(isValidLobbyId('PS-0K2X')).toBe(false);
-    expect(isValidLobbyId('PS-OK2X')).toBe(false);
-    expect(isValidLobbyId('PS-1K2X')).toBe(false);
-    expect(isValidLobbyId('PS-IK2X')).toBe(false);
+    expect(isValidLobbyId('0K2X')).toBe(false);
+    expect(isValidLobbyId('OK2X')).toBe(false);
+    expect(isValidLobbyId('1K2X')).toBe(false);
+    expect(isValidLobbyId('IK2X')).toBe(false);
   });
   it('rejects wrong length', () => {
-    expect(isValidLobbyId('PS-7K2')).toBe(false);
-    expect(isValidLobbyId('PS-7K2XY')).toBe(false);
+    expect(isValidLobbyId('7K2')).toBe(false);
+    expect(isValidLobbyId('7K2XY')).toBe(false);
   });
-  it('rejects missing prefix', () => {
-    expect(isValidLobbyId('7K2X')).toBe(false);
+  it('rejects the old PS- prefix form', () => {
+    expect(isValidLobbyId('PS-7K2X')).toBe(false);
   });
 });
 
@@ -134,7 +134,7 @@ describe('createLobbyApi.createLobby', () => {
     const api = createLobbyApi(a);
     const result = await api.createLobby(4);
 
-    expect(result.lobbyId).toMatch(/^PS-[A-HJ-NP-Z2-9]{4}$/);
+    expect(result.lobbyId).toMatch(/^[A-HJ-NP-Z2-9]{4}$/);
     expect(result.adminPwd).toHaveLength(6);
     expect(result.teams).toHaveLength(4);
     expect(result.teams.map(t => t.id)).toEqual([1, 2, 3, 4]);
@@ -262,10 +262,10 @@ function mockLocation(search = '') {
 
 describe('resolveSession', () => {
   it('returns URL params when both are valid', async () => {
-    mockLocation('?lobby=PS-7K2X&team=3');
+    mockLocation('?lobby=7K2X&team=3');
     mockLocalStorage();
     const { resolveSession } = await import('../ps-offsite-2026/shared/lobby.js');
-    expect(resolveSession()).toEqual({ lobbyId: 'PS-7K2X', teamId: 3 });
+    expect(resolveSession()).toEqual({ lobbyId: '7K2X', teamId: 3 });
   });
 
   it('falls back to session when URL lobby is invalid', async () => {
@@ -277,27 +277,27 @@ describe('resolveSession', () => {
   });
 
   it('falls back to session when URL team is missing', async () => {
-    mockLocation('?lobby=PS-7K2X');
+    mockLocation('?lobby=7K2X');
     mockLocalStorage();
     const mod = await import('../ps-offsite-2026/shared/lobby.js');
-    mod.setSession({ lobbyId: 'PS-AAAA', teamId: 9, teamPwd: 'X' });
-    expect(mod.resolveSession()).toEqual({ lobbyId: 'PS-AAAA', teamId: 9 });
+    mod.setSession({ lobbyId: 'AAAA', teamId: 9, teamPwd: 'X' });
+    expect(mod.resolveSession()).toEqual({ lobbyId: 'AAAA', teamId: 9 });
   });
 
   it('falls back to session when URL team is non-numeric', async () => {
-    mockLocation('?lobby=PS-7K2X&team=abc');
+    mockLocation('?lobby=7K2X&team=abc');
     mockLocalStorage();
     const mod = await import('../ps-offsite-2026/shared/lobby.js');
-    mod.setSession({ lobbyId: 'PS-AAAA', teamId: 2, teamPwd: 'X' });
-    expect(mod.resolveSession()).toEqual({ lobbyId: 'PS-AAAA', teamId: 2 });
+    mod.setSession({ lobbyId: 'AAAA', teamId: 2, teamPwd: 'X' });
+    expect(mod.resolveSession()).toEqual({ lobbyId: 'AAAA', teamId: 2 });
   });
 
   it('falls back to session when URL team is <= 0', async () => {
-    mockLocation('?lobby=PS-7K2X&team=0');
+    mockLocation('?lobby=7K2X&team=0');
     mockLocalStorage();
     const mod = await import('../ps-offsite-2026/shared/lobby.js');
-    mod.setSession({ lobbyId: 'PS-AAAA', teamId: 1, teamPwd: 'X' });
-    expect(mod.resolveSession()).toEqual({ lobbyId: 'PS-AAAA', teamId: 1 });
+    mod.setSession({ lobbyId: 'AAAA', teamId: 1, teamPwd: 'X' });
+    expect(mod.resolveSession()).toEqual({ lobbyId: 'AAAA', teamId: 1 });
   });
 
   it('returns null when neither URL nor session has data', async () => {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mission 2 — Human Mimic Checkpoint</title>
+<title>Pantomime</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -317,12 +317,12 @@
 </head>
 <body>
 <header>
-  <h1>Human Mimic Checkpoint</h1>
+  <h1>Pantomime</h1>
 </header>
 
 <main>
   <div class="card briefing" id="briefing">
-    Skynet deployed visual sentries trained to detect behavior, not identity. They don't care who you are. They care whether you move like you belong. Your team must mimic the target pose with speed and precision to pass. Every incorrect posture teaches the sentry what "wrong" looks like — and tightens the threshold.<br><br>
+    The camera watches how you move. Your team must mimic the target pose with speed and precision to score.<br><br>
     <strong>Goal:</strong> Match each target pose with your body. The <strong>reference pose</strong> is shown beside the video so you can see what to aim for. Each pose has multiple checks — get every check above 85 %, then <strong>hold the pose still</strong> for the required time (1.2 s easy, 1.5 s medium, 2 s hard). Wobbling resets the hold timer.
     <br><br>
     <strong>Speed wins:</strong> each pose is worth up to 100 points — half from how clean your form is, half from <strong>how fast you lock it in</strong>. Nail it instantly = near 100; dawdle until the timer almost runs out = far fewer. Don't overthink — strike the pose and lock it fast.
@@ -337,7 +337,7 @@
   <div class="card hidden" id="phase-setup">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup">
-      <button id="startBtn">Start mission</button>
+      <button id="startBtn">Start game</button>
     </div>
     <div class="briefing" style="margin-top: 12px; font-size: 15px;">
       Place the laptop at least 2 m from the person — full body must fit in frame (head to ankles). Plain background helps a lot.
@@ -422,7 +422,7 @@
     <div class="breakdown" id="resBreakdown"></div>
     <div id="saveStatus" class="save-status">SAVING…</div>
     <div class="result-row" style="margin-top: 14px;">
-      <button onclick="replayFromFinal()">Restart mission</button>
+      <button onclick="replayFromFinal()">Restart game</button>
       <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
     </div>
     <p style="font-size: 14px;color:var(--muted);margin-top:10px">Something went wrong? Restart requires the admin password.</p>

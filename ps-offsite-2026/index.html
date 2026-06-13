@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Project Future is US! 2026</title>
+<title>Arcade Arena</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -33,82 +33,19 @@
   }
   .subtitle { color: var(--muted); font-size: 18px; margin-bottom: 40px; }
 
-  /* ---- mission hero ---- */
-  .hero {
-    position: relative; border-radius: 20px; overflow: hidden; margin-bottom: 36px;
-    min-height: 660px;
-    background-image: url('/assets/landing-page.png');
-    background-size: cover; background-position: center;
-  }
-  .hero-overlay {
-    position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(9,9,12,0.25) 0%, rgba(9,9,12,0.55) 45%, rgba(9,9,12,0.9) 100%);
-    display: flex; flex-direction: column; justify-content: flex-end;
-    padding: 40px 44px;
-  }
-  .hero-eyebrow {
-    font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
-    color: #DAFE85; margin-bottom: 6px; text-shadow: 0 1px 6px rgba(0,0,0,0.9);
-  }
-  .hero-title {
-    font-size: clamp(30px, 5vw, 54px); font-weight: 900; letter-spacing: -1.5px; line-height: 1.02;
-    color: #fff; text-shadow: 0 2px 18px rgba(0,0,0,0.85); margin-bottom: 22px;
-  }
-  .hero-title .glow { color: #DAFE85; }
-
-  /* mission briefing — overlaid on hero image, so colors are fixed-light for legibility */
-  .mission { max-width: 820px; }
-  .mission .label {
-    font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
-    color: #DAFE85; margin-bottom: 12px; text-shadow: 0 1px 6px rgba(0,0,0,0.9);
-  }
-  .mission .lead { font-size: 24px; line-height: 1.5; color: #fff; margin-bottom: 16px; text-shadow: 0 1px 10px rgba(0,0,0,0.85); }
-  .mission p { font-size: 18px; line-height: 1.65; color: #e6e6ea; margin-bottom: 14px; text-shadow: 0 1px 8px rgba(0,0,0,0.85); }
-  .mission p:last-child { margin-bottom: 0; }
-  .mission strong { color: #fff; font-weight: 700; }
-  .mission .accent { color: #DAFE85; font-weight: 700; }
-  .mission .atf { color: #ffd84d; font-weight: 700; }
+  .arcade-head { margin-bottom: 36px; }
+  .arcade-head h1 { font-size: clamp(36px, 6vw, 54px); }
   @media (max-width: 640px) {
     body { padding: 20px; }
-    .hero { min-height: 0; }
-    .hero-overlay { position: static; padding: 24px 20px; background: linear-gradient(180deg, rgba(9,9,12,0.5), rgba(9,9,12,0.92)); }
-    .mission .lead { font-size: 21px; }
-    .mission p { font-size: 17px; }
-  }
-
-  /* ---- light mode: white scrim on image + light-theme text colors ---- */
-  :root[data-theme="light"] .hero-overlay {
-    background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.57) 40%, rgba(255,255,255,0.97) 100%);
-  }
-  :root[data-theme="light"] .hero-eyebrow { color: var(--text); text-shadow: none; }
-  :root[data-theme="light"] .hero-title { color: var(--text); text-shadow: none; }
-  :root[data-theme="light"] .hero-title .glow { color: var(--accent); }
-  :root[data-theme="light"] .mission .label { color: var(--text); text-shadow: none; }
-  :root[data-theme="light"] .mission .lead { color: var(--text); text-shadow: none; }
-  :root[data-theme="light"] .mission p { color: #2a2a2e; text-shadow: none; }
-  :root[data-theme="light"] .mission strong { color: var(--text); }
-  :root[data-theme="light"] .mission .accent { color: var(--accent); }
-  :root[data-theme="light"] .mission .atf { color: var(--gold); }
-  @media (max-width: 640px) {
-    :root[data-theme="light"] .hero-overlay { background: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.96)); }
   }
 </style>
 <link rel="stylesheet" href="shared/lobby.css">
 </head>
 <body>
 <main>
-  <div class="hero">
-    <div class="hero-overlay">
-      <div class="hero-eyebrow">PS Offsite 2026 · Incident Response</div>
-      <div class="hero-title">Project Future is <span class="glow">US!</span></div>
-      <div class="mission">
-        <div class="label">Mission briefing</div>
-        <p class="lead">An Alien craft has locked onto your data center from low orbit. It isn't observing — it's <strong>harvesting</strong>.</p>
-        <p>The invaders call themselves <span class="accent">GoodStaff Must Not Survive</span>. They've partnered with Skynet to automate Earth's takeover: destabilize infrastructure, extract secrets, and convert humans into a controllable energy grid — power plants in a planetary machine.</p>
-        <p>Your facility is one of the last nodes still resisting. The Alien jammer is killing power, corrupting signals, and sealing physical access. Logs are distorted. Documents are hidden or replaced with decoys. An "Oracle" AI guards the final access key.</p>
-        <p>You are the <strong>Incident Response Unit: Project Future is US!</strong> Throughout the day, teams must complete missions to collect <span class="atf">Alien Tech Fragments (ATFs)</span>. At the end, you'll use them to assemble the <strong>Planet Shield Activation Key</strong> and stop the conversion protocol before it reaches critical mass.</p>
-      </div>
-    </div>
+  <div class="arcade-head">
+    <h1>Arcade Arena</h1>
+    <div class="subtitle">Create a lobby or join one to start playing.</div>
   </div>
 
 
@@ -119,13 +56,14 @@
         <h2>Create lobby</h2>
         <label for="createTeamCount">Number of teams</label>
         <input id="createTeamCount" type="number" min="2" max="20" value="10">
+        <div class="lobby-hint">2–20 teams. We recommend 2–6 players per team.</div>
         <button id="createBtn">Create lobby</button>
         <div id="createErr" class="lobby-banner err" hidden></div>
       </div>
       <div class="lobby-card">
         <h2>Join lobby</h2>
         <label for="joinLobbyId">Lobby ID</label>
-        <input id="joinLobbyId" type="text" placeholder="PS-XXXX" maxlength="7" autocomplete="off">
+        <input id="joinLobbyId" type="text" placeholder="XXXX" maxlength="4" autocomplete="off">
         <button id="joinContinueBtn">Continue</button>
         <div id="joinErr" class="lobby-banner err" hidden></div>
         <div id="teamPicker" hidden>
@@ -208,6 +146,14 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+const LAST_LOBBY_KEY = 'arcade.lastLobbyId';
+function rememberLobby(id) {
+  try { localStorage.setItem(LAST_LOBBY_KEY, id); } catch {}
+}
+function recallLobby() {
+  try { return localStorage.getItem(LAST_LOBBY_KEY) || ''; } catch { return ''; }
+}
+
 // ---------- create flow ----------
 $('createBtn').addEventListener('click', async () => {
   hideErr('createErr');
@@ -219,6 +165,7 @@ $('createBtn').addEventListener('click', async () => {
   $('createBtn').disabled = true;
   try {
     const { lobbyId, adminPwd, teams } = await api.createLobby(n);
+    rememberLobby(lobbyId);
     renderCredentials({ lobbyId, adminPwd, teams });
     show('view-credentials');
   } catch (e) {
@@ -266,7 +213,7 @@ $('joinContinueBtn').addEventListener('click', async () => {
   hideErr('joinErr');
   const id = $('joinLobbyId').value.trim();
   if (!isValidLobbyId(id)) {
-    showErr('joinErr', 'Lobby ID format: PS-XXXX (uppercase, no 0/O/1/I).');
+    showErr('joinErr', 'Lobby ID is 4 characters (uppercase, no 0/O/1/I).');
     return;
   }
   revealTeamPicker(id);
@@ -315,6 +262,7 @@ async function doJoin(lobbyId) {
   if (radio.value === '__admin__') {
     const ok = await api.verifyAdminPwd(lobbyId, pwd);
     if (!ok) { showErr('joinErr', 'Wrong admin password.'); return; }
+    rememberLobby(lobbyId);
     setSession({ lobbyId, role: 'admin' });
     location.href = `scoreboard.html?lobby=${encodeURIComponent(lobbyId)}`;
     return;
@@ -322,6 +270,7 @@ async function doJoin(lobbyId) {
   const teamId = parseInt(radio.value, 10);
   const ok = await api.verifyTeamPwd(lobbyId, teamId, pwd);
   if (!ok) { showErr('joinErr', 'Wrong password.'); return; }
+  rememberLobby(lobbyId);
   setSession({ lobbyId, teamId });
   location.href = `games.html?lobby=${encodeURIComponent(lobbyId)}&team=${teamId}`;
 }
@@ -334,6 +283,13 @@ if (session && isAdminSession(session)) {
   location.replace(`games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`);
 } else {
   show('view-create-join');
+  // Prefill the join field from ?lobby=… (shared link) or the last lobby this device used.
+  const urlLobby = new URLSearchParams(location.search).get('lobby');
+  const prefill = (urlLobby || recallLobby() || '').toUpperCase();
+  if (prefill) {
+    $('joinLobbyId').value = prefill;
+    if (isValidLobbyId(prefill)) revealTeamPicker(prefill);
+  }
 }
 </script>
 </body>

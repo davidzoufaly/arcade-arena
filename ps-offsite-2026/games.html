@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Project Future is US! 2026 — Missions</title>
+<title>Arcade Arena — Games</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -111,7 +111,7 @@
 </head>
 <body>
 <main>
-  <h1>Missions</h1>
+  <h1>Games</h1>
   <div class="subtitle" id="subtitle">Loading…</div>
   <div class="grid" id="grid"></div>
 </main>
@@ -222,7 +222,7 @@ function render() {
 
   const submitted = Object.entries(GAMES).filter(([key, g]) => isGameSubmitted(key, g)).length;
   const total = Object.values(GAMES).filter(g => g.kind !== 'soon').length;
-  subtitle.textContent = `${submitted}/${total} missions completed`;
+  subtitle.textContent = `${submitted}/${total} games completed`;
 }
 
 function openTimeWarning(href, name, mins) {
@@ -233,7 +233,7 @@ function openTimeWarning(href, name, mins) {
     <p>Entering starts your countdown <strong>now</strong>. You must complete your score before it reaches 0, or you'll be recorded a <strong>0</strong>.</p>
     <div class="tw-actions">
       <button type="button" id="twCancel">Cancel</button>
-      <button type="button" class="go" id="twGo">Enter mission</button>
+      <button type="button" class="go" id="twGo">Enter game</button>
     </div>`;
   document.body.appendChild(dialog);
   dialog.addEventListener('close', () => dialog.remove());

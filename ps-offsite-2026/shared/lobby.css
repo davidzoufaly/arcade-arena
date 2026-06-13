@@ -29,6 +29,12 @@
   letter-spacing: 1px;
   font-weight: 700;
 }
+.lobby-hint {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 4px 0 4px;
+}
 .lobby-card input {
   background: var(--bg-2);
   border: 1px solid var(--border);

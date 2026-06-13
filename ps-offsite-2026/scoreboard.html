@@ -334,7 +334,7 @@
 <header>
   <div class="head-left">
     <h1>Scoreboard</h1>
-    <div class="subtitle" id="subtitle">11 missions · one winner</div>
+    <div class="subtitle" id="subtitle">8 games · one winner</div>
     <div class="live-status" id="liveStatus">
       <span class="live-dot"></span>
       <span class="live-text">Live · connecting…</span>
@@ -773,7 +773,7 @@ function render() {
         <div class="cell-rank">${i + 1}</div>
         <div>
           <div class="cell-team-name">${escapeHtml(t.name)}</div>
-          <div class="cell-team-meta">${t.gameCount}/${gameKeys.length} missions</div>
+          <div class="cell-team-meta">${t.gameCount}/${gameKeys.length} games</div>
         </div>
         ${cells}
         <div class="cell-total ${bump}">${formatPts(t.total)}</div>

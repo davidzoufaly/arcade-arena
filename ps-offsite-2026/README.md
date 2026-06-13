@@ -75,6 +75,15 @@ U ručně bodovaných výzev a kvízu jsou v režimu úprav dvě tlačítka:
 
 **Reset** (červené, s potvrzením) smaže všechna skóre a historii lobby. Týmy zůstanou, ale akce je nevratná a týká se všech v lobby.
 
+### Tipy pro kamerové hry (prostředí)
+
+Kamerové hry stojí a padají na tom, jak dobře model vidí hráče. Než hru pustíš, mrkni na pozadí a osvětlení:
+
+- **Pantomime** (rozpoznávání pózy) — potřebuje **kontrast celé postavy vůči pozadí**. Postav notebook tak, aby za hráčem byla čistá, jednolitá plocha (zeď), ne dav lidí, okno do protisvětla nebo členitá scéna. Hráč ať má na sobě barvu odlišnou od zdi a vejde se do záběru celý (hlava až kotníky).
+- **Gesture Lock** (rozpoznávání ruky) — potřebuje **kontrast ruky vůči pozadí**. Hráč ať jde blízko ke kameře, ruku drží před jednolitým pozadím (ne před vlastním obličejem nebo vzorovaným oblečením) a v dobrém světle. Protisvětlo z okna za hráčem rozpoznání ruky kazí.
+
+Obecně: víc světla zepředu, klidné jednobarevné pozadí, žádné protisvětlo.
+
 ---
 
 ## Nastavení Pub Quizu

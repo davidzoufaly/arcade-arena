@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mission 3 — Gravity Corridor</title>
+<title>Dino Run</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -268,13 +268,13 @@
 </head>
 <body>
 <header>
-  <h1>Gravity Corridor</h1>
+  <h1>Dino Run</h1>
 </header>
 
 <main>
   <div class="card briefing" id="briefing">
-    The corridor to the comms core is under gravitational manipulation — like physics is being rewritten mid-step. One person can't fight it. But synchronized human signals amplify the stabilizer: the more team members coordinate the 'jump' gesture, the stronger the field correction — teamwork becomes lift.<br><br>
-    <strong>Goal:</strong> Steer the runner 🌀 down the corridor with your hands in front of the laptop camera — only 2–3 players are active per wave, and the team rotates who plays. The runner jumps ⬆️ and ducks ⬇️ past obstacles 🌵; it plays in <strong>~20-second waves 💨</strong>, then a 10-second breather to swap players. <strong>First, a 20-second calibration:</strong> the active players raise their hands so the mission can detect how many are playing — your jump strength scales with it. Then: <strong>more open palms ✋ = higher jump.</strong> Make a fist ✊ to duck. Hold a victory sign ✌️ to stay ready (no jump, no duck) — useful between obstacles so an idle palm doesn't trigger a false jump. Survive across waves; your score is the number of obstacles passed. <strong>5 attempts</strong>, best score counts 🏆.
+    Control the runner together with your hands — the more players coordinate the 'jump' gesture, the higher it leaps. Teamwork becomes lift.<br><br>
+    <strong>Goal:</strong> Steer the runner 🦖 with your hands in front of the laptop camera — only 2–3 players are active per wave, and the team rotates who plays. The runner jumps ⬆️ and ducks ⬇️ past obstacles 🌵; it plays in <strong>~20-second waves 💨</strong>, then a 10-second breather to swap players. <strong>First, a 20-second calibration:</strong> the active players raise their hands so the game can detect how many are playing — your jump strength scales with it. Then: <strong>more open palms ✋ = higher jump.</strong> Make a fist ✊ to duck. Hold a victory sign ✌️ to stay ready (no jump, no duck) — useful between obstacles so an idle palm doesn't trigger a false jump. Survive across waves; your score is the number of obstacles passed. <strong>5 attempts</strong>, best score counts 🏆.
   </div>
 
   <!-- BOOT -->
@@ -283,7 +283,7 @@
   <!-- SETUP -->
   <div id="phase-setup" class="card hidden">
     <h3 style="margin-bottom: 12px">Get ready</h3>
-    <div class="setup"><button id="startBtn">Start mission</button></div>
+    <div class="setup"><button id="startBtn">Start game</button></div>
     <div class="briefing" style="margin-top: 12px; font-size: 15px;">Allow camera access when prompted. Get the active players (2–3 per wave) in frame.</div>
   </div>
 
@@ -354,7 +354,7 @@
     <div class="score" id="resScore">0</div>
     <div id="saveStatus" class="save-status">SAVING…</div>
     <div class="result-row" style="margin-top: 14px;">
-      <button id="finalPlayAgain">Restart mission</button>
+      <button id="finalPlayAgain">Restart game</button>
       <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
     </div>
     <p style="font-size: 14px;color:var(--muted);margin-top:10px">Something went wrong? Restart requires the admin password.</p>
