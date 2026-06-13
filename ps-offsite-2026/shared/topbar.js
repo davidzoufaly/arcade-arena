@@ -2,7 +2,8 @@ import { resolveSession, clearSession } from './lobby.js';
 import { getApps, getApp, initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from '../firebase-config.js';
-import { allEnteredKeys } from './games-catalog.js';
+import { GAMES } from './games-catalog.js';
+import { resolveCatalog, addedKeys } from './lobby-games.js';
 import { rankPointsByTeam } from './ranking.js';
 import { createToggle, removeFloating } from './theme.js';
 
@@ -24,7 +25,7 @@ function isCanvasGamePage() {
   return !!(document.getElementById('game') || document.getElementById('cam'));
 }
 
-function buildHeader({ lobbyId, teamId }, activePage, admin) {
+function buildHeader({ lobbyId, teamId }, activePage, admin, teamName) {
   const pfx = prefix();
   const lobbyQ = `?lobby=${encodeURIComponent(lobbyId)}${teamId ? `&team=${teamId}` : ''}`;
   const indexHref    = `${pfx}index.html`;
@@ -33,13 +34,14 @@ function buildHeader({ lobbyId, teamId }, activePage, admin) {
   const quizAdminHref = `${pfx}quiz-admin.html?lobby=${encodeURIComponent(lobbyId)}`;
 
   const nav = admin
-    ? `<a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>
+    ? `<a data-nav="games" href="${gamesHref}">Games</a>
+       <a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>
        <a data-nav="quiz-admin" href="${quizAdminHref}">Quiz</a>`
     : `<a data-nav="games" href="${gamesHref}">Games</a>
        <a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>`;
   const info = admin
     ? `Lobby <code>${esc(lobbyId)}</code> · <strong>Admin</strong>`
-    : `Lobby <code>${esc(lobbyId)}</code> · <strong>Team ${teamId}</strong> · <strong class="ps-topbar-pts" title="Total rank-points across all entered games">— pts</strong>`;
+    : `Lobby <code>${esc(lobbyId)}</code> · <strong class="ps-topbar-team">${esc(teamName || `Team ${teamId}`)}</strong> · <strong class="ps-topbar-pts" title="Total rank-points across all entered games">— pts</strong>`;
   const brandHref = admin ? scoreHref : gamesHref;
   const leaveLabel = 'Leave';
 
@@ -69,7 +71,7 @@ function formatPts(n) {
   return Number.isInteger(n) ? String(n) : (Math.round(n * 10) / 10).toFixed(1);
 }
 
-function subscribeTeamPoints(lobbyId, teamId, onUpdate) {
+function subscribeTeam(lobbyId, teamId, onUpdate) {
   if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) return;
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   const db = getDatabase(app);
@@ -79,7 +81,8 @@ function subscribeTeamPoints(lobbyId, teamId, onUpdate) {
     const teamCount = teams.length;
     const scoresObj = root.scores || {};
     let total = 0;
-    for (const g of allEnteredKeys()) {
+    const keys = addedKeys(resolveCatalog(GAMES, root.games || null));
+    for (const g of keys) {
       const raw = {};
       for (const t of teams) {
         const v = scoresObj[t.id]?.[g];
@@ -88,7 +91,8 @@ function subscribeTeamPoints(lobbyId, teamId, onUpdate) {
       const points = rankPointsByTeam({ teamCount, raw });
       total += points[teamId] || 0;
     }
-    onUpdate(total);
+    const teamName = root.teams?.[teamId]?.name;
+    onUpdate({ total, teamName });
   });
 }
 
@@ -106,8 +110,10 @@ export function mountTopbar({ activePage }) {
   }
   if (!admin) {
     const ptsEl = header.querySelector('.ps-topbar-pts');
-    subscribeTeamPoints(ctx.lobbyId, ctx.teamId, total => {
+    const teamEl = header.querySelector('.ps-topbar-team');
+    subscribeTeam(ctx.lobbyId, ctx.teamId, ({ total, teamName }) => {
       ptsEl.textContent = `${formatPts(total)} pts`;
+      if (teamName) teamEl.textContent = teamName;
     });
   }
 }
