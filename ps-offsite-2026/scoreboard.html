@@ -293,6 +293,11 @@
     50% { transform: scale(1.08); }
   }
 
+  .winner-pop { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 16px; padding: 28px 32px; text-align: center; }
+  .winner-pop::backdrop { background: rgba(0,0,0,0.5); }
+  .winner-pop h2 { font-size: 28px; margin-bottom: 8px; }
+  .winner-pop button { margin-top: 16px; background: var(--bg-2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 18px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
   .confetti {
     position: fixed;
     pointer-events: none;
@@ -462,7 +467,25 @@ function renderControls() {
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
     editBtn.addEventListener('click', startEdits);
-    controls.append(editBtn);
+    const celebrateBtn = document.createElement('button');
+    celebrateBtn.id = 'celebrateBtn';
+    celebrateBtn.type = 'button';
+    celebrateBtn.textContent = '🎉 Celebrate winner';
+    celebrateBtn.addEventListener('click', () => {
+      const w = computeLeader();
+      if (!w) return;
+      confetti(140);
+      const dialog = document.createElement('dialog');
+      dialog.className = 'winner-pop';
+      dialog.innerHTML = `<h2>🏆 ${escapeHtml(w.name || ('Team ' + w.id))}</h2>
+        <p>${formatPts(w.total)} points — current leader</p>
+        <button type="button" id="winClose">Close</button>`;
+      document.body.appendChild(dialog);
+      dialog.addEventListener('close', () => dialog.remove());
+      dialog.querySelector('#winClose').addEventListener('click', () => dialog.close());
+      dialog.showModal();
+    });
+    controls.append(editBtn, celebrateBtn);
   }
 }
 
@@ -676,10 +699,10 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-function confetti() {
+function confetti(count = 60) {
   const wrap = document.getElementById('confetti');
   const colors = ['#DAFE85','#657BC7','#ffd84d','#00e676','#ff4d6d'];
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < count; i++) {
     const s = document.createElement('span');
     s.style.left = Math.random() * 100 + 'vw';
     s.style.background = colors[Math.floor(Math.random() * colors.length)];
