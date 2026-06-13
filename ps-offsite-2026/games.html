@@ -346,6 +346,7 @@ function mountAdminGames(db, lobbyId) {
   onValue(ref(db, path('rules')),  s => { rules = s.val() || null; render(); });
   onValue(ref(db, path('teams')),  s => { teams = s.exists() ? Object.values(s.val()) : []; render(); });
 
+  // Whole-node get→mutate→set. Single-admin event tool: no concurrent-write guard needed.
   async function writeNode(name, mutate) {
     const snap = await get(ref(db, path(name)));
     const node = snap.exists() ? snap.val() : {};
@@ -356,6 +357,7 @@ function mountAdminGames(db, lobbyId) {
   function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
   function render() {
+    const openKey = listEl.querySelector('.admin-perteam')?.previousElementSibling?.dataset.key || null;
     const eff = resolveCatalog(GAMES, gamesNode);
     listEl.innerHTML = eff.map(g => {
       const added = g.added;
@@ -384,6 +386,10 @@ function mountAdminGames(db, lobbyId) {
       const t = row.querySelector('[data-act="timer"]'); if (t) t.onclick = () => editTimer(key);
       row.querySelector('[data-act="perteam"]').onclick = () => togglePerTeam(row, key);
       const d = row.querySelector('[data-act="delete"]'); if (d) d.onclick = () => deleteCustom(key);
+    }
+    if (openKey) {
+      const row = listEl.querySelector(`.admin-row[data-key="${openKey}"]`);
+      if (row) togglePerTeam(row, openKey);
     }
   }
 
