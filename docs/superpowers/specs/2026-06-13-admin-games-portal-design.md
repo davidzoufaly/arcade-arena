@@ -163,6 +163,99 @@ static-only.
 - Individuals-vs-teams mode (#9, #17) — Phase B.
 - Bundling MediaPipe models into the repo (#16) — Phase C.
 
+## Review revisions (v2 — after subagent code review)
+
+A code review against the actual sources surfaced two critical gaps and several
+others. Resolutions, now binding:
+
+### C1 — Ranking is filtered in THREE places, not one
+`computeLeader` is not the only score-summing path. All currently iterate the
+**static** `allEnteredKeys()`:
+- `scoreboard.html:632` (`computeLeader`) and `:683` (`render`) — swap to
+  `addedKeys(effectiveCatalog)`.
+- **`shared/topbar.js:82`** `subscribeTeamPoints` — the live "— pts" badge on
+  every team page. Must also sum over the lobby's resolved + added catalog, and
+  must include custom (`CU####`) score keys (static `allEnteredKeys` never sees
+  them). **topbar.js therefore must subscribe to `lobbies/{id}/games`** (today it
+  reads root once) so its total matches the scoreboard. Added to scope.
+
+### C2 — Admin session has no `teamId`; the redirect lives in topbar.js
+`resolveSession()` returns `{ lobbyId, role:'admin' }` with no `teamId`
+(`lobby.js:139`). The whole games.html player path assumes `session.teamId`
+(`tileHref` :169-172, `resolveLock` :179, six `onValue` listeners on
+`scores/${teamId}` etc. :246-274). There is **no redirect inside games.html** —
+admins are steered away by `topbar.js` nav (admin nav omits the Games link,
+`brandHref = scoreHref`, :35-43).
+
+Binding design:
+- games.html gets an **early guard**: `if (isAdminSession(session)) {
+  renderAdminGames(); return; }` placed **before** any teamId-dependent listener.
+- The admin branch subscribes to `lobbies/{id}/games`, `/locks`, `/timers`,
+  `/rules`, `/teams` — never to `scores/{teamId}`.
+- `topbar.js` admin nav keeps a **Games** link so admins can reach the admin view.
+
+### M2 — manual.html must resolve custom games asynchronously
+`manual.html:97` uses synchronous static `getGame(key)` and rejects non-manual
+(:106). For a custom key it must first read `lobbies/{id}/games/{key}`. Rules
+resolution precedence becomes: `rules.cells[key][teamId]` → `rules.games[key]` →
+**custom node `games/{key}/rules`** → static catalog `rules`. The live rules
+listener (:281) keeps reading `lobbies/{id}/rules`; only the default fallback
+source changes for custom games.
+
+### M3 — Immediate writes + cascade-clear
+The pure helpers (`setGame`/`setGameOverride`) cascade-clear that game's `cells`
+(`game-lock.js:52`, `game-config.js:58`). With per-toggle immediate writes, a
+game-level lock/timer/rules change instantly wipes per-team overrides set in the
+expander. This is the existing designed semantics; the admin UI must **warn on a
+game-level change when per-team overrides exist** ("this clears per-team
+settings for X"). Per-toggle flow: read node → deep-clone → apply helper → write
+whole node back.
+
+### M4 — Filter the other counters too
+After filtering columns to `addedKeys`, also filter: scoreboard `gameCount`
+numerator (`:701-708`, currently `Object.keys(t.scores)`), `submissionCount`
+(`:790`, from unfiltered `history`), and make the hardcoded "8 games · one
+winner" subtitle (`:337`) dynamic from `addedKeys.length`.
+
+### M5 — Custom-game delete (now in scope)
+Admin can **delete** a custom game (trash action, with confirm) — not just
+remove. Delete removes `games/{key}`. Orphaned `scores/{team}/{key}` and
+`history` entries are left as-is (ignored — key no longer in catalog).
+`nextCustomKey` must avoid reuse of any key still present in `scores` or
+`history`, not only live custom keys, to prevent a recreated game inheriting a
+dead game's points.
+
+### m1 — Keep new module out of the theme.js import chain
+`tests/lobby.test.js` is already red at HEAD: `lobby.js` → `theme.js:71` touches
+`document` at import under the node test env. `lobby-games.js` must import
+**nothing** from `lobby.js`/`theme.js` so `tests/lobby-games.test.js` stays
+green. (Pre-existing failure, not a regression from this work.)
+
+### m2 — `order` assignment
+New custom game `order = 1 + max(existing custom orders, 0)`. Built-ins keep
+static catalog order. Gaps after delete are harmless (sort only).
+
+### m3 — Topbar shows the stored team name
+Topbar currently labels by id ("Team N", `:42`). It will show the **stored
+`teams/{id}/name`** (fallback "Team {id}") so a rename is visible there too.
+
+### m5 — Security posture unchanged (acknowledged)
+Firebase rules stay open by design (one-day event, non-public URL). The new
+`games/*` write surface lets any lobby-id holder add/flip/inject games; all
+rendered fields are `esc()`-escaped (no stored XSS), but the catalog is
+corruptible — accepted, same posture as existing open scores/locks writes.
+
+### m6 — Behavior change for in-flight lobbies (no data migration)
+Existing lobbies have no `games` node, so the default rule hides GD/HD/DG/PQ
+until an admin adds them (today all 8 show). Intended per #7; flagged so it
+isn't read as data loss.
+
+### Scope additions from review
+`shared/topbar.js` (ranking filter + subscribe to games node + stored name) and
+`shared/ranking.js` (if it sums by static keys — verify and route through
+addedKeys) join the touched-files list. Custom delete + key-reuse safety join
+`lobby-games.js`.
+
 ## Testing
 
 - Unit: `lobby-games.js` (resolveCatalog ordering, default-added rule,
