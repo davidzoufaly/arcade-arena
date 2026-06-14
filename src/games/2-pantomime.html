@@ -23,6 +23,7 @@
     --easy: #00e676;
     --medium: #ffd84d;
     --hard: #ff4d6d;
+    --btn-on-accent: #09090C;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { background: var(--bg); }
@@ -91,36 +92,33 @@
   }
   .skel-overlay-canvas { position: absolute; inset: 0; pointer-events: none; }
 
-  /* Lock progress: a green line that traces the camera border one side at a
-     time (right ↓, bottom ←, left ↑, top ←) as you hold the pose. Full loop
-     = locked. */
+  /* Lock progress: a ring hugging the camera frame directly (no gap) that fills
+     up as you hold the pose — a conic sweep from the top-right, clockwise
+     (right ↓, bottom ←, left ↑, top →). Full ring = locked. Pure CSS ring: a
+     conic-gradient fill carved into a border-only shape by a border-box vs
+     content-box mask, and border-radius matched to .video-wrap so it wraps the
+     rounded corners. Green (--good): the ring only appears during a valid
+     match-hold, so green reinforces "got it, keep holding". Progress is driven
+     per-frame via the --lock-p custom prop. Ported from the gesture-lock game. */
+  .cam-stage { position: relative; }
   .lock-border {
-    position: absolute; inset: 5px; width: auto; height: auto;
-    pointer-events: none; z-index: 2; overflow: visible;
+    position: absolute; inset: 0;       /* directly on the camera window, no gap */
+    border-radius: 20px;                /* match .video-wrap → ring follows the corners */
+    padding: 12px;                      /* ring thickness */
+    background: conic-gradient(from 50deg,
+      var(--good) calc(var(--lock-p, 0) * 1%), transparent calc(var(--lock-p, 0) * 1%));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    filter: drop-shadow(0 0 7px var(--good));
+    pointer-events: none; z-index: 3;
   }
-  .lock-border path {
-    fill: none; stroke: var(--good); stroke-width: 7;
-    stroke-linecap: round; stroke-linejoin: round;
-    stroke-dasharray: 100; stroke-dashoffset: 100;
-    vector-effect: non-scaling-stroke;
-    filter: drop-shadow(0 0 7px rgba(0,230,118,0.85));
-    transition: stroke-dashoffset 0.1s linear;
-  }
-  .lock-label {
-    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,230,118,0.16); border: 1px solid var(--good);
-    color: var(--good); backdrop-filter: blur(8px);
-    padding: 8px 18px; border-radius: 999px;
-    font-size: 16px; font-weight: 800; letter-spacing: 1px;
-    white-space: nowrap; pointer-events: none;
-    opacity: 0; transition: opacity 0.15s;
-  }
-  .lock-label.show { opacity: 1; }
   .video-overlay {
     position: absolute; bottom: 16px; left: 16px;
     background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
     padding: 10px 16px; border-radius: 10px;
-    font-size: 16px; font-family: ui-monospace, monospace;
+    font-size: 16px; font-family: ui-monospace, monospace; color: #fff;  /* dark bubble → fixed light text in both themes */
   }
   .cam-countdown {
     position: absolute; inset: 0;
@@ -144,7 +142,7 @@
     background: rgba(0,0,0,0.72); backdrop-filter: blur(8px);
     border: 1px solid var(--border);
     padding: 12px 22px; border-radius: 14px;
-    font-size: 22px; font-weight: 800; color: var(--text);
+    font-size: 22px; font-weight: 800; color: #fff;  /* bubble is always dark → fixed light text (var(--text) flips to black on light theme) */
     white-space: nowrap; pointer-events: none; opacity: 0;
   }
   .cam-flash.show { animation: cam-flash-anim 1.6s ease-out forwards; }
@@ -336,22 +334,18 @@
 
   <div id="phase-playing" class="hidden">
     <div class="game">
-      <div>
+      <div class="cam-stage">
         <div class="video-wrap" id="videoWrap">
           <video id="video" playsinline autoplay muted></video>
           <canvas id="overlay" class="skel-overlay-canvas"></canvas>
-          <svg class="lock-border" id="lockBorder" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <!-- Four segments fill in sequence: right ↓, bottom ←, left ↑, top ←. -->
-            <path class="lb-seg" d="M100 0 L100 100" pathLength="100" />
-            <path class="lb-seg" d="M100 100 L0 100" pathLength="100" />
-            <path class="lb-seg" d="M0 100 L0 0" pathLength="100" />
-            <path class="lb-seg" d="M100 0 L0 0" pathLength="100" />
-          </svg>
-          <div class="lock-label" id="lockLabel">🔒 HOLD STILL — locking…</div>
           <div class="video-overlay" id="hint">Stand in front of the camera</div>
           <div class="cam-countdown hidden" id="camCountdown"></div>
           <div class="cam-flash" id="camFlash"></div>
         </div>
+        <!-- Lock ring lives OUTSIDE .video-wrap (which clips via overflow:hidden)
+             so the green glow can sit in the gap around the frame. Sibling of
+             .video-wrap, overlaid on it via inset:0. -->
+        <div class="lock-border" id="lockBorder"></div>
       </div>
       <div class="panel">
         <div class="pose-card" id="poseCard">
@@ -501,16 +495,12 @@ function renderRefSvg(pose) {
 
 const HOLD_MS_BY_DIFFICULTY = { easy: 1200, medium: 1500, hard: 2000 };
 
-// Drive the hold indicator: the green line tracing the camera border one side
-// at a time (right ↓, bottom ←, left ↑, top ←). Each of the 4 segments owns a
-// 25% slice of pct; full loop = locked. pct 0..100.
-const lockSegs = document.querySelectorAll('#lockBorder .lb-seg');
+// Drive the hold indicator: the green ring hugging the camera frame fills
+// clockwise from the top-right as the conic-gradient stop angle grows. pct
+// 0..100; full = locked.
+const lockBorderEl = document.getElementById('lockBorder');
 function setHoldProgress(pct) {
-  lockSegs.forEach((seg, i) => {
-    const local = Math.max(0, Math.min(100, ((pct - i * 25) / 25) * 100));
-    seg.style.strokeDashoffset = (100 - local);
-  });
-  document.getElementById('lockLabel').classList.toggle('show', pct > 0);
+  lockBorderEl.style.setProperty('--lock-p', Math.max(0, Math.min(100, pct)));
 }
 const SIM_THRESHOLD = 0.85; // tighter than before
 const STABILITY_MAX_DRIFT = 0.015; // max landmark drift over recent window — anything more = wobble

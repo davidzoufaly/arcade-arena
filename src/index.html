@@ -256,6 +256,9 @@ function renderCredentials({ lobbyId, adminPwd, teams, mode }) {
 let joinMode = 'teams';
 $('joinLobbyId').addEventListener('input', e => {
   e.target.value = e.target.value.toUpperCase();
+  // Lobby ID changed -> stale team/player picker no longer matches; drop it.
+  $('teamPicker').hidden = true;
+  hideErr('joinErr');
 });
 
 $('joinContinueBtn').addEventListener('click', async () => {

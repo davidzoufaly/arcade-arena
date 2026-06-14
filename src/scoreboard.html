@@ -24,6 +24,7 @@
     --good: #00e676;
     --bad: #ff4d6d;
     --shadow: 0 8px 32px rgba(0,0,0,0.4);
+    --btn-on-accent: #09090C;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { background: var(--bg); }
@@ -397,7 +398,7 @@ function showSetupNeeded(msg) {
   document.body.innerHTML = `
     <div style="max-width:640px;margin:80px auto;padding:32px;background:var(--card);border-radius:16px;border:1px solid var(--border);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.6">
       <h1 style="font-size: 24px;margin-bottom:16px;background:linear-gradient(90deg,#DAFE85,#657BC7);-webkit-background-clip:text;background-clip:text;color:transparent">Firebase setup needed</h1>
-      <p style="color:#848486;margin-bottom:16px">${msg}</p>
+      <p style="color:var(--muted);margin-bottom:16px">${msg}</p>
       <p>Follow <a href="SETUP.md" style="color:var(--accent)">SETUP.md</a> to create a Firebase project, then copy <code>firebase-config.example.js</code> to <code>firebase-config.js</code> and fill in your values.</p>
     </div>`;
 }
