@@ -53,10 +53,10 @@
     font-size: 18px; font-family: inherit;
   }
   button {
-    background: linear-gradient(135deg, var(--accent), #3C5096);
-    /* this page's --accent is blue, not the usual lime, so the on-accent text
-       must be white (the global --btn-on-accent is dark, tuned for lime). */
-    border: none; color: #fff;
+    /* match the app's lime primary button. On this page --accent is blue and
+       --accent-2 is the lime, so build the gradient from --accent-2. */
+    background: linear-gradient(135deg, var(--accent-2), var(--accent));
+    border: none; color: var(--btn-on-accent);
     padding: 12px 24px; border-radius: 10px;
     font-size: 18px; font-weight: 700; cursor: pointer;
     font-family: inherit; transition: transform 0.15s;
