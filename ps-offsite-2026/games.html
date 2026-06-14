@@ -82,7 +82,7 @@
   /* submitted tiles: dim art, green ring, corner badge — readable over any image */
   .tile.done { border-color: var(--good); box-shadow: 0 0 0 1px var(--good) inset; }
   .tile.done .tile-icon { opacity: 0.45; }
-  .tile.done .icon-wrap::after {
+  .tile.done .icon-wrap:has(.tile-icon)::after {
     content: ""; position: absolute; inset: 0; border-radius: 14px;
     background: radial-gradient(circle at 50% 45%, rgba(0,230,118,0.18), transparent 70%);
     pointer-events: none;
@@ -139,14 +139,14 @@
     border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 15px; width: 100%;
   }
   .admin-newgame textarea { resize: none; }
-  #ngCreate {
+  #ngCreate, #adminGateBtn {
     justify-self: start; margin-top: 4px;
     background: linear-gradient(135deg, var(--accent), #657BC7); border: none; color: var(--btn-on-accent);
     border-radius: 10px; padding: 12px 28px; font-size: 16px; font-weight: 800;
     cursor: pointer; font-family: inherit; transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
   }
-  #ngCreate:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(101,123,199,0.35); filter: brightness(1.05); }
-  #ngCreate:active { transform: translateY(0); }
+  #ngCreate:hover, #adminGateBtn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(101,123,199,0.35); filter: brightness(1.05); }
+  #ngCreate:active, #adminGateBtn:active { transform: translateY(0); }
   .admin-perteam {
     margin: -4px 0 4px; padding: 12px 14px;
     background: var(--bg-2); border: 1px solid var(--border); border-radius: 0 0 12px 12px;
@@ -159,6 +159,17 @@
     border-radius: 8px; padding: 5px 9px; font-size: 13px; cursor: pointer; font-family: inherit;
   }
   .admin-perteam .apt-row button:hover { border-color: var(--accent); }
+  /* Buffered-edit header: Cancel/Save appear top-right only while there are
+     unsaved changes, mirroring the quiz-admin page-head pattern. */
+  .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .head-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+  .head-actions button {
+    white-space: nowrap; font-family: inherit; font-weight: 800; font-size: 15px;
+    padding: 10px 18px; border-radius: 10px; cursor: pointer;
+  }
+  .head-actions .primary { background: linear-gradient(135deg, var(--accent), #657BC7); border: none; color: var(--btn-on-accent); }
+  .head-actions .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .head-actions .btn-ghost:hover { border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -169,7 +180,10 @@
     <div class="grid" id="grid"></div>
   </section>
   <section id="admin-games" hidden>
-    <h1>Manage games</h1>
+    <div class="page-head">
+      <h1>Manage games</h1>
+      <div class="head-actions" id="adminHeadActions"></div>
+    </div>
     <p class="subtitle" id="adminSub">Add games to the lobby, lock them, set rules &amp; timers, or create your own.</p>
     <div id="adminList" class="admin-list"></div>
     <div class="admin-newgame">
@@ -183,6 +197,12 @@
       <button id="ngCreate">＋ Create manual entry game</button>
       <div id="ngErr" class="lobby-banner err" hidden></div>
     </div>
+  </section>
+
+  <section id="admin-gate" hidden>
+    <h1>Admins only</h1>
+    <p class="subtitle">Enter the host password to manage games.</p>
+    <button id="adminGateBtn">Enter password</button>
   </section>
 </main>
 
@@ -220,14 +240,21 @@ if (isAdminSession(session)) {
   // The admin session flag is user-forgeable and every action here writes to the
   // DB (locks, timers, rules, custom games). Verify the host password first.
   (async () => {
-    const ok = await requireAdmin(session.lobbyId);
-    const adminSection = document.getElementById('admin-games');
-    if (!ok) {
-      adminSection.hidden = false;
-      adminSection.innerHTML = `<h1>Admins only</h1><p class="subtitle">Enter the host password to manage games. <a href="index.html" style="color:var(--accent)">Back to lobby</a></p>`;
+    if (await requireAdmin(session.lobbyId)) {
+      mountAdminGames(db, session.lobbyId);
       return;
     }
-    mountAdminGames(db, session.lobbyId);
+    // Modal dismissed without a valid password. Show a gate with a retry button
+    // that re-opens the same modal — no "back to lobby" link, which only bounced
+    // back here (index.html redirects an admin session straight to games).
+    const gate = document.getElementById('admin-gate');
+    gate.hidden = false;
+    document.getElementById('adminGateBtn').onclick = async () => {
+      if (await requireAdmin(session.lobbyId)) {
+        gate.hidden = true;
+        mountAdminGames(db, session.lobbyId);
+      }
+    };
   })();
 } else {
   document.getElementById('admin-games').hidden = true;
@@ -384,6 +411,17 @@ function mountAdminGames(db, lobbyId) {
   let gamesNode = null, locks = null, timers = null, rules = null, teams = [], mode = 'teams';
   const noun = () => participantNoun(mode);
 
+  // Buffered edits (quiz-admin parity): config changes accumulate in `draft` and
+  // only hit Firebase on Save; Cancel discards them. While dirty the view reads
+  // the draft so incoming onValue writes don't clobber an in-progress edit. The
+  // live vars keep updating regardless, so a clean view stays live.
+  let draft = null;   // { games, locks, timers, rules } or null when clean
+  const clone = v => v ? JSON.parse(JSON.stringify(v)) : null;
+  const srcGames  = () => draft ? draft.games  : gamesNode;
+  const srcLocks  = () => draft ? draft.locks  : locks;
+  const srcTimers = () => draft ? draft.timers : timers;
+  const srcRules  = () => draft ? draft.rules  : rules;
+
   const path = p => `lobbies/${lobbyId}/${p}`;
   onValue(ref(db, path('games')),  s => { gamesNode = s.val() || null; render(); });
   onValue(ref(db, path('locks')),  s => { locks = s.val() || null; render(); });
@@ -392,22 +430,51 @@ function mountAdminGames(db, lobbyId) {
   onValue(ref(db, path('teams')),  s => { teams = s.exists() ? Object.values(s.val()) : []; render(); });
   onValue(ref(db, path('meta/mode')), s => { mode = s.val() || 'teams'; render(); });
 
-  // Whole-node get→mutate→set. Single-admin event tool: no concurrent-write guard needed.
-  async function writeNode(name, mutate) {
-    const snap = await get(ref(db, path(name)));
-    const node = snap.exists() ? snap.val() : {};
-    mutate(node);
-    await set(ref(db, path(name)), node);
+  // Mutate a config node in the draft (lazily snapshotting live state on first
+  // edit). Replaces the old immediate get→mutate→set; the set now happens in
+  // saveEdits(). Single-admin event tool: no concurrent-write guard needed.
+  function editNode(name, mutate) {
+    if (!draft) draft = { games: clone(gamesNode), locks: clone(locks), timers: clone(timers), rules: clone(rules) };
+    draft[name] ??= {};
+    mutate(draft[name]);
+    render();
+  }
+
+  async function saveEdits() {
+    if (!draft) return;
+    const d = draft;
+    await Promise.all([
+      set(ref(db, path('games')),  d.games  || {}),
+      set(ref(db, path('locks')),  d.locks  || {}),
+      set(ref(db, path('timers')), d.timers || {}),
+      set(ref(db, path('rules')),  d.rules  || {}),
+    ]);
+    draft = null;
+    render();
+  }
+
+  function cancelEdits() { draft = null; render(); }
+
+  function renderHeadActions() {
+    const el = document.getElementById('adminHeadActions');
+    if (!draft) { el.innerHTML = ''; return; }
+    el.innerHTML = `<button class="btn-ghost" id="adminCancel">Cancel</button><button class="primary" id="adminSave">Save</button>`;
+    el.querySelector('#adminCancel').onclick = cancelEdits;
+    el.querySelector('#adminSave').onclick = () => {
+      const btn = el.querySelector('#adminSave'); btn.disabled = true;
+      saveEdits().catch(e => { alert('Save failed: ' + (e.message || e)); btn.disabled = false; });
+    };
   }
 
   function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
   function rowHtml(g) {
     const added = g.added;
-    const locked = resolveGameLock(locks, g.key) === 'locked';
-    const mins = resolveTimer(timers, g.key);
+    const locked = resolveGameLock(srcLocks(), g.key) === 'locked';
+    const mins = resolveTimer(srcTimers(), g.key);
     const kindLabel = g.custom ? 'Custom' : g.kind === 'play' ? 'Playable' : g.kind === 'quiz' ? 'Quiz' : 'Manual entry';
     const canTimer = g.kind === 'manual'; // manual-entry + custom only; quiz isn't time-enforceable
+    const canRules = g.kind !== 'play';    // playable games have no rules to edit
     return `<div class="admin-row" data-key="${g.key}">
       <span class="ar-emoji">${g.emoji}</span>
       <span class="ar-name">${esc(g.name)} <span class="ar-kind">${kindLabel}</span></span>
@@ -415,7 +482,7 @@ function mountAdminGames(db, lobbyId) {
         <button data-act="eye" class="${added ? 'on' : ''}" title="${added ? 'Remove from lobby' : 'Add to lobby'}">${added ? '－ Remove' : '＋ Add'}</button>
         ${added ? `
         <button data-act="lock" class="${locked ? '' : 'on'}" title="${locked ? 'Locked' : 'Unlocked'}">${locked ? '🔒' : '🔓'}</button>
-        <button data-act="rules" title="Edit rules">📋</button>
+        ${canRules ? `<button data-act="rules" title="Edit rules">📋</button>` : ''}
         ${canTimer ? `<button data-act="timer" title="Set time limit">⏱${mins ? ' ' + mins + 'm' : ''}</button>` : ''}
         <button data-act="perteam" title="Per-${noun().toLowerCase()} overrides">⋯</button>` : ''}
         ${g.custom ? `<button data-act="delete" title="Delete game">🗑</button>` : ''}
@@ -424,8 +491,9 @@ function mountAdminGames(db, lobbyId) {
   }
 
   function render() {
+    renderHeadActions();
     const openKey = listEl.querySelector('.admin-perteam')?.previousElementSibling?.dataset.key || null;
-    const eff = resolveCatalog(GAMES, gamesNode);
+    const eff = resolveCatalog(GAMES, srcGames());
     const added = eff.filter(g => g.added);
     const available = eff.filter(g => !g.added);
     let html = '';
@@ -435,7 +503,7 @@ function mountAdminGames(db, lobbyId) {
     for (const row of listEl.querySelectorAll('.admin-row')) {
       const key = row.dataset.key;
       row.querySelector('[data-act="eye"]').onclick   = () => toggleAdded(key);
-      const lk = row.querySelector('[data-act="lock"]'); if (lk) lk.onclick = () => writeNode('locks', n => toggleGame(n, key));
+      const lk = row.querySelector('[data-act="lock"]'); if (lk) lk.onclick = () => editNode('locks', n => toggleGame(n, key));
       const rl = row.querySelector('[data-act="rules"]'); if (rl) rl.onclick = () => editRules(key);
       const t = row.querySelector('[data-act="timer"]'); if (t) t.onclick = () => editTimer(key);
       const pt = row.querySelector('[data-act="perteam"]'); if (pt) pt.onclick = () => togglePerTeam(row, key);
@@ -448,79 +516,80 @@ function mountAdminGames(db, lobbyId) {
   }
 
   function perTeamOverridesExist(key) {
-    return !!(locks?.cells?.[key] || timers?.cells?.[key] || rules?.cells?.[key]);
+    return !!(srcLocks()?.cells?.[key] || srcTimers()?.cells?.[key] || srcRules()?.cells?.[key]);
   }
 
-  async function toggleAdded(key) {
-    await writeNode('games', node => {
+  function toggleAdded(key) {
+    editNode('games', node => {
       const cur = resolveCatalog(GAMES, node).find(g => g.key === key);
       node[key] = { ...(node[key] || {}), added: !(cur?.added) };
     });
   }
 
   function editRules(key) {
-    const eff = resolveCatalog(GAMES, gamesNode).find(g => g.key === key);
-    const current = resolveRule(rules, key, undefined, eff?.rules ?? '');
+    const eff = resolveCatalog(GAMES, srcGames()).find(g => g.key === key);
+    const current = resolveRule(srcRules(), key, undefined, eff?.rules ?? '');
     const warn = perTeamOverridesExist(key) ? `<p>Saving game-level rules clears any per-team rules for this game.</p>` : '';
     openModal({
       title: 'Rules — ' + (eff?.name ?? key),
       bodyHtml: `${warn}<label for="cfgInput">Rules (blank = default)</label><textarea id="cfgInput">${esc(current ?? '')}</textarea>`,
-      confirmLabel: 'Save',
-      onConfirm: () => writeNode('rules', n => setGameOverride(n, key, document.getElementById('cfgInput').value)),
+      confirmLabel: 'Apply',
+      onConfirm: () => editNode('rules', n => setGameOverride(n, key, document.getElementById('cfgInput').value)),
     });
   }
 
   function editTimer(key) {
-    const eff = resolveCatalog(GAMES, gamesNode).find(g => g.key === key);
-    const cur = resolveTimer(timers, key);
+    const eff = resolveCatalog(GAMES, srcGames()).find(g => g.key === key);
+    const cur = resolveTimer(srcTimers(), key);
     const warn = perTeamOverridesExist(key) ? `<p>Saving a game-level timer clears any per-team timers for this game.</p>` : '';
     openModal({
       title: 'Time limit — ' + (eff?.name ?? key),
       bodyHtml: `${warn}<label for="cfgInput">Minutes (blank or 0 = no limit)</label><input id="cfgInput" type="number" min="0" value="${cur ?? ''}">`,
-      confirmLabel: 'Save',
-      onConfirm: () => writeNode('timers', n => setGameOverride(n, key, Number(document.getElementById('cfgInput').value))),
+      confirmLabel: 'Apply',
+      onConfirm: () => editNode('timers', n => setGameOverride(n, key, Number(document.getElementById('cfgInput').value))),
     });
   }
 
   function togglePerTeam(row, key) {
     const existing = row.nextElementSibling?.classList.contains('admin-perteam');
     if (existing) { row.nextElementSibling.remove(); return; }
+    const canRules = (GAMES[key]?.kind ?? 'manual') !== 'play'; // playable games have no rules
     const box = document.createElement('div');
     box.className = 'admin-perteam';
     box.innerHTML = teams.slice().sort((a,b)=>a.id-b.id).map(t => {
-      const locked = resolveLock(locks, key, t.id) === 'locked';
-      const mins = resolveTimer(timers, key, t.id);
+      const locked = resolveLock(srcLocks(), key, t.id) === 'locked';
+      const mins = resolveTimer(srcTimers(), key, t.id);
       return `<div class="apt-row" data-team="${t.id}">
         <span class="apt-name">${esc(t.name || (noun() + ' ' + t.id))}</span>
         <button data-pt="lock">${locked ? '🔒' : '🔓'}</button>
         <button data-pt="timer">⏱${mins ? ' ' + mins + 'm' : ''}</button>
-        <button data-pt="rules">📋</button>
+        ${canRules ? `<button data-pt="rules">📋</button>` : ''}
       </div>`;
     }).join('');
     for (const r of box.querySelectorAll('.apt-row')) {
       const teamId = Number(r.dataset.team);
-      r.querySelector('[data-pt="lock"]').onclick = () => writeNode('locks', n => {
+      r.querySelector('[data-pt="lock"]').onclick = () => editNode('locks', n => {
         const cur = resolveLock(n, key, teamId) === 'locked';
         setCell(n, key, teamId, cur ? 'unlocked' : 'locked');
       });
       const tName = esc(teams.find(t => t.id === teamId)?.name || (noun() + ' ' + teamId));
       r.querySelector('[data-pt="timer"]').onclick = () => {
-        const cur = resolveTimer(timers, key, teamId);
+        const cur = resolveTimer(srcTimers(), key, teamId);
         openModal({
           title: `Time limit — ${tName}`,
           bodyHtml: `<label for="cfgInput">Minutes (blank = clear)</label><input id="cfgInput" type="number" min="0" value="${cur ?? ''}">`,
-          confirmLabel: 'Save',
-          onConfirm: () => writeNode('timers', n => setCellOverride(n, key, teamId, Number(document.getElementById('cfgInput').value))),
+          confirmLabel: 'Apply',
+          onConfirm: () => editNode('timers', n => setCellOverride(n, key, teamId, Number(document.getElementById('cfgInput').value))),
         });
       };
-      r.querySelector('[data-pt="rules"]').onclick = () => {
-        const eff = resolveCatalog(GAMES, gamesNode).find(g => g.key === key);
-        const cur = resolveRule(rules, key, teamId, eff?.rules ?? '');
+      const ptRules = r.querySelector('[data-pt="rules"]'); if (ptRules) ptRules.onclick = () => {
+        const eff = resolveCatalog(GAMES, srcGames()).find(g => g.key === key);
+        const cur = resolveRule(srcRules(), key, teamId, eff?.rules ?? '');
         openModal({
           title: `Rules — ${tName}`,
           bodyHtml: `<label for="cfgInput">Rules (blank = clear)</label><textarea id="cfgInput">${esc(cur ?? '')}</textarea>`,
-          confirmLabel: 'Save',
-          onConfirm: () => writeNode('rules', n => setCellOverride(n, key, teamId, document.getElementById('cfgInput').value)),
+          confirmLabel: 'Apply',
+          onConfirm: () => editNode('rules', n => setCellOverride(n, key, teamId, document.getElementById('cfgInput').value)),
         });
       };
     }
@@ -528,6 +597,9 @@ function mountAdminGames(db, lobbyId) {
   }
 
   async function deleteCustom(key) {
+    // Structural change writes Firebase directly; a pending draft snapshot would
+    // resurrect it on Save, so require a clean (saved/cancelled) state first.
+    if (draft) { alert('Save or cancel your pending changes before deleting a game.'); return; }
     if (!confirm('Delete this game? Its past scores are kept but hidden.')) return;
     await set(ref(db, path('games/' + key)), null);
   }
@@ -535,6 +607,7 @@ function mountAdminGames(db, lobbyId) {
   document.getElementById('ngCreate').onclick = async () => {
     const errEl = document.getElementById('ngErr');
     errEl.hidden = true;
+    if (draft) { errEl.textContent = 'Save or cancel your pending changes before creating a game.'; errEl.hidden = false; return; }
     const name = document.getElementById('ngName').value;
     const emoji = document.getElementById('ngEmoji').value;
     const rulesTxt = document.getElementById('ngRules').value;
@@ -554,7 +627,9 @@ function mountAdminGames(db, lobbyId) {
     const minutes = Number(timerRaw);
     await set(ref(db, path('games/' + key)), makeCustomGame({ name, emoji, rules: rulesTxt, order: maxOrder + 1 }));
     if (Number.isFinite(minutes) && minutes > 0) {
-      await writeNode('timers', n => setGameOverride(n, key, minutes));
+      const tNode = (await get(ref(db, path('timers')))).val() || {};
+      setGameOverride(tNode, key, minutes);
+      await set(ref(db, path('timers')), tNode);
     }
     document.getElementById('ngName').value = '';
     document.getElementById('ngEmoji').value = '';

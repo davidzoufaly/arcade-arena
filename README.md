@@ -1,6 +1,6 @@
 # Arcade Arena
 
-A mission-based competition for company offsites, running entirely in the browser. Camera missions, one voice mission, a couple of host-scored challenges, and a hosted pub quiz. A lobby can run in two modes: **teams**, or **individuals** (each player competes solo). Built for roughly 10 teams, but the count is configurable from 2 to 20. Scores stream live through Firebase to a shared scoreboard, so the projector shows a result the moment a team (or player) finishes.
+A mission-based competition for company offsites, running entirely in the browser. Camera missions, one voice mission, a couple of manual-entry challenges, and a hosted pub quiz. A lobby can run in two modes: **teams**, or **individuals** (each player competes solo). Built for roughly 10 teams, but the count is configurable from 2 to 20. Scores stream live through Firebase to a shared scoreboard, so the projector shows a result the moment a team (or player) finishes.
 
 The app lives under [`ps-offsite-2026/`](ps-offsite-2026/). There's a small build step (Vite) and a one-time Firebase setup — see [ps-offsite-2026/SETUP.md](ps-offsite-2026/SETUP.md).
 
@@ -19,7 +19,7 @@ The app lives under [`ps-offsite-2026/`](ps-offsite-2026/). There's a small buil
 
 The four browser missions score 0 to 100 and write it to the shared scoreboard the moment the team joins a lobby.
 
-### Host-scored challenges
+### Manual-entry challenges
 
 A couple of challenges are played off-screen and the host enters the points: AI Jailbreak and Draw & Guess. Plus a live Pub Quiz. The host enters these points in scoreboard.html and grades the quiz in quiz-admin.html.
 
@@ -41,7 +41,7 @@ There are no manual "submit codes" — scores flow through the lobby:
 
 1. The host opens index.html, hits Create lobby, picks the mode (**Teams** by default, or **Individuals**) and enters the participant count (default 10, range 2 to 20). They get a lobby ID (e.g. PS-7Q2K), an admin password, and a password for each team / player.
 2. A team (or player) opens the join link or index.html, enters the lobby ID, selects themselves, and confirms with the password. Then they land on games.html.
-3. The four browser missions write scores 0 to 100 themselves. The host enters points for host-scored challenges and grades the pub quiz in scoreboard.html and quiz-admin.html.
+3. The four browser missions write scores 0 to 100 themselves. The host enters points for manual-entry challenges and grades the pub quiz in scoreboard.html and quiz-admin.html.
 4. scoreboard.html on the projector shows the ranking live.
 
 ### Mode: teams vs. individuals
@@ -63,7 +63,7 @@ The host runs the event from three admin pages, all requiring the admin password
 
 Outside edit mode it's a live ranking. The **Edit** button switches to edit mode (**Save** / **Cancel** / **Reset**); changes are buffered and only written with **Save**, **Cancel** discards them. In edit mode the host:
 
-- **Enters points** for host-scored challenges — click a team's cell, whole number from 0. The four browser missions write their own scores; the host doesn't touch those.
+- **Enters points** for manual-entry challenges — click a team's cell, whole number from 0. The four browser missions write their own scores; the host doesn't touch those.
 - **Renames teams / players** — inline name fields (max 24 chars).
 
 Columns and ranking **follow the added missions** — only missions enabled in games.html show up, removed ones drop out. A mission's column header carries a **read-only lock indicator** (🔒 / 🔓); the actual locking is done in games.html. Outside edit mode there's a **Celebrate winner** button — a popover with the winner and full-screen confetti.
@@ -75,7 +75,7 @@ The admin view of games.html is the mission control panel for the lobby:
 - **Add / remove missions** — 👁 / 🚫 enables or hides a mission in the team lobby. The scoreboard and topbar only count added missions.
 - **🔒 / 🔓 Lock** — locks/unlocks a mission. A locked mission is greyed out in games.html; on entry the team sees "Mission locked".
 - **📋 Rules** — the rules text the team sees on the mission. Empty = default text from the catalog.
-- **⏱ Time limit** — a limit in minutes for host-scored and custom missions (empty/0 = no limit). The team sees it in games.html and gets a warning before entering.
+- **⏱ Time limit** — a limit in minutes for manual-entry and custom missions (empty/0 = no limit). The team sees it in games.html and gets a warning before entering.
 - **⋯ Per-team** — expands sub-rows to set lock / limit / rules for a single team separately.
 - **Custom missions** — create a new mission (name max 40 chars, emoji, rules, optional limit). Each gets a `CUSTOMxxxx` key and a 🗑 delete button.
 

@@ -40,6 +40,9 @@ export function isValidLobbyId(s) {
 
 export const SESSION_KEY = 'psOffsite2026.lobby';
 export const LEGACY_TEAM_KEY = 'psOffsite2026.team';
+// Prefix for the per-lobby admin password cached in sessionStorage (see
+// admin-gate.js). Cleared on leave so the next user on this tab can't inherit it.
+export const ADMIN_PWD_PREFIX = 'psOffsite2026.adminPwd.';
 
 // Lobby mode: 'teams' (default — N teams of players) or 'individuals'
 // (N solo players). Mode lives at lobbies/{id}/meta/mode and drives both the
@@ -122,6 +125,13 @@ export function setSession(s) {
 
 export function clearSession() {
   try { localStorage.removeItem(SESSION_KEY); } catch {}
+  // Drop any cached admin passwords so leaving fully de-authenticates this tab.
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(ADMIN_PWD_PREFIX)) sessionStorage.removeItem(k);
+    }
+  } catch {}
 }
 
 const MAX_CREATE_RETRIES = 5;

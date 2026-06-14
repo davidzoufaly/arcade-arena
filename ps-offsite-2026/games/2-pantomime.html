@@ -275,7 +275,7 @@
   .save-status.ok  { background: rgba(0,230,118,0.18); color: #00e676; }
   .save-status.bad { background: rgba(255,77,109,0.18); color: #ff4d6d; cursor: pointer; }
   .secondary-link {
-    color: var(--accent); text-decoration: none; font-weight: 700; font-size: 16px;
+    color: var(--accent-2); text-decoration: none; font-weight: 700; font-size: 16px;
     align-self: center; padding: 8px 14px;
   }
   .result-row { display: flex; gap: 12px; justify-content: center; align-items: center; }
@@ -316,6 +316,7 @@
   }
 </style>
 <link rel="stylesheet" href="../shared/topbar.css">
+<link rel="stylesheet" href="../shared/modal.css">
 </head>
 <body>
 <header>
@@ -564,12 +565,12 @@ document.getElementById('startBtn').addEventListener('click', () => {
 async function loadModel() {
   document.getElementById('startBtn').textContent = 'Loading AI…';
   await loadMp();
-  const vision = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
+  const vision = await FilesetResolver.forVisionTasks(`${import.meta.env.BASE_URL}mediapipe/wasm`);
   landmarker = await PoseLandmarker.createFromOptions(vision, {
     baseOptions: {
       // Heavy model: best landmark accuracy, which the tighter pose checks rely on.
       // Costs load time + FPS, but poses are held for ~1–2 s so FPS isn't critical.
-      modelAssetPath: '/mediapipe/models/pose_landmarker_heavy.task',
+      modelAssetPath: `${import.meta.env.BASE_URL}mediapipe/models/pose_landmarker_heavy.task`,
       delegate: 'GPU',
     },
     runningMode: 'VIDEO',

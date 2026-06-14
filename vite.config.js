@@ -16,6 +16,10 @@ const input = Object.fromEntries(
 
 export default defineConfig({
   root,
+  // GitHub Pages serves this repo from a sub-path (davidzoufaly.github.io/arcade-arena/).
+  // The CI build sets GITHUB_PAGES=1; locally base stays '/'. Vite prepends base to
+  // built asset URLs and exposes it as import.meta.env.BASE_URL (used in vision paths).
+  base: process.env.GITHUB_PAGES ? '/arcade-arena/' : '/',
   server: { port: 5173, open: '/index.html' },
   build: {
     outDir: '../dist',

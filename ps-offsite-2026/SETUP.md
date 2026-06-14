@@ -60,13 +60,13 @@ Admin and participant passwords are **never written to the database in plaintext
 ## 5. Run / deploy
 
 - Local: `npm run dev` then open http://localhost:5173/scoreboard.html
-- CDN: build with `npm run build` (outputs to `dist/`) and drag-drop to Netlify / Vercel / Cloudflare Pages. The bundled `firebase-config.js` ships with it.
+- CDN: build with `npm run build` (outputs to `dist/`) and drag-drop to any static host (Vercel / Cloudflare Pages / GitHub Pages). The bundled `firebase-config.js` ships with it.
 
 ## Vision assets (camera games)
 
 The camera games (gesture-lock, pantomime, dino) use the **mediapipe** runtime + ML models. These are self-hosted, not loaded from a CDN. The ~60MB of binaries live under `ps-offsite-2026/public/mediapipe/` and are **gitignored** — `scripts/fetch-vision-assets.mjs` copies the wasm from `node_modules` and downloads the `.task` models.
 
-It runs automatically on `postinstall`, `predev`, and `prebuild`, so a fresh clone (and Netlify) gets them with no extra step. The runtime bundle is lazy-loaded only when a game starts. To re-fetch manually: `npm run vision:assets` (deletes nothing; skips files already present).
+It runs automatically on `postinstall`, `predev`, and `prebuild`, so a fresh clone (and any CI build) gets them with no extra step. The runtime bundle is lazy-loaded only when a game starts. To re-fetch manually: `npm run vision:assets` (deletes nothing; skips files already present).
 
 ## Resetting state between events
 

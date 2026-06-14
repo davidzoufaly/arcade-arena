@@ -264,6 +264,7 @@
 </style>
 <link rel="stylesheet" href="../shared/theme.css">
 <link rel="stylesheet" href="../shared/topbar.css">
+<link rel="stylesheet" href="../shared/modal.css">
 </head>
 <body>
 <header>
@@ -423,8 +424,8 @@ import { firebaseConfig } from '../firebase-config.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 
-const WASM_URL = '/mediapipe/wasm';
-const GESTURE_MODEL_URL = '/mediapipe/models/gesture_recognizer.task';
+const WASM_URL = `${import.meta.env.BASE_URL}mediapipe/wasm`;
+const GESTURE_MODEL_URL = `${import.meta.env.BASE_URL}mediapipe/models/gesture_recognizer.task`;
 
 mountTopbar({ activePage: 'games' });
 const _session = resolveSession();

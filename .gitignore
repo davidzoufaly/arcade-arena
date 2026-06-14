@@ -4,9 +4,6 @@ dist/
 .vite/
 ps-offsite-2026/firebase-config.js
 
-# Local Netlify folder
-.netlify
-
 # Playwright CLI snapshots / logs
 .playwright-cli/
 

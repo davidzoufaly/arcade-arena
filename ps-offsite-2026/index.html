@@ -42,8 +42,8 @@
 
   /* Join card is shorter than Create; pin its form block to the bottom so the
      "Join lobby" heading sits at top and Lobby ID / Continue sit at bottom. */
-  .lobby-card label[for="joinLobbyId"],
-  .lobby-card label[for="createTeamCount"] { margin-top: auto; }
+  .lobby-card label[for="joinLobbyId"] { margin-top: auto; }
+  .lobby-card #createBtn { margin-top: auto; }
   .mode-switch { display: flex; gap: 8px; margin-bottom: 14px; }
   .mode-option {
     flex: 1; display: flex; align-items: center; justify-content: center;
@@ -177,14 +177,6 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-const LAST_LOBBY_KEY = 'arcade.lastLobbyId';
-function rememberLobby(id) {
-  try { localStorage.setItem(LAST_LOBBY_KEY, id); } catch {}
-}
-function recallLobby() {
-  try { return localStorage.getItem(LAST_LOBBY_KEY) || ''; } catch { return ''; }
-}
-
 // ---------- create flow ----------
 function selectedMode() {
   return document.querySelector('input[name="lobbyMode"]:checked')?.value === 'individuals'
@@ -218,7 +210,6 @@ $('createBtn').addEventListener('click', async () => {
   $('createBtn').disabled = true;
   try {
     const { lobbyId, adminPwd, teams } = await api.createLobby(n, mode);
-    rememberLobby(lobbyId);
     renderCredentials({ lobbyId, adminPwd, teams, mode });
     show('view-credentials');
   } catch (e) {
@@ -325,7 +316,6 @@ async function doJoin(lobbyId) {
   if (radio.value === '__admin__') {
     const ok = await api.verifyAdminPwd(lobbyId, pwd);
     if (!ok) { showErr('joinErr', 'Wrong admin password.'); return; }
-    rememberLobby(lobbyId);
     setSession({ lobbyId, role: 'admin' });
     location.href = `games.html?lobby=${encodeURIComponent(lobbyId)}`;
     return;
@@ -333,7 +323,6 @@ async function doJoin(lobbyId) {
   const teamId = parseInt(radio.value, 10);
   const ok = await api.verifyTeamPwd(lobbyId, teamId, pwd);
   if (!ok) { showErr('joinErr', 'Wrong password.'); return; }
-  rememberLobby(lobbyId);
   setSession({ lobbyId, teamId });
   location.href = `games.html?lobby=${encodeURIComponent(lobbyId)}&team=${teamId}`;
 }
@@ -346,9 +335,11 @@ if (session && isAdminSession(session)) {
   location.replace(`games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`);
 } else {
   show('view-create-join');
-  // Prefill the join field from ?lobby=… (shared link) or the last lobby this device used.
+  // Prefill the join field only from ?lobby=… (an explicit shared link).
+  // No localStorage recall — a stale last-used lobby prefilling a different
+  // lobby than the user wants to join is confusing.
   const urlLobby = new URLSearchParams(location.search).get('lobby');
-  const prefill = (urlLobby || recallLobby() || '').toUpperCase();
+  const prefill = (urlLobby || '').toUpperCase();
   if (prefill) {
     $('joinLobbyId').value = prefill;
     if (isValidLobbyId(prefill)) revealTeamPicker(prefill);

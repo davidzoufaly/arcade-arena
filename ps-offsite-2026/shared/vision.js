@@ -2,9 +2,12 @@
 // the dynamic import below, so it only loads when a game actually starts), and
 // the wasm + .task models live under public/mediapipe (fetched by
 // scripts/fetch-vision-assets.mjs). No CDN at runtime.
-const WASM_URL = '/mediapipe/wasm';
+// BASE_URL keeps these working under a sub-path deploy (e.g. GitHub Pages
+// /arcade-arena/); it's '/' in dev, so paths stay '/mediapipe/...' locally.
+const BASE = import.meta.env.BASE_URL;
+const WASM_URL = `${BASE}mediapipe/wasm`;
 export const MODEL_URL = {
-  hand: '/mediapipe/models/hand_landmarker.task',
+  hand: `${BASE}mediapipe/models/hand_landmarker.task`,
 };
 
 let visionPromise;
