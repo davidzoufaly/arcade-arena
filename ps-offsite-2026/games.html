@@ -9,6 +9,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <script>(function(){try{var t=localStorage.getItem('ps-theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="stylesheet" href="shared/topbar.css">
+<link rel="stylesheet" href="shared/modal.css">
 <style>
   :root {
     --bg: #09090C; --bg-2: #18181B; --card: #222224;
@@ -172,14 +173,14 @@
     <p class="subtitle" id="adminSub">Add games to the lobby, lock them, set rules &amp; timers, or create your own.</p>
     <div id="adminList" class="admin-list"></div>
     <div class="admin-newgame">
-      <h2>Create a game</h2>
+      <h2>Create a manual entry game</h2>
       <div class="ng-fields">
         <input id="ngName" type="text" maxlength="40" placeholder="Game name">
         <input id="ngEmoji" type="text" maxlength="8" placeholder="Icon (emoji)">
         <input id="ngTimer" type="number" min="0" placeholder="Time limit (min)">
       </div>
       <textarea id="ngRules" rows="3" placeholder="Rules (optional)"></textarea>
-      <button id="ngCreate">＋ Create game</button>
+      <button id="ngCreate">＋ Create manual entry game</button>
       <div id="ngErr" class="lobby-banner err" hidden></div>
     </div>
   </section>
@@ -196,6 +197,7 @@ import { resolveCatalog, nextCustomKey, makeCustomGame, validateCustomGame } fro
 import { resolveTimer, resolveRule, setGameOverride, setCellOverride } from './shared/game-config.js';
 import { resolveLock, setCell, toggleGame, resolveGameLock } from './shared/game-lock.js';
 import { allCategoriesSubmitted } from './shared/quiz.js';
+import { openModal } from './shared/modal.js';
 
 if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
   document.body.innerHTML = '<div style="max-width:640px;margin:80px auto;padding:32px;background:var(--card);border-radius:16px;color:var(--text);font-family:system-ui">Firebase config missing. See SETUP.md.</div>';
@@ -442,21 +444,28 @@ function mountAdminGames(db, lobbyId) {
     });
   }
 
-  async function editRules(key) {
-    if (perTeamOverridesExist(key) && !confirm('Setting game-level rules clears any per-team rules for this game. Continue?')) return;
+  function editRules(key) {
     const eff = resolveCatalog(GAMES, gamesNode).find(g => g.key === key);
     const current = resolveRule(rules, key, undefined, eff?.rules ?? '');
-    const next = prompt('Rules for ' + (eff?.name ?? key) + ' (blank = default):', current ?? '');
-    if (next === null) return;
-    await writeNode('rules', n => setGameOverride(n, key, next));
+    const warn = perTeamOverridesExist(key) ? `<p>Saving game-level rules clears any per-team rules for this game.</p>` : '';
+    openModal({
+      title: 'Rules — ' + (eff?.name ?? key),
+      bodyHtml: `${warn}<label for="cfgInput">Rules (blank = default)</label><textarea id="cfgInput">${esc(current ?? '')}</textarea>`,
+      confirmLabel: 'Save',
+      onConfirm: () => writeNode('rules', n => setGameOverride(n, key, document.getElementById('cfgInput').value)),
+    });
   }
 
-  async function editTimer(key) {
-    if (perTeamOverridesExist(key) && !confirm('Setting a game-level timer clears any per-team timers for this game. Continue?')) return;
+  function editTimer(key) {
+    const eff = resolveCatalog(GAMES, gamesNode).find(g => g.key === key);
     const cur = resolveTimer(timers, key);
-    const raw = prompt('Time limit in minutes (blank or 0 = no limit):', cur ?? '');
-    if (raw === null) return;
-    await writeNode('timers', n => setGameOverride(n, key, Number(raw)));
+    const warn = perTeamOverridesExist(key) ? `<p>Saving a game-level timer clears any per-team timers for this game.</p>` : '';
+    openModal({
+      title: 'Time limit — ' + (eff?.name ?? key),
+      bodyHtml: `${warn}<label for="cfgInput">Minutes (blank or 0 = no limit)</label><input id="cfgInput" type="number" min="0" value="${cur ?? ''}">`,
+      confirmLabel: 'Save',
+      onConfirm: () => writeNode('timers', n => setGameOverride(n, key, Number(document.getElementById('cfgInput').value))),
+    });
   }
 
   function togglePerTeam(row, key) {
@@ -480,18 +489,25 @@ function mountAdminGames(db, lobbyId) {
         const cur = resolveLock(n, key, teamId) === 'locked';
         setCell(n, key, teamId, cur ? 'unlocked' : 'locked');
       });
-      r.querySelector('[data-pt="timer"]').onclick = async () => {
+      const tName = esc(teams.find(t => t.id === teamId)?.name || ('Team ' + teamId));
+      r.querySelector('[data-pt="timer"]').onclick = () => {
         const cur = resolveTimer(timers, key, teamId);
-        const raw = prompt('Per-team time limit (min, blank=clear):', cur ?? '');
-        if (raw === null) return;
-        await writeNode('timers', n => setCellOverride(n, key, teamId, Number(raw)));
+        openModal({
+          title: `Time limit — ${tName}`,
+          bodyHtml: `<label for="cfgInput">Minutes (blank = clear)</label><input id="cfgInput" type="number" min="0" value="${cur ?? ''}">`,
+          confirmLabel: 'Save',
+          onConfirm: () => writeNode('timers', n => setCellOverride(n, key, teamId, Number(document.getElementById('cfgInput').value))),
+        });
       };
-      r.querySelector('[data-pt="rules"]').onclick = async () => {
+      r.querySelector('[data-pt="rules"]').onclick = () => {
         const eff = resolveCatalog(GAMES, gamesNode).find(g => g.key === key);
         const cur = resolveRule(rules, key, teamId, eff?.rules ?? '');
-        const next = prompt('Per-team rules (blank=clear):', cur ?? '');
-        if (next === null) return;
-        await writeNode('rules', n => setCellOverride(n, key, teamId, next));
+        openModal({
+          title: `Rules — ${tName}`,
+          bodyHtml: `<label for="cfgInput">Rules (blank = clear)</label><textarea id="cfgInput">${esc(cur ?? '')}</textarea>`,
+          confirmLabel: 'Save',
+          onConfirm: () => writeNode('rules', n => setCellOverride(n, key, teamId, document.getElementById('cfgInput').value)),
+        });
       };
     }
     row.insertAdjacentElement('afterend', box);
