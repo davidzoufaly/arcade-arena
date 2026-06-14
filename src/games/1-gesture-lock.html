@@ -174,21 +174,30 @@
     box-shadow: 0 0 24px rgba(218,254,133,0.5);
   }
 
-  .progress-bar {
-    height: 6px; background: rgba(255,255,255,0.08);
-    border-radius: 999px; overflow: hidden; margin-top: 16px;
+  /* Lock progress: a bright line tracing a rectangle OUTSIDE the camera frame
+     (with a gap around it), one side at a time — right ↓, bottom ←, left ↑,
+     top → — as you hold a gesture. Full loop = locked. It sits on the dark page
+     background just outside the video, NOT over the camera feed, so it stays
+     high-contrast and readable. Uses the theme foreground (var(--text): white on
+     dark, near-black on light) so it stays visible in both themes — and the same
+     neutral color for BOTH correct and wrong holds, fills the same way over the
+     same time either way, so a completed loop never reads as "correct" right
+     before a wrong-gesture fail. Right/wrong is signalled by the skeleton line
+     color, not this border. */
+  .cam-stage { position: relative; align-self: start; }
+  .lock-border {
+    position: absolute; inset: -16px;   /* push the loop outside the frame, with a gap */
+    pointer-events: none; z-index: 3;
   }
-  .progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--good));
-    width: 0%; transition: width 0.1s linear;
+  .lock-border .lb-seg {
+    position: absolute; background: var(--text);
+    box-shadow: 0 0 10px var(--text);
+    transition: width 0.1s linear, height 0.1s linear;
   }
-  /* Wrong-gesture fill: same motion as a correct hold so the player sees the
-     gesture IS being read, but neutral-colored so a full bar never reads as
-     "correct" right before the wrong-gesture fail fires. */
-  .progress-fill.neutral {
-    background: var(--muted);
-  }
+  .lb-right  { top: 0;    right: 0; width: 8px;  height: 0; } /* ↓ */
+  .lb-bottom { bottom: 0; right: 0; height: 8px; width: 0;  } /* ← */
+  .lb-left   { bottom: 0; left: 0;  width: 8px;  height: 0; } /* ↑ */
+  .lb-top    { top: 0;    left: 0;  height: 8px; width: 0;  } /* → */
   .unknown-hint {
     position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
     background: rgba(0,0,0,0.78); backdrop-filter: blur(8px);
@@ -333,22 +342,29 @@
   <!-- RECALL -->
   <div id="phase-recall" class="hidden">
     <div class="game">
-      <div class="video-wrap" id="videoWrap">
-        <video id="video" playsinline autoplay muted></video>
-        <canvas id="overlay"></canvas>
-        <div class="step-badge" id="stepBadge">1 / ?</div>
-        <div class="video-overlay">
-          Detected: <span id="currentGesture">—</span>
+      <div class="cam-stage">
+        <div class="video-wrap" id="videoWrap">
+          <video id="video" playsinline autoplay muted></video>
+          <canvas id="overlay"></canvas>
+          <div class="step-badge" id="stepBadge">1 / ?</div>
+          <div class="video-overlay">
+            Detected: <span id="currentGesture">—</span>
+          </div>
+          <div class="cam-flash" id="camFlash"></div>
+          <div class="cam-countdown hidden" id="camCountdown"></div>
+          <div class="unknown-hint hidden" id="unknownHint">🤚 Can't read that gesture — lower your hand, then show it again</div>
         </div>
-        <div class="cam-flash" id="camFlash"></div>
-        <div class="cam-countdown hidden" id="camCountdown"></div>
-        <div class="unknown-hint hidden" id="unknownHint">🤚 Can't read that gesture — lower your hand, then show it again</div>
+        <!-- Lock-loop lives OUTSIDE the camera (sibling of .video-wrap, which clips
+             via overflow:hidden) so it can sit in the gap around the frame. -->
+        <div class="lock-border" id="lockBorder">
+          <!-- Four sides fill in sequence: right ↓, bottom ←, left ↑, top →. -->
+          <div class="lb-seg lb-right"></div>
+          <div class="lb-seg lb-bottom"></div>
+          <div class="lb-seg lb-left"></div>
+          <div class="lb-seg lb-top"></div>
+        </div>
       </div>
       <div class="panel">
-        <div>
-          <div style="font-size: 13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center">Hold to lock</div>
-          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        </div>
         <div>
           <div style="font-size: 13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center">Progress</div>
           <div class="progress-dots" id="recallDots"></div>
@@ -441,11 +457,20 @@ const GAME_CODE = 'GZ';
 const MAX_ATTEMPTS = 5;
 const MEMORIZE_FLASH_MS = 800;
 const COUNTDOWN_MS = 3000;
-const HOLD_MS = 250;
-const WRONG_CONFIRM_MS = 700;
+const HOLD_MS = 500;
+// Wrong-gesture confirm uses the SAME duration as a correct lock so the
+// "hold to lock" bar fills identically whichever gesture you hold — its speed
+// no longer betrays right/wrong (the skeleton line color carries that).
+const WRONG_CONFIRM_MS = HOLD_MS;
 const POST_MATCH_SETTLE_MS = 600;
 const WRONG_CONFIDENCE = 0.65;
 const MATCH_CONFIDENCE = 0.45;
+// Hand-skeleton line color: neutral grey by default (and for wrong/unknown
+// gestures), green only while the correct target gesture is being held — so the
+// line itself signals "you're doing the right thing" without ever flashing
+// green on an incorrect hold.
+const LINE_CORRECT = '#00e676'; // --good
+const LINE_NEUTRAL = '#848486'; // --muted
 const GESTURE_TIME_S = 10;
 const CAM_COUNTDOWN_S = 3;
 // Hand visible but classifier can't name a gesture (or names it with very low
@@ -495,6 +520,18 @@ if (DEBUG_TEAM_N !== null) {
 }
 
 function $(id) { return document.getElementById(id); }
+
+// Drive the hold indicator: a neutral line tracing the camera border one side
+// at a time (right ↓, bottom ←, left ↑, top →). Each of the 4 segments owns a
+// 25% slice of pct; full loop = locked. pct 0..100.
+const lockSegs = document.querySelectorAll('#lockBorder .lb-seg');
+function setHoldProgress(pct) {
+  lockSegs.forEach((seg, i) => {
+    const local = Math.max(0, Math.min(100, ((pct - i * 25) / 25) * 100));
+    // Segs 0/2 (right, left) grow vertically; 1/3 (bottom, top) horizontally.
+    seg.style[i % 2 === 0 ? 'height' : 'width'] = local + '%';
+  });
+}
 
 // Progress dots with a "|" divider every 4 so a long sequence reads in groups.
 // Returns markup only; callers query `.dot` (not all children) so dividers
@@ -810,8 +847,7 @@ phaseEnter.recall = () => {
   const dots = [...dotsEl.querySelectorAll('.dot')];
 
   $('attemptLabel').textContent = `${state.attemptIdx + 1} / ${MAX_ATTEMPTS}`;
-  $('progressFill').style.width = '0%';
-  $('progressFill').classList.remove('neutral');
+  setHoldProgress(0);
   $('currentGesture').textContent = '—';
   $('timer').textContent = GESTURE_TIME_S.toFixed(1);
   $('timer').style.color = '';
@@ -828,6 +864,7 @@ phaseEnter.recall = () => {
   let lastCamCount = -1;
   let unknownStart = 0;
   let hiddenAt = 0;
+  let skeletonColor = LINE_NEUTRAL; // updated each frame by handleGesture
 
   // Pause the recall/per-gesture clocks while the tab is hidden so a tab switch
   // doesn't burn the 10 s timer or inflate the elapsed time. Registered on entry
@@ -883,7 +920,7 @@ phaseEnter.recall = () => {
     if (!result.landmarks) return;
     const du = new DrawingUtils(ctx);
     for (const lm of result.landmarks) {
-      du.drawConnectors(lm, GestureRecognizer.HAND_CONNECTIONS, { color: '#DAFE85', lineWidth: 3 });
+      du.drawConnectors(lm, GestureRecognizer.HAND_CONNECTIONS, { color: skeletonColor, lineWidth: 3 });
       du.drawLandmarks(lm, { color: '#657BC7', lineWidth: 1, radius: 3 });
     }
   }
@@ -911,18 +948,19 @@ phaseEnter.recall = () => {
 
     // Settle window after a correct match
     if (now - lastMatchMs < POST_MATCH_SETTLE_MS) {
-      $('progressFill').style.width = '0%';
+      setHoldProgress(0);
+      skeletonColor = LINE_NEUTRAL;
       return;
     }
 
     const target = state.sequence[state.stepIdx].id;
 
     if (name === target && conf > MATCH_CONFIDENCE) {
-      $('progressFill').classList.remove('neutral');
+      skeletonColor = LINE_CORRECT;
       if (lastGesture !== target) holdStart = now;
       lastGesture = target;
       const held = now - holdStart;
-      $('progressFill').style.width = Math.min(100, (held / HOLD_MS) * 100) + '%';
+      setHoldProgress(Math.min(100, (held / HOLD_MS) * 100));
       if (held >= HOLD_MS) {
         // Advance
         dots[state.stepIdx].classList.add('done');
@@ -937,7 +975,7 @@ phaseEnter.recall = () => {
         unknownStart = 0;
         $('unknownHint').classList.add('hidden');
         $('camCountdown').classList.add('hidden');
-        $('progressFill').style.width = '0%';
+        setHoldProgress(0);
         pulseVideo('match-pulse');
         if (state.stepIdx >= state.sequence.length) {
           endAttempt('success');
@@ -946,18 +984,20 @@ phaseEnter.recall = () => {
         updateStepBadge();
       }
     } else {
+      // Not the correct gesture → line stays neutral grey (covers wrong,
+      // unknown and idle), never green.
+      skeletonColor = LINE_NEUTRAL;
       // Wrong-gesture detection
       if (name !== 'None' && name !== target && conf > WRONG_CONFIDENCE) {
         if (wrongName !== name) {
           wrongName = name;
           wrongStart = now;
         }
-        // Fill the same bar as a correct hold so the player sees the gesture
-        // IS being read — but neutral-colored, so a full green bar never
-        // misreads as "correct" right before the fail fires.
+        // Fill the same bar, same color and same duration as a correct hold so
+        // the player sees the gesture IS being read; the bar never betrays
+        // right vs wrong (the skeleton line color does that).
         const held = now - wrongStart;
-        $('progressFill').classList.add('neutral');
-        $('progressFill').style.width = Math.min(100, (held / WRONG_CONFIRM_MS) * 100) + '%';
+        setHoldProgress(Math.min(100, (held / WRONG_CONFIRM_MS) * 100));
         if (held >= WRONG_CONFIRM_MS) {
           pulseVideo('wrong-flash');
           endAttempt('fail');
@@ -966,8 +1006,7 @@ phaseEnter.recall = () => {
       } else {
         wrongStart = 0;
         wrongName = null;
-        $('progressFill').classList.remove('neutral');
-        $('progressFill').style.width = '0%';
+        setHoldProgress(0);
       }
       lastGesture = name;
     }
@@ -1090,7 +1129,7 @@ phaseEnter.final = () => {
 
 function wireRestart() {
   $('finalPlayAgain').onclick = async () => {
-    if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:' })) return;
+    if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:', force: true })) return;
     // Tear down the camera/recognizer so the next loading phase reopens fresh
     // at TRACKER_CEILING and calibration re-runs. Defensive — phaseEnter.final
     // already does the same teardown, but wireRestart is also wired from

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { WARMUP_S, warmupSecondsLeft } from '../ps-offsite-2026/shared/warmup-logic.js';
+import { WARMUP_S, warmupSecondsLeft } from '../src/shared/warmup-logic.js';
 
 describe('WARMUP_S', () => {
   it('is 10', () => expect(WARMUP_S).toBe(10));

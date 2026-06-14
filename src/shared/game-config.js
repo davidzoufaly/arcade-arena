@@ -1,4 +1,4 @@
-// ps-offsite-2026/shared/game-config.js
+// src/shared/game-config.js
 // Pure per-game / per-team config-override resolution + write helpers for
 // timers and rules, plus timer arithmetic. No Firebase imports (testable).
 // Mirrors shared/game-lock.js.

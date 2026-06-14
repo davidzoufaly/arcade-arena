@@ -1,4 +1,4 @@
-/* ps-offsite-2026/shared/modal.css — shared dialog used via shared/modal.js */
+/* src/shared/modal.css — shared dialog used via shared/modal.js */
 .modal-box {
   background: var(--card); border: 1px solid var(--border);
   border-radius: 14px; padding: 24px; width: min(460px, 92vw);

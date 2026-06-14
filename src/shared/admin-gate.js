@@ -68,21 +68,28 @@ const verifiedLobbies = new Set();
 // remember success in-memory for the rest of this page load so the host isn't
 // re-prompted on every click. Forging the localStorage role no longer unlocks
 // admin writes; an attacker needs the actual password.
-export async function requireAdmin(lobbyId, { promptText } = {}) {
+//
+// `force` (e.g. game restart) bypasses BOTH caches: it always prompts, and a
+// success is NOT remembered. This stops a player from inheriting admin power on
+// a shared device after the host authenticates once, and stops a restart from
+// silently unlocking the other (cached) admin actions for that tab.
+export async function requireAdmin(lobbyId, { promptText, force = false } = {}) {
   if (!lobbyId) return false;
-  if (verifiedLobbies.has(lobbyId)) return true;
+  if (!force && verifiedLobbies.has(lobbyId)) return true;
   const api = getApi();
 
   // Silent path: re-verify a password cached this tab session so the host skips
   // the prompt on navigation/reload. Re-checked against the DB hash every time,
-  // so a forged cache value still can't unlock admin.
-  const cached = readCachedPwd(lobbyId);
-  if (cached) {
-    if (await api.verifyAdminPwd(lobbyId, cached)) {
-      verifiedLobbies.add(lobbyId);
-      return true;
+  // so a forged cache value still can't unlock admin. Skipped under `force`.
+  if (!force) {
+    const cached = readCachedPwd(lobbyId);
+    if (cached) {
+      if (await api.verifyAdminPwd(lobbyId, cached)) {
+        verifiedLobbies.add(lobbyId);
+        return true;
+      }
+      clearCachedPwd(lobbyId);                    // stale (e.g. lobby recreated)
     }
-    clearCachedPwd(lobbyId);                      // stale (e.g. lobby recreated)
   }
 
   const promptHtml = esc(promptText || `Admin password for lobby ${lobbyId}:`);
@@ -93,8 +100,10 @@ export async function requireAdmin(lobbyId, { promptText } = {}) {
     const pwd = entered.trim().toUpperCase();
     if (!pwd) { error = 'Enter a password.'; continue; }
     if (await api.verifyAdminPwd(lobbyId, pwd)) {
-      verifiedLobbies.add(lobbyId);
-      writeCachedPwd(lobbyId, pwd);               // remember for this tab session
+      if (!force) {                               // restart never caches success
+        verifiedLobbies.add(lobbyId);
+        writeCachedPwd(lobbyId, pwd);             // remember for this tab session
+      }
       return true;
     }
     error = 'Wrong admin password.';             // re-prompt with inline error

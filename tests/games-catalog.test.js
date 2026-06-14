@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   GAMES, getGame, playableKeys, manualKeys, quizKeys, allEnteredKeys,
-} from '../ps-offsite-2026/shared/games-catalog.js';
+} from '../src/shared/games-catalog.js';
 
 describe('GAMES catalog', () => {
   it('exposes all 7 games with required fields', () => {

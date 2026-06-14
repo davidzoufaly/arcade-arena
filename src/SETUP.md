@@ -47,9 +47,9 @@ One-time setup, ~5 min.
 
 ## 4. Paste config into the repo
 
-1. Copy `firebase-config.example.js` to `firebase-config.js` (in `ps-offsite-2026/`):
+1. Copy `firebase-config.example.js` to `firebase-config.js` (in `src/`):
    ```bash
-   cp ps-offsite-2026/firebase-config.example.js ps-offsite-2026/firebase-config.js
+   cp src/firebase-config.example.js src/firebase-config.js
    ```
 2. Paste the values from the Console snippet into the new file. `databaseURL` is the one ending in `.firebaseio.com` (or `.europe-west1.firebasedatabase.app`) — if missing from the snippet, copy it from the Realtime Database tab in the Console.
 
@@ -64,7 +64,7 @@ Admin and participant passwords are **never written to the database in plaintext
 
 ## Vision assets (camera games)
 
-The camera games (gesture-lock, pantomime, dino) use the **mediapipe** runtime + ML models. These are self-hosted, not loaded from a CDN. The ~60MB of binaries live under `ps-offsite-2026/public/mediapipe/` and are **gitignored** — `scripts/fetch-vision-assets.mjs` copies the wasm from `node_modules` and downloads the `.task` models.
+The camera games (gesture-lock, pantomime, dino) use the **mediapipe** runtime + ML models. These are self-hosted, not loaded from a CDN. The ~60MB of binaries live under `src/public/mediapipe/` and are **gitignored** — `scripts/fetch-vision-assets.mjs` copies the wasm from `node_modules` and downloads the `.task` models.
 
 It runs automatically on `postinstall`, `predev`, and `prebuild`, so a fresh clone (and any CI build) gets them with no extra step. The runtime bundle is lazy-loaded only when a game starts. To re-fetch manually: `npm run vision:assets` (deletes nothing; skips files already present).
 

@@ -50,6 +50,20 @@ export const PEAK_JUMP_STRENGTH = 22;
 // values so a one-hand jump clears obstacles but is not as floaty as peak 22.
 export const SOLO_JUMP_STRENGTH = 16;
 
+// Team jump (2-player lobby): the ground jump fires on the FIRST player's open
+// palm so it stays responsive, but at a lowered velocity. A second, optional
+// mid-air kick (the "double jump") fires once per airtime when the whole team
+// raises palms together — rewarding coordination with extra height/airtime.
+export const TEAM_JUMP_STRENGTH = 13;        // single jump from the ground (lowered)
+export const TEAM_DOUBLE_JUMP_STRENGTH = 18; // mid-air second kick (overrides current vy)
+
+// Palm count that arms the mid-air double jump: the whole detected team (e.g.
+// both hands in a 2-player lobby). Floored at 2 so it always needs at least two
+// coordinated palms — never a single hand.
+export function doubleJumpThreshold(teamN) {
+  return Math.max(2, teamN ?? FALLBACK_N);
+}
+
 // Wave structure: alternating active-play segments and auto-run rotate breaks.
 export const SEGMENT_PLAY_S = 20;  // active obstacle play per wave
 export const ROTATE_BREAK_S = 10;  // auto-run break to swap players

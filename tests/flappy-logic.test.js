@@ -5,6 +5,7 @@ import {
   FALL_V,
   RISE_CAP,
   METER_MAX,
+  METER_MAX_SOLO,
   RAMP_S,
   SPEED_MIN, SPEED_MAX,
   SPAWN_FRAMES_MAX, SPAWN_FRAMES_MIN,
@@ -18,12 +19,24 @@ import {
   pipeGap,
   scoreAttempt,
   finalScore,
-} from '../ps-offsite-2026/shared/flappy-logic.js';
+} from '../src/shared/flappy-logic.js';
 
 describe('constants', () => {
   it('GAIN is 25', () => expect(GAIN).toBe(25));
   it('GRAVITY is 0.28', () => expect(GRAVITY).toBeCloseTo(0.28));
   it('RAMP_S is 60', () => expect(RAMP_S).toBe(60));
+  it('solo meter max is lower than team (quieter voice = full rise)', () =>
+    expect(METER_MAX_SOLO).toBeLessThan(METER_MAX));
+});
+
+describe('targetVelocity with solo meterMax', () => {
+  // Same amplitude commands a stronger climb in solo than in team, because the
+  // lower threshold fills the meter sooner.
+  it('quiet voice climbs harder under the solo threshold', () =>
+    expect(targetVelocity(0.12, 0, METER_MAX_SOLO))
+      .toBeLessThan(targetVelocity(0.12, 0, METER_MAX)));
+  it('reaching the solo threshold already commands full rise', () =>
+    expect(targetVelocity(METER_MAX_SOLO, 0, METER_MAX_SOLO)).toBeCloseTo(-RISE_CAP));
 });
 
 describe('ampToThrust', () => {

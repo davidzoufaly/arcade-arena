@@ -1,4 +1,4 @@
-// Fetch mediapipe runtime + models into ps-offsite-2026/public/mediapipe.
+// Fetch mediapipe runtime + models into src/public/mediapipe.
 // These are large binaries (~60MB) kept out of git (see .gitignore). Run on
 // install/build/dev so local + Netlify always have them. Idempotent: skips
 // non-empty files already in place, so re-runs are cheap. Downloads land via a
@@ -9,7 +9,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../..');
-const PUBLIC = resolve(ROOT, 'ps-offsite-2026/public/mediapipe');
+const PUBLIC = resolve(ROOT, 'src/public/mediapipe');
 const WASM_SRC = resolve(ROOT, 'node_modules/@mediapipe/tasks-vision/wasm');
 const WASM_DST = resolve(PUBLIC, 'wasm');
 const MODELS_DST = resolve(PUBLIC, 'models');

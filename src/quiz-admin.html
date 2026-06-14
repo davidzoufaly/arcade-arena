@@ -1,4 +1,4 @@
-<!-- ps-offsite-2026/quiz-admin.html -->
+<!-- src/quiz-admin.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -163,12 +163,26 @@ const writer = firebaseWriter({ db, ref, update, push });
 // local clone (draftCats) and nothing hits the DB until Save. Cancel drops the
 // clone and falls back to the live `categories` node. tmpSeq mints local-only
 // keys for added categories (they have no submissions yet, so the key is free).
-let draftCats = null, dirtyCats = false, tmpSeq = 0;
-function catSource() { return dirtyCats ? draftCats : categories; }
+let draftCats = null, tmpSeq = 0;
+function catSource() { return draftCats ? draftCats : categories; }
 function ensureDraft() {
-  if (!dirtyCats) { draftCats = categories ? JSON.parse(JSON.stringify(categories)) : {}; dirtyCats = true; }
+  if (!draftCats) draftCats = categories ? JSON.parse(JSON.stringify(categories)) : {};
   return draftCats;
 }
+
+// Canonical signature of the categories node for dirty detection: a no-net-change
+// edit (e.g. bonus toggled on then off, count +1 then −1) compares equal even
+// though the raw draft differs (a toggled-off bonus leaves an empty {} where the
+// original had no key). Normalizes bonus to the sorted set of truthy indices.
+function catsSig(cats) {
+  const o = cats || {};
+  return JSON.stringify(Object.keys(o).sort().map(id => {
+    const c = o[id] || {};
+    const bonus = Object.keys(c.bonus || {}).filter(k => c.bonus[k]).map(Number).sort((a, b) => a - b);
+    return [id, c.order ?? 0, c.name || '', c.questionCount || 0, bonus];
+  }));
+}
+function dirtyCats() { return !!draftCats && catsSig(draftCats) !== catsSig(categories); }
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -256,13 +270,13 @@ function addCat() {
 // Save commits the whole categories node at once (replacing it). Cancel drops
 // the draft. Both reset dirty state and re-render from the live node.
 async function saveCats() {
-  if (!dirtyCats) return;
+  if (!dirtyCats()) return;
   await set(ref(db, `${LOBBY}/quiz/categories`), draftCats);
-  dirtyCats = false; draftCats = null;
+  draftCats = null;
   renderAll();
 }
 function cancelCats() {
-  dirtyCats = false; draftCats = null;
+  draftCats = null;
   renderAll();
 }
 
@@ -452,7 +466,7 @@ function setGradeStatus(catId, cls, text) {
 // wipes submissions + grades, both children of the quiz node) and clear every
 // team's published PQ score so the scoreboard drops the column.
 async function resetQuiz() {
-  dirtyCats = false; draftCats = null;   // drop any buffered editor edits
+  draftCats = null;   // drop any buffered editor edits
   await set(ref(db, `${LOBBY}/quiz`), { categories: seedCategories() });
   for (const t of teams) await set(ref(db, `${LOBBY}/scores/${t.id}/PQ`), null);
   for (const k of Object.keys(pending)) delete pending[k];
@@ -468,11 +482,13 @@ async function resetQuiz() {
 function renderHeadActions() {
   const el = document.getElementById('headActions');
   if (!isAdmin) { el.innerHTML = ''; return; }
-  const editBtns = dirtyCats
+  const dirty = dirtyCats();
+  if (!dirty) draftCats = null;   // edit reverted to original — drop draft, go live
+  const editBtns = dirty
     ? `<button class="btn-ghost" id="cancelCats">Cancel</button><button class="primary" id="saveCats">Save</button>`
     : '';
   el.innerHTML = `${editBtns}<button class="btn-danger" id="resetQuiz">Reset</button>`;
-  if (dirtyCats) {
+  if (dirty) {
     el.querySelector('#cancelCats').addEventListener('click', cancelCats);
     el.querySelector('#saveCats').addEventListener('click', saveCats);
   }

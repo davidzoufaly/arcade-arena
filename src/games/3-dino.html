@@ -158,23 +158,14 @@
     width: 240px; height: 135px; object-fit: cover;
     transform: scaleX(-1); border-radius: 12px; background: #000;
   }
-  .palm-dots { display: flex; gap: 6px; justify-content: center; margin-top: 10px; }
+  .palm-dots { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
   .palm-dots .pip {
-    width: 14px; height: 18px; border-radius: 4px;
+    width: 24px; height: 32px; border-radius: 6px;
     border: 1px solid rgba(218,254,133,0.3); background: rgba(218,254,133,0.06);
   }
   .palm-dots .pip.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
   .jump-meter { height: 10px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden; margin-top: 10px; }
   .jump-meter .fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--good)); transition: width 0.05s linear; }
-  .pose-state {
-    margin-top: 10px; text-align: center;
-    font-size: 15px; font-weight: 800; letter-spacing: 1px;
-    padding: 6px 10px; border-radius: 8px;
-    background: rgba(255,255,255,0.06); color: var(--muted);
-  }
-  .pose-state.jump  { background: rgba(218,254,133,0.18);  color: var(--accent); }
-  .pose-state.duck  { background: rgba(255,77,109,0.18); color: var(--bad); }
-  .pose-state.ready { background: rgba(0,230,118,0.18);  color: var(--good); }
   .toast {
     position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%);
     background: var(--card); color: var(--text); padding: 12px 20px;
@@ -194,7 +185,7 @@
 <main>
   <div class="card briefing" id="briefing">
     Control the runner together with your hands — the more players coordinate the 'jump' gesture, the higher it leaps. Teamwork becomes lift.<br><br>
-    <strong>Goal:</strong> Steer the runner 🦖 with your hands in front of the laptop camera — only 2–3 players are active per wave, and the team rotates who plays. The runner jumps ⬆️ and ducks ⬇️ past obstacles 🌵; it plays in <strong>~20-second waves 💨</strong>, then a 10-second breather to swap players. <strong>First, a 20-second calibration:</strong> the active players raise their hands so the game can detect how many are playing — your jump strength scales with it. Each run then opens with a <strong>~10-second warm-up</strong> to practise the gestures — no obstacles appear until it ends. Then: <strong>more open palms ✋ = higher jump.</strong> Make a fist ✊ to duck. Hold a victory sign ✌️ to stay ready (no jump, no duck) — useful between obstacles so an idle palm doesn't trigger a false jump. Survive across waves; your score is the number of obstacles passed. <strong>5 attempts</strong>, best score counts 🏆.
+    <strong>Goal:</strong> Steer the runner 🦖 with your hands in front of the laptop camera — <strong>two players play at once.</strong> The runner jumps ⬆️ and ducks ⬇️ past obstacles 🌵. <strong>First, a 20-second calibration:</strong> the whole team raises one hand each so the game can size the team — a team of 2 plays the entire run together, a bigger team plays in <strong>~20-second waves 💨</strong> and rotates two players in each wave (10-second breather to swap). Each run then opens with a <strong>~10-second warm-up</strong> to practise the gestures — no obstacles appear until it ends. <strong>Open palm ✋ = jump</strong> — it fires the instant one player raises a palm. <strong>Both players raise palms together while in the air = a double jump</strong> for extra height. Make a fist ✊ to duck. Hold a victory sign ✌️ to stay ready (no jump, no duck). Your score is the number of obstacles passed. <strong>5 attempts</strong>, best score counts 🏆.
   </div>
 
   <!-- BOOT -->
@@ -204,7 +195,7 @@
   <div id="phase-setup" class="card hidden">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup"><button id="startBtn">Start game</button></div>
-    <div class="briefing" id="setupHint" style="margin-top: 12px; font-size: 15px;">Allow camera access when prompted. Get the active players (2–3 per wave) in frame.</div>
+    <div class="briefing" id="setupHint" style="margin-top: 12px; font-size: 15px;">Allow camera access when prompted. Whole team raises one hand for calibration; two players play each wave.</div>
   </div>
 
   <!-- LOADING -->
@@ -226,9 +217,9 @@
   <div id="phase-intro" class="card hidden">
     <h2 style="font-size: 28px; margin-bottom: 8px;">Attempt <span id="introNum">1</span> of 5</h2>
     <p class="briefing" id="introBrief">
-      <strong>Wave run</strong> — 20s obstacles, then 10s to rotate players; make the runner 🌀 jump ⬆️ and duck ⬇️ past obstacles 🌵 with your hands; it keeps speeding up 💨.<br>
+      <strong>Two players play.</strong> A team of 2 runs the whole way together; a bigger team plays 20s waves and rotates two players in each wave (10s to swap). It keeps speeding up 💨.<br>
       Starts with a <strong>~10s warm-up</strong> to practise the gestures — no obstacles until it ends.<br>
-      ✋ Open palms = jump (more / higher hands = higher jump)<br>
+      ✋ Open palm = jump (fires on the first palm) · both palms in the air = <strong>double jump</strong><br>
       ✊ Fist = duck · ✌️ Victory = stay ready between jumps<br>
       Score = obstacles passed. Best of <strong>5 attempts</strong> counts 🏆.
     </p>
@@ -246,7 +237,6 @@
           <div style="font-size: 13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;text-align:center">Open palms ✋ → jump ⬆️<br>Fist ✊ → duck ⬇️<br>Victory ✌️ → ready</div>
           <div class="palm-dots" id="palmDots"></div>
           <div class="jump-meter"><div class="fill" id="jumpFill"></div></div>
-          <div class="pose-state" id="poseState">SHOW HANDS</div>
         </div>
         <div class="player-banner">
           <div class="label">Score</div>

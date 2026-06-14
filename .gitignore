@@ -2,10 +2,10 @@
 node_modules/
 dist/
 .vite/
-ps-offsite-2026/firebase-config.js
+src/firebase-config.js
 
 # Playwright CLI snapshots / logs
 .playwright-cli/
 
 # Large mediapipe runtime + models — fetched by scripts/fetch-vision-assets.mjs
-ps-offsite-2026/public/mediapipe/
+src/public/mediapipe/

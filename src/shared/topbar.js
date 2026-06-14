@@ -25,7 +25,7 @@ function isCanvasGamePage() {
 function buildHeader({ lobbyId, teamId }, activePage, admin, teamName) {
   const pfx = prefix();
   const lobbyQ = `?lobby=${encodeURIComponent(lobbyId)}${teamId ? `&team=${teamId}` : ''}`;
-  const indexHref    = `${pfx}index.html`;
+  const indexHref    = `${pfx}index.html?lobby=${encodeURIComponent(lobbyId)}`;
   const gamesHref    = `${pfx}games.html${lobbyQ}`;
   const scoreHref    = `${pfx}scoreboard.html?lobby=${encodeURIComponent(lobbyId)}`;
   const quizAdminHref = `${pfx}quiz-admin.html?lobby=${encodeURIComponent(lobbyId)}`;

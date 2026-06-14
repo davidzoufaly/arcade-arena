@@ -30,7 +30,7 @@ jobs:
       # firebase-config.js is gitignored (kept out of the repo). The full file
       # contents live in the FIREBASE_CONFIG repo secret; write it before build.
       - name: Write firebase config
-        run: printf '%s' "$FIREBASE_CONFIG" > ps-offsite-2026/firebase-config.js
+        run: printf '%s' "$FIREBASE_CONFIG" > src/firebase-config.js
         env:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
 

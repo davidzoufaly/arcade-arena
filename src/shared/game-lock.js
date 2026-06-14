@@ -1,4 +1,4 @@
-// ps-offsite-2026/shared/game-lock.js
+// src/shared/game-lock.js
 // Pure lock-state resolution + cascade-clear write helpers. No Firebase imports.
 //
 // Stored shape (Firebase node lobbies/{lobbyId}/locks):
