@@ -109,11 +109,15 @@
   }
   .tile .score-line strong { color: var(--good); }
   .admin-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .admin-section-label {
+    font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--muted); margin: 14px 0 2px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .admin-section-label:first-child { margin-top: 0; }
   .admin-row {
     display: flex; align-items: center; gap: 12px;
     background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
   }
-  .admin-row.not-added { opacity: 0.5; }
   .admin-row .ar-emoji { font-size: 24px; width: 32px; text-align: center; }
   .admin-row .ar-name { font-weight: 800; flex: 1; }
   .admin-row .ar-kind { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
@@ -382,35 +386,43 @@ function mountAdminGames(db, lobbyId) {
 
   function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
+  function rowHtml(g) {
+    const added = g.added;
+    const locked = resolveGameLock(locks, g.key) === 'locked';
+    const mins = resolveTimer(timers, g.key);
+    const kindLabel = g.custom ? 'Custom' : g.kind === 'play' ? 'Playable' : g.kind === 'quiz' ? 'Quiz' : 'Manual entry';
+    const canTimer = g.kind !== 'play'; // manual-entry + custom
+    return `<div class="admin-row" data-key="${g.key}">
+      <span class="ar-emoji">${g.emoji}</span>
+      <span class="ar-name">${esc(g.name)} <span class="ar-kind">${kindLabel}${mins ? ` · ⏱ ${mins}m` : ''}</span></span>
+      <span class="ar-actions">
+        <button data-act="eye" class="${added ? 'on' : ''}" title="${added ? 'Remove from lobby' : 'Add to lobby'}">${added ? '－ Remove' : '＋ Add'}</button>
+        ${added ? `
+        <button data-act="lock" class="${locked ? '' : 'on'}" title="${locked ? 'Locked' : 'Unlocked'}">${locked ? '🔒' : '🔓'}</button>
+        <button data-act="rules" title="Edit rules">📋</button>
+        ${canTimer ? `<button data-act="timer" title="Set time limit">⏱</button>` : ''}
+        <button data-act="perteam" title="Per-team overrides">⋯</button>` : ''}
+        ${g.custom ? `<button data-act="delete" title="Delete game">🗑</button>` : ''}
+      </span>
+    </div>`;
+  }
+
   function render() {
     const openKey = listEl.querySelector('.admin-perteam')?.previousElementSibling?.dataset.key || null;
     const eff = resolveCatalog(GAMES, gamesNode);
-    listEl.innerHTML = eff.map(g => {
-      const added = g.added;
-      const locked = resolveGameLock(locks, g.key) === 'locked';
-      const mins = resolveTimer(timers, g.key);
-      const kindLabel = g.custom ? 'Custom' : g.kind === 'play' ? 'Playable' : g.kind === 'quiz' ? 'Quiz' : 'Manual entry';
-      const canTimer = g.kind !== 'play'; // host-scored + custom
-      return `<div class="admin-row ${added ? '' : 'not-added'}" data-key="${g.key}">
-        <span class="ar-emoji">${g.emoji}</span>
-        <span class="ar-name">${esc(g.name)} <span class="ar-kind">${kindLabel}${mins ? ` · ⏱ ${mins}m` : ''}</span></span>
-        <span class="ar-actions">
-          <button data-act="eye" class="${added ? 'on' : ''}" title="${added ? 'Remove from lobby' : 'Add to lobby'}">${added ? '👁' : '🚫'}</button>
-          <button data-act="lock" class="${locked ? '' : 'on'}" title="${locked ? 'Locked' : 'Unlocked'}">${locked ? '🔒' : '🔓'}</button>
-          <button data-act="rules" title="Edit rules">📋</button>
-          ${canTimer ? `<button data-act="timer" title="Set time limit">⏱</button>` : ''}
-          <button data-act="perteam" title="Per-team overrides">⋯</button>
-          ${g.custom ? `<button data-act="delete" title="Delete game">🗑</button>` : ''}
-        </span>
-      </div>`;
-    }).join('');
+    const added = eff.filter(g => g.added);
+    const available = eff.filter(g => !g.added);
+    let html = '';
+    if (added.length) html += `<div class="admin-section-label">Added in lobby</div>` + added.map(rowHtml).join('');
+    if (available.length) html += `<div class="admin-section-label">Available</div>` + available.map(rowHtml).join('');
+    listEl.innerHTML = html;
     for (const row of listEl.querySelectorAll('.admin-row')) {
       const key = row.dataset.key;
       row.querySelector('[data-act="eye"]').onclick   = () => toggleAdded(key);
-      row.querySelector('[data-act="lock"]').onclick  = () => writeNode('locks', n => toggleGame(n, key));
-      row.querySelector('[data-act="rules"]').onclick = () => editRules(key);
+      const lk = row.querySelector('[data-act="lock"]'); if (lk) lk.onclick = () => writeNode('locks', n => toggleGame(n, key));
+      const rl = row.querySelector('[data-act="rules"]'); if (rl) rl.onclick = () => editRules(key);
       const t = row.querySelector('[data-act="timer"]'); if (t) t.onclick = () => editTimer(key);
-      row.querySelector('[data-act="perteam"]').onclick = () => togglePerTeam(row, key);
+      const pt = row.querySelector('[data-act="perteam"]'); if (pt) pt.onclick = () => togglePerTeam(row, key);
       const d = row.querySelector('[data-act="delete"]'); if (d) d.onclick = () => deleteCustom(key);
     }
     if (openKey) {
