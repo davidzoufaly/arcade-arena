@@ -122,7 +122,8 @@
     background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
     border-radius: 8px; padding: 6px 9px; font-size: 14px; cursor: pointer; font-family: inherit;
   }
-  .admin-row .ar-actions button.on { border-color: var(--accent); color: var(--accent); }
+  /* Selected/active action: filled accent so it clearly reads as "on". */
+  .admin-row .ar-actions button.on { background: var(--accent); border-color: var(--accent); color: var(--btn-on-accent); font-weight: 800; }
   .admin-newgame { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: grid; gap: 10px; width: 100%; }
   .admin-newgame h2 { font-size: 18px; }
   /* name | emoji | timer on one row, rules full-width below */
@@ -141,9 +142,18 @@
   }
   #ngCreate:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(101,123,199,0.35); filter: brightness(1.05); }
   #ngCreate:active { transform: translateY(0); }
-  .admin-perteam { padding: 8px 14px 4px; display: flex; flex-direction: column; gap: 6px; }
+  .admin-perteam {
+    margin: -4px 0 4px; padding: 12px 14px;
+    background: var(--bg-2); border: 1px solid var(--border); border-radius: 0 0 12px 12px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
   .admin-perteam .apt-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-  .admin-perteam .apt-row .apt-name { flex: 1; color: var(--muted); }
+  .admin-perteam .apt-row .apt-name { flex: 1; color: var(--text); font-weight: 600; }
+  .admin-perteam .apt-row button {
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 5px 9px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .admin-perteam .apt-row button:hover { border-color: var(--accent); }
 </style>
 </head>
 <body>
