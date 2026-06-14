@@ -1,6 +1,6 @@
 # Project Future is US! 2026
 
-Týmová soutěž v misích pro firemní offsite, celá v prohlížeči. Mise přes kameru, jedna na hlas, pár živých výzev v místnosti a moderovaný pub quiz. Stavěné zhruba na 10 týmů, ale počet jde nastavit od 2 do 20. Skóre teče živě přes Firebase do společného scoreboardu, takže projektor ukáže výsledek hned, jak tým dohraje.
+Soutěž v misích pro firemní offsite, celá v prohlížeči. Mise přes kameru, jedna na hlas, pár živých výzev v místnosti a moderovaný pub quiz. Lobby jde rozjet ve dvou režimech: **týmy**, nebo **jednotlivci** (každý hráč hraje sám za sebe). Stavěné zhruba na 10 týmů, ale počet jde nastavit od 2 do 20. Skóre teče živě přes Firebase do společného scoreboardu, takže projektor ukáže výsledek hned, jak tým (nebo hráč) dohraje.
 
 Je tu malý build krok (Vite) a jednorázové nastavení Firebase, viz SETUP.md.
 
@@ -13,8 +13,8 @@ Je tu malý build krok (Vite) a jednorázové nastavení Firebase, viz SETUP.md.
 | Mise | Vstup | Co tým dělá | Technologie |
 |---|---|---|---|
 | Airlock Override [Gesture Lock] | kamera (ruce) | Nejdřív 20s kalibrace: každý zvedne jednu ruku, mise spočítá velikost týmu. Pak jednou problikne náhodná sekvence gest (4 gesta na člověka, s opakováním ze šestice: otevřená dlaň, pěst, palec nahoru, palec dolů, véčko, ukazovák nahoru). Tým ji zopakuje po paměti. Jedno špatné gesto pokus shodí, na každé gesto je 10 sekund. 5 pokusů, počítá se nejlepší. | MediaPipe Gesture Recognizer |
-| Human Mimic Checkpoint [Pantomime] | kamera (celé tělo) | Trefit 8 postupně těžších póz: 2 lehké, 2 střední, 2 těžké a na konec 2 duo pózy, kde musí být v záběru druhý člověk. Dostat všechny geometrické kontroly nad 85 % a pak chvíli vydržet bez hnutí (1,2 / 1,5 / 2 s podle obtížnosti). Klepání výdrž vynuluje. 25 s na pózu, 2 pokusy, počítá se nejlepší. | MediaPipe Pose Landmarker (heavy) |
-| Gravity Corridor [Dino Dash] | kamera (ruce) | Panáček běží a tým ho ovládá otevřenými dlaněmi. Počítají se dlaně, ne prsty, takže čím víc otevřených dlaní, tím vyšší skok. Pěst misi skrčí, véčko ji nechá v klidu. 20s kalibrace spočítá zvednuté ruce a podle velikosti týmu škáluje sílu skoku. Nekonečné, postupně zrychluje. | MediaPipe Hand Landmarker |
+| Human Mimic Checkpoint [Pantomime] | kamera (celé tělo) | Trefit 8 postupně těžších póz: 2 lehké, 3 střední, 3 těžké (žádné duo pózy, hráč pózuje sám). Dostat všechny geometrické kontroly nad 85 % a pak chvíli vydržet bez hnutí (1,2 / 1,5 / 2 s podle obtížnosti). Klepání výdrž vynuluje. Body jsou půl za čistotu pózy, půl za rychlost zamčení — zelená čára obkresluje rámeček kamery, jak výdrž běží. 25 s na pózu, hráči se střídají (jeden pózuje, ostatní navigují), 2 pokusy, počítá se nejlepší. | MediaPipe Pose Landmarker (heavy) |
+| Gravity Corridor [Dino Dash] | kamera (ruce) | Panáček běží a tým ho ovládá otevřenými dlaněmi. Počítají se dlaně, ne prsty, takže čím víc otevřených dlaní, tím vyšší skok. Pěst misi skrčí, véčko ji nechá v klidu. Na vlnu jsou aktivní jen **2–3 hráči** a tým se ve hraní střídá: 20s kalibrace spočítá zvednuté ruce a podle nich škáluje sílu skoku, pak běží ~20s vlna s překážkami a 10s pauza na výměnu hráčů. Nekonečné, postupně zrychluje. 5 pokusů, počítá se nejlepší. | MediaPipe Hand Landmarker |
 | Sonic Stabilizer [Flappy Voice] | mikrofon | Celý tým řve do mikrofonu a nadnáší objekt mezi mezerami, hlasitěji = výš. Nekonečné, zrychluje. Skóre je počet branek. 5 pokusů, počítá se nejlepší. | Web Audio (hlasitost z mikrofonu, žádný ML model) |
 
 Čtyři mise v prohlížeči dávají skóre 0 až 100 a zapíšou ho do společného scoreboardu hned, jak je tým připojený do lobby.
@@ -39,41 +39,51 @@ Týmy se mezi misemi pohybují volně. Hrát může spousta týmů naráz, každ
 
 Žádné ruční „submit kódy" nejsou, skóre jde přes lobby:
 
-1. Host otevře index.html, dá Vytvořit lobby a zadá počet týmů (výchozí 10, rozsah 2 až 20). Dostane ID lobby (třeba PS-7Q2K), admin heslo a heslo pro každý tým.
-2. Tým otevře připojovací odkaz nebo index.html, zadá ID lobby, vybere svůj tým a potvrdí týmovým heslem. Pak přistane na games.html.
+1. Host otevře index.html, dá Vytvořit lobby, vybere režim (**Týmy** výchozí, nebo **Jednotlivci**) a zadá počet účastníků (výchozí 10, rozsah 2 až 20). Dostane ID lobby (třeba PS-7Q2K), admin heslo a heslo pro každý tým / hráče.
+2. Tým (nebo hráč) otevře připojovací odkaz nebo index.html, zadá ID lobby, vybere sebe a potvrdí heslem. Pak přistane na games.html.
 3. Čtyři mise v prohlížeči zapisují skóre 0 až 100 samy. Host zadává body za ručně bodované výzvy a známkuje pub quiz ve scoreboard.html a quiz-admin.html.
 4. scoreboard.html na projektoru ukazuje žebříček živě.
 
+### Režim: týmy vs. jednotlivci
+
+Režim se volí při zakládání lobby a mění, jak se účastníkům říká i jak hrají kamerové mise:
+
+- **Týmy** — víc lidí na tým, scoreboard má sloupce „Team 1, Team 2…". Mise počítají s víc hráči: Dino kalibruje počet rukou a střídá 2–3 aktivní hráče, Pantomime střídá pozéry.
+- **Jednotlivci** — každý hraje sám za sebe, scoreboard ukazuje „Player 1, Player 2…". Mise se zjednoduší: Dino vynechá kalibraci rukou i pauzy na výměnu a má jednu fixní sílu skoku (a tvrdší křivku obtížnosti), Pantomime vynechá střídání hráčů. Strop je 12 hráčů.
+
+Účastník (tým i jednotlivec) se může přejmenovat sám klikem na své jméno v topbaru.
+
 ---
 
-## Hostitelský panel (scoreboard.html)
+## Hostitelský panel
 
-Host řídí celý průběh ze scoreboard.html, chce to admin heslo. Mimo režim úprav je to jen živý žebříček; tlačítkem **Edit** se přepne do režimu úprav a objeví se **Save**, **Cancel**, **Lock all** a **Reset**. Všechny změny se bufferují a zapíšou se až tlačítkem **Save**, **Cancel** je zahodí.
+Host řídí průběh ze tří admin stránek, všechny chtějí admin heslo: **scoreboard.html** (skóre + žebříček), **games.html** (správa misí) a **quiz-admin.html** (pub quiz). V topbaru má admin odkazy Games / Scoreboard / Quiz.
 
-### Zamknutí a odemknutí misí
+### Scoreboard (scoreboard.html)
 
-Každá mise je pro tým ve výchozím stavu **zamčená** — host ji musí odemknout, aby se dala hrát. Zamčená mise je v games.html prošedlá a needitovatelná, při pokusu o vstup tým vidí stránku „Mission locked". To řídí, kdy se která mise otevře.
+Mimo režim úprav je to živý žebříček. Tlačítkem **Edit** se přepne do režimu úprav (**Save** / **Cancel** / **Reset**); změny se bufferují a zapíšou až tlačítkem **Save**, **Cancel** je zahodí. V režimu úprav host:
 
-- 🔒 / 🔓 v hlavičce mise zamkne/odemkne misi pro **všechny týmy** naráz.
-- 🔒 / 🔓 v buňce skóre zamkne/odemkne misi pro **jeden tým**.
-- **Lock all** / **Unlock all** přepne **všechny mise** najednou a smaže dílčí výjimky.
+- **Zadává body** za ručně bodované výzvy — klik do buňky týmu, celé číslo od 0. Čtyři mise v prohlížeči si skóre zapisují samy, do těch host nesahá.
+- **Přejmenuje týmy / hráče** — inline pole s názvem (max 24 znaků).
 
-Přednost: buňka > mise > globální > výchozí (zamčeno).
+Sloupce a žebříček **sledují přidané mise** — ukazují se jen mise zapnuté v games.html, odebrané vypadnou. Hlavička sloupce mise nese **read-only indikátor zámku** (🔒 / 🔓); samotné zamykání se dělá v games.html. Mimo úpravy je tlačítko **Celebrate winner** — popover s vítězem a fullscreen konfety.
 
-### Body za ručně bodované výzvy
+### Správa misí (games.html, admin)
 
-U výzev bodovaných hostem (Analog Blackout [Math No-Brain], Systems Recalibration [Math Big-Brain], Transmission Decoder [Cipher], Oracle Breach [Gandalf], Archive Recovery [Hidden Document], Alien Glyph Activation [Draw & Guess]) host v režimu úprav klikne do buňky týmu a zapíše skóre (celé číslo od 0). Čtyři mise v prohlížeči si skóre zapisují samy, do těch host nesahá.
+Admin verze games.html je řídicí panel misí pro lobby:
 
-### Časový limit (⏱) a pravidla (📋)
+- **Přidat / odebrat misi** — 👁 / 🚫 zapne nebo skryje misi v lobby týmů. Scoreboard i topbar počítají jen z přidaných misí.
+- **🔒 / 🔓 Zámek** — zamkne/odemkne misi. Zamčená mise je v games.html prošedlá, při pokusu o vstup tým vidí „Mission locked".
+- **📋 Pravidla** — text pravidel, který tým uvidí u mise. Prázdné = výchozí text z katalogu.
+- **⏱ Časový limit** — limit v minutách pro ručně bodované a vlastní mise (prázdné/0 = bez limitu). Tým ho vidí v games.html a před vstupem dostane upozornění.
+- **⋯ Per-team** — rozbalí podřádky a nastaví zámek / limit / pravidla pro **jeden tým** zvlášť.
+- **Vlastní mise** — založ novou misi (název max 40 znaků, emoji, pravidla, volitelný limit). Každá dostane klíč `CUSTOMxxxx` a tlačítko 🗑 na smazání.
 
-U ručně bodovaných výzev a kvízu jsou v režimu úprav dvě tlačítka:
-
-- **⏱ Time limit** — modální okno, zadá se limit v minutách (prázdné nebo 0 = bez limitu). Limit jde nastavit pro celou misi, nebo jen pro jeden tým. Tým ho vidí v games.html a před vstupem do časované mise dostane upozornění.
-- **📋 Rules** — modální okno s textem pravidel, který tým uvidí u dané výzvy. Prázdné pole spadne zpět na výchozí text z katalogu. Taky pro celou misi, nebo jeden tým.
+Přednost zámku: per-team > mise > výchozí (zamčeno).
 
 ### Reset
 
-**Reset** (červené, s potvrzením) smaže všechna skóre a historii lobby. Týmy zůstanou, ale akce je nevratná a týká se všech v lobby.
+**Reset** na scoreboardu (červené, s potvrzením) smaže všechna skóre a historii lobby. Účastníci zůstanou, ale akce je nevratná a týká se všech v lobby.
 
 ### Tipy pro kamerové hry (prostředí)
 
@@ -102,7 +112,7 @@ Bodování: +1 za každou správnou otázku a +1 navíc, když je správně i bo
 
 ## AI modely
 
-Modely pro kameru (MediaPipe) se stahují z veřejných CDN až za běhu, v repu nejsou. Sonic Stabilizer žádný model nepotřebuje, čte hlasitost z mikrofonu přes Web Audio.
+Kamerové mise běží na MediaPipe: Gesture Recognizer (Airlock Override), Pose Landmarker heavy (Human Mimic Checkpoint) a Hand Landmarker (Gravity Corridor). Runtime i modely jsou **self-hostované**, ne z CDN — `@mediapipe/tasks-vision` je z npm a wasm + `.task` modely (~60 MB) leží pod `public/mediapipe/` (gitignored, stahuje je `scripts/fetch-vision-assets.mjs` při postinstall/predev/prebuild). Runtime se lazy-loaduje až při startu mise. Detaily v SETUP.md. Sonic Stabilizer žádný model nepotřebuje, čte hlasitost z mikrofonu přes Web Audio.
 
 ### Co potřebuje notebook týmu
 
