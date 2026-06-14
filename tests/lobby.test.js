@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  generateLobbyId, generatePwd, isValidLobbyId, ALPHABET,
+  generateLobbyId, generatePwd, isValidLobbyId, ALPHABET, PWD_WORDS,
   getSession, setSession, clearSession, SESSION_KEY, LEGACY_TEAM_KEY,
   createLobbyApi, isAdminSession,
 } from '../ps-offsite-2026/shared/lobby.js';
@@ -24,15 +24,16 @@ describe('generateLobbyId', () => {
 });
 
 describe('generatePwd', () => {
-  it('defaults to length 6 using ALPHABET', () => {
+  it('is an easy word followed by three digits', () => {
     const pwd = generatePwd();
-    expect(pwd).toHaveLength(6);
-    for (const c of pwd) expect(ALPHABET).toContain(c);
+    expect(pwd).toMatch(/^[A-Z]+[0-9]{3}$/);
   });
-  it('honors explicit length and stays within ALPHABET', () => {
-    const pwd = generatePwd(10);
-    expect(pwd).toHaveLength(10);
-    for (const c of pwd) expect(ALPHABET).toContain(c);
+  it('uses a word from the PWD_WORDS list', () => {
+    for (let i = 0; i < 50; i++) {
+      const pwd = generatePwd();
+      const word = pwd.slice(0, -3);
+      expect(PWD_WORDS).toContain(word);
+    }
   });
 });
 
@@ -135,12 +136,12 @@ describe('createLobbyApi.createLobby', () => {
     const result = await api.createLobby(4);
 
     expect(result.lobbyId).toMatch(/^[A-HJ-NP-Z2-9]{4}$/);
-    expect(result.adminPwd).toHaveLength(6);
+    expect(result.adminPwd).toMatch(/^[A-Z]+[0-9]{3}$/);
     expect(result.teams).toHaveLength(4);
     expect(result.teams.map(t => t.id)).toEqual([1, 2, 3, 4]);
     for (const t of result.teams) {
       expect(t.name).toBe(`Team ${t.id}`);
-      expect(t.pwd).toHaveLength(6);
+      expect(t.pwd).toMatch(/^[A-Z]+[0-9]{3}$/);
     }
 
     const stored = a.data().lobbies[result.lobbyId];

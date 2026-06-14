@@ -17,8 +17,21 @@ export function generateLobbyId() {
   return pick(4);
 }
 
-export function generatePwd(len = 6) {
-  return pick(len);
+// Easy, unambiguous English words for memorable passwords (word + 3 digits).
+export const PWD_WORDS = [
+  'TIGER', 'EAGLE', 'MANGO', 'LEMON', 'PANDA', 'ROBOT', 'PIZZA', 'COMET',
+  'ZEBRA', 'OTTER', 'LASER', 'MELON', 'RIVER', 'CLOUD', 'STORM', 'PLANT',
+  'TURBO', 'MAGIC', 'NINJA', 'PILOT', 'SHARK', 'FLAME', 'PEARL', 'BISON',
+  'JELLY', 'KOALA', 'LLAMA', 'RAVEN', 'TOAST', 'WAGON',
+];
+
+// Memorable password: an easy word followed by three digits, e.g. "TIGER042".
+// Join input is upper-cased before compare, so the word is upper-case to match.
+export function generatePwd() {
+  const word = PWD_WORDS[Math.floor(Math.random() * PWD_WORDS.length)];
+  let digits = '';
+  for (let i = 0; i < 3; i++) digits += Math.floor(Math.random() * 10);
+  return word + digits;
 }
 
 export function isValidLobbyId(s) {
