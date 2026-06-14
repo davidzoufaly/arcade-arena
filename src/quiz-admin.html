@@ -16,6 +16,7 @@
     --bg: #09090C; --bg-2: #18181B; --card: #222224; --card-hover: #3A3A3D;
     --text: #FFFFFF; --muted: #848486;
     --accent: #DAFE85; --accent-2: #657BC7; --good: #00e676; --bad: #ff4d6d; --gold: #ffd84d;
+    --btn-on-accent: #09090C;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { background: var(--bg); }
@@ -517,7 +518,7 @@ function renderAll() {
       <div style="max-width:560px;margin:80px auto;padding:32px;background:var(--card);border-radius:16px;border:1px solid var(--border);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.6;text-align:center">
         <div style="font-size:48px;margin-bottom:12px">🔒</div>
         <h1 style="font-size:24px;margin-bottom:12px">Admins only</h1>
-        <p style="color:#848486">This page manages the Pub Quiz. Enter the host password to continue.</p>
+        <p style="color:var(--muted)">This page manages the Pub Quiz. Enter the host password to continue.</p>
       </div>`;
     return;
   }

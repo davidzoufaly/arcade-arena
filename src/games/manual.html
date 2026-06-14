@@ -15,6 +15,7 @@
     --bg: #09090C; --bg-2: #18181B; --card: #222224;
     --text: #FFFFFF; --muted: #848486;
     --accent: #DAFE85; --accent-2: #657BC7; --good: #00e676; --bad: #ff4d6d;
+    --btn-on-accent: #09090C;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { background: var(--bg); }
@@ -113,7 +114,7 @@ try {
 } catch (e) {
   container.innerHTML = `
     <h1>Load error</h1>
-    <p style="color:#848486;margin-top:10px">Couldn't load this game. Check your connection and try again.</p>
+    <p style="color:var(--muted);margin-top:10px">Couldn't load this game. Check your connection and try again.</p>
   `;
   throw e;
 }
@@ -123,7 +124,7 @@ const game = effective.find(g => g.key === key) || null;
 if (!game || game.kind !== 'manual') {
   container.innerHTML = `
     <h1>Unknown game</h1>
-    <p style="color:#848486;margin-top:10px">No manual game registered for key <code>${esc(key ?? '(none)')}</code>.</p>
+    <p style="color:var(--muted);margin-top:10px">No manual game registered for key <code>${esc(key ?? '(none)')}</code>.</p>
   `;
   throw new Error('unknown manual game');
 }

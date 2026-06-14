@@ -93,13 +93,6 @@
     0%, 100% { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.0); }
     50%      { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.9); }
   }
-  .step-badge {
-    position: absolute; top: 16px; right: 16px;
-    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-    padding: 8px 14px; border-radius: 999px;
-    font-size: 16px; font-weight: 800; letter-spacing: 0.5px;
-    color: var(--accent);
-  }
   video, canvas {
     width: 100%; height: 100%;
     object-fit: cover; display: block;
@@ -109,7 +102,7 @@
     position: absolute; bottom: 16px; left: 16px;
     background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
     padding: 8px 14px; border-radius: 10px;
-    font-size: 16px; font-family: ui-monospace, monospace;
+    font-size: 16px; font-family: ui-monospace, monospace; color: #fff;  /* dark bubble → fixed light text in both themes */
   }
   .game { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
   @media (max-width: 900px) { .game { grid-template-columns: 1fr; } }
@@ -121,7 +114,7 @@
     background: rgba(0,0,0,0.72); backdrop-filter: blur(8px);
     border: 1px solid var(--border);
     padding: 12px 22px; border-radius: 14px;
-    font-size: 22px; font-weight: 800; color: var(--text);
+    font-size: 22px; font-weight: 800; color: #fff;  /* bubble is always dark → fixed light text (var(--text) flips to black on light theme) */
     white-space: nowrap; pointer-events: none; opacity: 0;
   }
   .cam-flash.show { animation: cam-flash-anim 1.6s ease-out forwards; }
@@ -174,30 +167,28 @@
     box-shadow: 0 0 24px rgba(218,254,133,0.5);
   }
 
-  /* Lock progress: a bright line tracing a rectangle OUTSIDE the camera frame
-     (with a gap around it), one side at a time — right ↓, bottom ←, left ↑,
-     top → — as you hold a gesture. Full loop = locked. It sits on the dark page
-     background just outside the video, NOT over the camera feed, so it stays
-     high-contrast and readable. Uses the theme foreground (var(--text): white on
-     dark, near-black on light) so it stays visible in both themes — and the same
-     neutral color for BOTH correct and wrong holds, fills the same way over the
-     same time either way, so a completed loop never reads as "correct" right
-     before a wrong-gesture fail. Right/wrong is signalled by the skeleton line
-     color, not this border. */
+  /* Lock progress: a ring hugging the camera frame directly (no gap) that fills
+     up as you hold a gesture — a conic sweep from the top-right, clockwise
+     (right ↓, bottom ←, left ↑, top →). Full ring = locked. Pure CSS ring: a
+     conic-gradient fill carved into a border-only shape by a border-box vs
+     content-box mask, and border-radius matched to .video-wrap so it wraps the
+     rounded corners. Theme accent (var(--accent): lime on dark, blue on light),
+     same for correct and wrong holds — right/wrong is the skeleton line color,
+     not this ring. Progress is driven per-frame via the --lock-p custom prop. */
   .cam-stage { position: relative; align-self: start; }
   .lock-border {
-    position: absolute; inset: -16px;   /* push the loop outside the frame, with a gap */
+    position: absolute; inset: 0;       /* directly on the camera window, no gap */
+    border-radius: 20px;                /* match .video-wrap → ring follows the corners */
+    padding: 12px;                      /* ring thickness */
+    background: conic-gradient(from 50deg,
+      var(--accent) calc(var(--lock-p, 0) * 1%), transparent calc(var(--lock-p, 0) * 1%));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    filter: drop-shadow(0 0 7px var(--accent));
     pointer-events: none; z-index: 3;
   }
-  .lock-border .lb-seg {
-    position: absolute; background: var(--text);
-    box-shadow: 0 0 10px var(--text);
-    transition: width 0.1s linear, height 0.1s linear;
-  }
-  .lb-right  { top: 0;    right: 0; width: 8px;  height: 0; } /* ↓ */
-  .lb-bottom { bottom: 0; right: 0; height: 8px; width: 0;  } /* ← */
-  .lb-left   { bottom: 0; left: 0;  width: 8px;  height: 0; } /* ↑ */
-  .lb-top    { top: 0;    left: 0;  height: 8px; width: 0;  } /* → */
   .unknown-hint {
     position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
     background: rgba(0,0,0,0.78); backdrop-filter: blur(8px);
@@ -346,7 +337,6 @@
         <div class="video-wrap" id="videoWrap">
           <video id="video" playsinline autoplay muted></video>
           <canvas id="overlay"></canvas>
-          <div class="step-badge" id="stepBadge">1 / ?</div>
           <div class="video-overlay">
             Detected: <span id="currentGesture">—</span>
           </div>
@@ -354,15 +344,10 @@
           <div class="cam-countdown hidden" id="camCountdown"></div>
           <div class="unknown-hint hidden" id="unknownHint">🤚 Can't read that gesture — lower your hand, then show it again</div>
         </div>
-        <!-- Lock-loop lives OUTSIDE the camera (sibling of .video-wrap, which clips
-             via overflow:hidden) so it can sit in the gap around the frame. -->
-        <div class="lock-border" id="lockBorder">
-          <!-- Four sides fill in sequence: right ↓, bottom ←, left ↑, top →. -->
-          <div class="lb-seg lb-right"></div>
-          <div class="lb-seg lb-bottom"></div>
-          <div class="lb-seg lb-left"></div>
-          <div class="lb-seg lb-top"></div>
-        </div>
+        <!-- Lock-loop ring: a CSS conic-gradient masked into the camera-frame
+             border (follows the corner radius). Sibling of .video-wrap, overlaid
+             on it via inset:0. -->
+        <div class="lock-border" id="lockBorder"></div>
       </div>
       <div class="panel">
         <div>
@@ -521,16 +506,11 @@ if (DEBUG_TEAM_N !== null) {
 
 function $(id) { return document.getElementById(id); }
 
-// Drive the hold indicator: a neutral line tracing the camera border one side
-// at a time (right ↓, bottom ←, left ↑, top →). Each of the 4 segments owns a
-// 25% slice of pct; full loop = locked. pct 0..100.
-const lockSegs = document.querySelectorAll('#lockBorder .lb-seg');
+// Drive the hold indicator: the ring around the camera fills clockwise from the
+// top-right as the conic-gradient stop angle grows. pct 0..100; full = locked.
+const lockBorderEl = document.getElementById('lockBorder');
 function setHoldProgress(pct) {
-  lockSegs.forEach((seg, i) => {
-    const local = Math.max(0, Math.min(100, ((pct - i * 25) / 25) * 100));
-    // Segs 0/2 (right, left) grow vertically; 1/3 (bottom, top) horizontally.
-    seg.style[i % 2 === 0 ? 'height' : 'width'] = local + '%';
-  });
+  lockBorderEl.style.setProperty('--lock-p', Math.max(0, Math.min(100, pct)));
 }
 
 // Progress dots with a "|" divider every 4 so a long sequence reads in groups.
@@ -851,7 +831,7 @@ phaseEnter.recall = () => {
   $('currentGesture').textContent = '—';
   $('timer').textContent = GESTURE_TIME_S.toFixed(1);
   $('timer').style.color = '';
-  updateStepBadge();
+  announceNextGesture();
 
   let rafId = null;
   let cancelled = false;
@@ -882,8 +862,7 @@ phaseEnter.recall = () => {
   };
   document.addEventListener('visibilitychange', onVis);
 
-  function updateStepBadge() {
-    $('stepBadge').textContent = `${Math.min(state.stepIdx + 1, state.sequenceLen)} / ${state.sequenceLen}`;
+  function announceNextGesture() {
     flashCam(individuals ? '👉 Next gesture' : '👥 Next gesture — your team decides who');
   }
 
@@ -981,7 +960,7 @@ phaseEnter.recall = () => {
           endAttempt('success');
           return;
         }
-        updateStepBadge();
+        announceNextGesture();
       }
     } else {
       // Not the correct gesture → line stays neutral grey (covers wrong,
