@@ -146,6 +146,8 @@ describe('createLobbyApi.createLobby', () => {
     const stored = a.data().lobbies[result.lobbyId];
     expect(stored.meta.teamCount).toBe(4);
     expect(stored.meta.adminPwd).toBe(result.adminPwd);
+    expect(stored.meta.mode).toBe('teams');
+    expect(result.mode).toBe('teams');
     expect(stored.teams[1].pwd).toBe(result.teams[0].pwd);
 
     // quiz pre-seed: 4 categories c1..c4, 8 questions each
@@ -154,13 +156,32 @@ describe('createLobbyApi.createLobby', () => {
     expect(stored.quiz.categories.c4.order).toBe(3);
   });
 
+  it('individuals mode names participants "Player N" and stores mode', async () => {
+    const a = fakeAdapter();
+    const api = createLobbyApi(a);
+    const result = await api.createLobby(3, 'individuals');
+    expect(result.mode).toBe('individuals');
+    for (const t of result.teams) expect(t.name).toBe(`Player ${t.id}`);
+    const stored = a.data().lobbies[result.lobbyId];
+    expect(stored.meta.mode).toBe('individuals');
+    expect(stored.teams[1].name).toBe('Player 1');
+  });
+
+  it('defaults unknown mode to teams', async () => {
+    const a = fakeAdapter();
+    const api = createLobbyApi(a);
+    const result = await api.createLobby(2, 'nonsense');
+    expect(result.mode).toBe('teams');
+    expect(result.teams[0].name).toBe('Team 1');
+  });
+
   it('retries on collision up to 5 times', async () => {
     const a = fakeAdapter();
     // Pre-seed 4 collisions; 5th attempt should succeed.
     let calls = 0;
     const origGet = a.get;
     a.get = async (path) => {
-      if (path.startsWith('lobbies/PS-') && calls < 4) {
+      if (/^lobbies\/[A-HJ-NP-Z2-9]{4}$/.test(path) && calls < 4) {
         calls++;
         return { meta: { teamCount: 1, adminPwd: 'X', createdAt: 0 } };
       }

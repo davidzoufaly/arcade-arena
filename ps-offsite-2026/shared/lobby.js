@@ -28,6 +28,22 @@ export function isValidLobbyId(s) {
 export const SESSION_KEY = 'psOffsite2026.lobby';
 export const LEGACY_TEAM_KEY = 'psOffsite2026.team';
 
+// Lobby mode: 'teams' (default — N teams of players) or 'individuals'
+// (N solo players). Mode lives at lobbies/{id}/meta/mode and drives both the
+// participant label ("Team N" vs "Player N") and per-game solo behavior.
+export const MODE_TEAMS = 'teams';
+export const MODE_INDIVIDUALS = 'individuals';
+
+export function isIndividualsMode(mode) {
+  return mode === MODE_INDIVIDUALS;
+}
+
+// Singular participant noun for a mode — "Player" for individuals, "Team"
+// otherwise. Used for default names, column headers, and game copy.
+export function participantNoun(mode) {
+  return isIndividualsMode(mode) ? 'Player' : 'Team';
+}
+
 // Drop stale key from the old (pre-lobby) version. Runs once per module load.
 try {
   if (typeof localStorage !== 'undefined') localStorage.removeItem(LEGACY_TEAM_KEY);
@@ -71,10 +87,12 @@ export function clearSession() {
 const MAX_CREATE_RETRIES = 5;
 
 export function createLobbyApi({ get, set }) {
-  async function createLobby(teamCount) {
+  async function createLobby(teamCount, mode = MODE_TEAMS) {
     if (!Number.isInteger(teamCount) || teamCount < 2 || teamCount > 20) {
       throw new Error('team count must be 2..20');
     }
+    const resolvedMode = isIndividualsMode(mode) ? MODE_INDIVIDUALS : MODE_TEAMS;
+    const noun = participantNoun(resolvedMode);
     let lobbyId = null;
     for (let attempt = 0; attempt < MAX_CREATE_RETRIES; attempt++) {
       const candidate = generateLobbyId();
@@ -86,16 +104,16 @@ export function createLobbyApi({ get, set }) {
     const adminPwd = generatePwd();
     const teams = Array.from({ length: teamCount }, (_, i) => ({
       id: i + 1,
-      name: `Team ${i + 1}`,
+      name: `${noun} ${i + 1}`,
       pwd: generatePwd(),
     }));
     const teamsObj = Object.fromEntries(teams.map(t => [t.id, t]));
     await set(`lobbies/${lobbyId}`, {
-      meta: { createdAt: Date.now(), teamCount, adminPwd },
+      meta: { createdAt: Date.now(), teamCount, mode: resolvedMode, adminPwd },
       teams: teamsObj,
       quiz: { categories: seedCategories() },
     });
-    return { lobbyId, adminPwd, teams };
+    return { lobbyId, adminPwd, teams, mode: resolvedMode };
   }
 
   async function loadLobbyTeams(lobbyId) {

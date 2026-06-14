@@ -92,7 +92,8 @@ function subscribeTeam(lobbyId, teamId, onUpdate) {
       total += points[teamId] || 0;
     }
     const teamName = root.teams?.[teamId]?.name;
-    onUpdate({ total, teamName });
+    const mode = root.meta?.mode === 'individuals' ? 'individuals' : 'teams';
+    onUpdate({ total, teamName, mode });
   });
 }
 
@@ -111,10 +112,11 @@ export function mountTopbar({ activePage }) {
   if (!admin) {
     const ptsEl = header.querySelector('.ps-topbar-pts');
     const teamEl = header.querySelector('.ps-topbar-team');
+    let noun = 'Team';  // updated once the lobby mode arrives
     teamEl.style.cursor = 'pointer';
     teamEl.title = 'Click to rename';
     teamEl.addEventListener('click', async () => {
-      const next = prompt('Rename your team:', teamEl.textContent);
+      const next = prompt(`Rename your ${noun.toLowerCase()}:`, teamEl.textContent);
       if (next == null) return;
       const name = next.trim().slice(0, 24);
       if (!name) return;
@@ -123,9 +125,10 @@ export function mountTopbar({ activePage }) {
       const db = getDatabase(app);
       await set(ref(db, `lobbies/${ctx.lobbyId}/teams/${ctx.teamId}/name`), name);
     });
-    subscribeTeam(ctx.lobbyId, ctx.teamId, ({ total, teamName }) => {
+    subscribeTeam(ctx.lobbyId, ctx.teamId, ({ total, teamName, mode }) => {
+      noun = mode === 'individuals' ? 'Player' : 'Team';
       ptsEl.textContent = `${formatPts(total)} pts`;
-      if (teamName != null) teamEl.textContent = teamName || `Team ${ctx.teamId}`;
+      if (teamName != null) teamEl.textContent = teamName || `${noun} ${ctx.teamId}`;
     });
   }
 }

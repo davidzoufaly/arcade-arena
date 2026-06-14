@@ -452,6 +452,9 @@ import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 mountTopbar({ activePage: 'games' });
 const _session = resolveSession();
 const session = _session;
+// Individuals (solo) mode: one player, so no "next player — take turns" prompt
+// (#40). Resolved from lobby meta at boot.
+let individuals = false;
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const writer = firebaseWriter({ db, ref, update, push });
@@ -646,7 +649,7 @@ function startStep() {
   document.getElementById('camCountdown').classList.add('hidden');
   document.getElementById('hint').textContent = 'Stand in front of the camera';
   lastCamCount = -1;
-  flashCam('👥 Next player — take turns');
+  if (!individuals) flashCam('👥 Next player — take turns');
 }
 
 function flashCam(text) {
@@ -984,6 +987,14 @@ document.addEventListener('visibilitychange', () => {
 
 async function boot() {
   teamId = _session?.teamId ?? 0;
+  if (session?.lobbyId) {
+    try {
+      const modeSnap = await get(ref(db, `lobbies/${session.lobbyId}/meta/mode`));
+      individuals = modeSnap.exists() && modeSnap.val() === 'individuals';
+    } catch (e) { console.error('mode read failed', e); }
+  }
+  const params = new URLSearchParams(location.search);
+  if (params.has('debug') && params.has('individuals')) individuals = true;
   if (session?.lobbyId) {
     try {
       const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${teamId}/${GAME_CODE}`));

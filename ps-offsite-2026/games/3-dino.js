@@ -15,6 +15,7 @@ import {
   scoreAttempt, finalScore,
   runSpeed, spawnIntervalFrames, highObstacleProb,
   SEGMENT_PLAY_S, rotateSecondsLeft, segmentSecondsLeft,
+  SOLO_JUMP_STRENGTH,
 } from '../shared/dino-logic.js';
 import { warmupSecondsLeft } from '../shared/warmup-logic.js';
 
@@ -37,6 +38,10 @@ const GRAVITY = 0.8;
 const PHASES = ['setup', 'loading', 'calibrate', 'intro', 'play', 'attempt-end', 'final'];
 const phaseEnter = {};
 let activeCleanup = null;
+
+// Individuals (solo) mode: one player, no hand-count calibration, no rotate
+// breaks, one-hand jump, tighter difficulty. Resolved from lobby meta at boot.
+let individuals = false;
 
 const state = {
   teamId: session?.teamId ?? 0,
@@ -110,7 +115,12 @@ for (let i = 0; i < initialPipCount; i++) {
 function updatePalmHud(n) {
   const pips = palmDotsEl.children;
   for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('on', i < n);
-  $('jumpFill').style.width = `${(palmCountToJumpStrength(n, state.teamN ?? FALLBACK_N) / 22) * 100}%`;
+  // Solo: a single palm = a fixed-strength jump (#42), so the meter just reads
+  // armed/idle rather than scaling with hand count.
+  const strength = individuals
+    ? (n > 0 ? SOLO_JUMP_STRENGTH : 0)
+    : palmCountToJumpStrength(n, state.teamN ?? FALLBACK_N);
+  $('jumpFill').style.width = `${(strength / 22) * 100}%`;
 }
 
 // Live control-state chip so players see jump-armed vs ducking vs ready.
@@ -153,6 +163,9 @@ phaseEnter.loading = async () => {
     goto('setup');
     return;
   }
+  // Individuals mode: no hand-count locking (#43) — one player, jump strength is
+  // fixed, so skip the calibrate phase entirely and start the run.
+  if (individuals) { state.teamN = 1; goto('intro'); return; }
   goto('calibrate');
 };
 
@@ -251,15 +264,35 @@ phaseEnter.calibrate = () => {
 
   rafId = requestAnimationFrame(tick);
 
+  // #36 — let the team lock in early instead of waiting the full 20s. The 20s
+  // auto-lock in tick() remains as a fallback if nobody clicks. If clicked
+  // before any post-grace samples exist, fall back to the live buffer so the
+  // detected count still reflects what the camera currently sees.
+  const confirmBtn = $('calibConfirmBtn');
+  const onConfirm = () => {
+    if (g.locking || cancelled) return;
+    if (rafId) cancelAnimationFrame(rafId);
+    if (!g.samples.length) g.samples = g.liveBuf.slice();
+    lockIn();
+  };
+  confirmBtn?.addEventListener('click', onConfirm);
+
   activeCleanup = () => {
     cancelled = true;
     if (rafId) cancelAnimationFrame(rafId);
+    confirmBtn?.removeEventListener('click', onConfirm);
   };
 };
 
 // INTRO
 phaseEnter.intro = () => {
   $('introNum').textContent = state.attemptIdx + 1;
+  if (individuals) {
+    $('introBrief').innerHTML =
+      '<strong>Solo run</strong> — make the runner 🌀 jump ⬆️ and duck ⬇️ past obstacles 🌵; it keeps speeding up 💨.<br>' +
+      '✋ Open palm = jump · ✊ Fist = duck · ✌️ Victory = stay ready between jumps<br>' +
+      'Score = obstacles passed. Best of <strong>5 attempts</strong> counts 🏆.';
+  }
   $('introStartBtn').onclick = () => goto('play');
 };
 
@@ -342,7 +375,7 @@ phaseEnter.play = () => {
   }
 
   function spawnObstacle(elapsedSec) {
-    const high = Math.random() < highObstacleProb(elapsedSec);
+    const high = Math.random() < highObstacleProb(elapsedSec, individuals);
     if (high) g.obs.push({ x: CANVAS_W, y: GROUND_Y - 90, w: 36, h: 45, type: 'high' });
     else g.obs.push({ x: CANVAS_W, y: GROUND_Y - 30, w: 28, h: 30, type: 'low' });
   }
@@ -368,7 +401,9 @@ phaseEnter.play = () => {
     if (controllable) { ({ eff, fist } = readInput()); }
     const onGround = g.y + RUNNER_H >= GROUND_Y - 0.5;
     if (controllable && onGround && eff > 0 && g.lastEff === 0) {
-      g.vy = -palmCountToJumpStrength(eff, state.teamN ?? FALLBACK_N);
+      // Solo: any open palm = a fixed-strength jump (#42). Teams: scaled by the
+      // collective palm count against locked team size.
+      g.vy = -(individuals ? SOLO_JUMP_STRENGTH : palmCountToJumpStrength(eff, state.teamN ?? FALLBACK_N));
     }
     g.lastEff = eff;
     g.ducking = controllable && fist && onGround;
@@ -376,7 +411,7 @@ phaseEnter.play = () => {
     g.y += g.vy * dt;
     if (g.y + RUNNER_H > GROUND_Y) { g.y = GROUND_Y - RUNNER_H; g.vy = 0; }
 
-    const speed = runSpeed(elapsedSec);
+    const speed = runSpeed(elapsedSec, individuals);
     g.runPhase += 0.3 * dt;
 
     for (const p of g.particles) {
@@ -388,7 +423,7 @@ phaseEnter.play = () => {
       g.spawnTimer -= dt;
       if (g.spawnTimer <= 0) {
         spawnObstacle(elapsedSec);
-        g.spawnTimer = spawnIntervalFrames(elapsedSec) + Math.random() * 30;
+        g.spawnTimer = spawnIntervalFrames(elapsedSec, individuals) + Math.random() * 30;
       }
     }
 
@@ -520,10 +555,11 @@ phaseEnter.play = () => {
   }
 
   function tickPlay(dt, now) {
-    // Segment expired → switch to rotate. The collision check below never runs
-    // this frame (we return first), so a crash on the exact boundary frame is
-    // voided — the rotate break wins the tie. Rotate rendering begins next frame.
-    if ((now - g.segStartMs) / 1000 >= SEGMENT_PLAY_S) {
+    // Teams: segment expired → switch to rotate. The collision check below never
+    // runs this frame (we return first), so a crash on the exact boundary frame
+    // is voided — the rotate break wins the tie. Rotate rendering begins next
+    // frame. Solo (#42): no rotate breaks — play is one continuous run.
+    if (!individuals && (now - g.segStartMs) / 1000 >= SEGMENT_PLAY_S) {
       g.liveBankMs += now - g.segStartMs;
       g.subPhase = 'rotate';
       g.rotateStartMs = now;
@@ -536,8 +572,10 @@ phaseEnter.play = () => {
     step(dt, elapsed, true);
     if (cancelled) return true;
     draw();
-    const segLeft = segmentSecondsLeft((now - g.segStartMs) / 1000);
-    if (segLeft <= 5) drawSegmentHint(segLeft);
+    if (!individuals) {
+      const segLeft = segmentSecondsLeft((now - g.segStartMs) / 1000);
+      if (segLeft <= 5) drawSegmentHint(segLeft);
+    }
     return true;
   }
 
@@ -690,6 +728,14 @@ function enterAlreadyPlayed(existing) {
 
 // Bootstrap
 async function boot() {
+  if (session?.lobbyId) {
+    try {
+      const modeSnap = await get(ref(db, `lobbies/${session.lobbyId}/meta/mode`));
+      individuals = modeSnap.exists() && modeSnap.val() === 'individuals';
+    } catch (e) { console.error('mode read failed', e); }
+  }
+  // Solo-dev: ?debug&individuals forces solo mode without a live lobby.
+  if (DEBUG && new URLSearchParams(location.search).has('individuals')) individuals = true;
   if (session?.lobbyId) {
     try {
       const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${state.teamId}/${GAME_CODE}`));

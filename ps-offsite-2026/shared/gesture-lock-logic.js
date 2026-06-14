@@ -16,6 +16,11 @@ export const GESTURE_POOL = [
  */
 export const SEQUENCE_LEN = 16;
 
+// Individuals (solo) mode: no hand-count calibration to derive length from, so
+// a solo guest always gets a fixed 12-gesture sequence (#39). Within
+// [SEQUENCE_LEN_MIN, SEQUENCE_LEN_MAX].
+export const SOLO_SEQUENCE_LEN = 12;
+
 // Backstop bounds. Floor at 4 so a solo player gets the natural N*4 length
 // (1 person → 4 gestures) instead of feeling trivially short. Ceiling at 28
 // so a 7+ person team is not drowned inside the 5-minute attempt.

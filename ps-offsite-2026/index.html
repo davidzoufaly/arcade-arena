@@ -38,6 +38,20 @@
   @media (max-width: 640px) {
     body { padding: 20px; }
   }
+
+  .mode-switch { display: flex; gap: 8px; margin-bottom: 14px; }
+  .mode-option {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 10px 12px; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--border, rgba(255,255,255,0.12));
+    background: var(--bg-2); color: var(--muted);
+    font-weight: 700; font-size: 14px; user-select: none;
+    transition: border-color .12s, color .12s, background .12s;
+  }
+  .mode-option input { position: absolute; opacity: 0; pointer-events: none; }
+  .mode-option:has(input:checked) {
+    border-color: var(--accent); color: var(--text); background: var(--card);
+  }
 </style>
 <link rel="stylesheet" href="shared/lobby.css">
 </head>
@@ -54,9 +68,20 @@
     <div class="lobby-cards">
       <div class="lobby-card">
         <h2>Create lobby</h2>
-        <label for="createTeamCount">Number of teams</label>
+        <label>Mode</label>
+        <div class="mode-switch" id="modeSwitch">
+          <label class="mode-option">
+            <input type="radio" name="lobbyMode" value="teams" checked>
+            <span>Teams</span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="lobbyMode" value="individuals">
+            <span>Individuals</span>
+          </label>
+        </div>
+        <label for="createTeamCount" id="createCountLabel">Number of teams</label>
         <input id="createTeamCount" type="number" min="2" max="20" value="10">
-        <div class="lobby-hint">2–20 teams. We recommend 2–6 players per team.</div>
+        <div class="lobby-hint" id="createCountHint">2–20 teams. We recommend 2–6 players per team.</div>
         <button id="createBtn">Create lobby</button>
         <div id="createErr" class="lobby-banner err" hidden></div>
       </div>
@@ -155,18 +180,34 @@ function recallLobby() {
 }
 
 // ---------- create flow ----------
+function selectedMode() {
+  return document.querySelector('input[name="lobbyMode"]:checked')?.value === 'individuals'
+    ? 'individuals' : 'teams';
+}
+function syncModeCopy() {
+  const individuals = selectedMode() === 'individuals';
+  $('createCountLabel').textContent = individuals ? 'Number of players' : 'Number of teams';
+  $('createCountHint').textContent = individuals
+    ? '2–20 players. Each plays solo.'
+    : '2–20 teams. We recommend 2–6 players per team.';
+}
+$('modeSwitch').addEventListener('change', syncModeCopy);
+syncModeCopy();
+
 $('createBtn').addEventListener('click', async () => {
   hideErr('createErr');
+  const mode = selectedMode();
+  const noun = mode === 'individuals' ? 'Player' : 'Team';
   const n = parseInt($('createTeamCount').value, 10);
   if (!Number.isInteger(n) || n < 2 || n > 20) {
-    showErr('createErr', 'Team count must be 2–20.');
+    showErr('createErr', `${noun} count must be 2–20.`);
     return;
   }
   $('createBtn').disabled = true;
   try {
-    const { lobbyId, adminPwd, teams } = await api.createLobby(n);
+    const { lobbyId, adminPwd, teams } = await api.createLobby(n, mode);
     rememberLobby(lobbyId);
-    renderCredentials({ lobbyId, adminPwd, teams });
+    renderCredentials({ lobbyId, adminPwd, teams, mode });
     show('view-credentials');
   } catch (e) {
     showErr('createErr', e.message || 'Failed to create lobby.');
@@ -175,7 +216,10 @@ $('createBtn').addEventListener('click', async () => {
   }
 });
 
-function renderCredentials({ lobbyId, adminPwd, teams }) {
+function renderCredentials({ lobbyId, adminPwd, teams, mode }) {
+  const noun = mode === 'individuals' ? 'Player' : 'Team';
+  const hdr = $('credTeamRows').closest('table')?.querySelector('thead th:nth-child(2)');
+  if (hdr) hdr.textContent = noun;
   $('credLobbyId').textContent = lobbyId;
   $('credAdminPwd').textContent = adminPwd;
   const tbody = $('credTeamRows');

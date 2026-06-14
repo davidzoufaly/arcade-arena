@@ -397,7 +397,14 @@ function snapshotToState(snap) {
     .map(t => ({ id: t.id, name: t.name, scores: scoresObj[t.id] ?? {} }))
     .sort((a, b) => a.id - b.id);
   const history = Object.values(historyObj).filter(Boolean).sort((a, b) => a.ts - b.ts);
-  return { teams, history };
+  const mode = root.meta?.mode === 'individuals' ? 'individuals' : 'teams';
+  return { teams, history, mode };
+}
+
+// Singular participant noun for the lobby's mode. Drives column header, empty
+// state, and the "Team N" / "Player N" fallback when a name was never set.
+function participantNoun() {
+  return state.mode === 'individuals' ? 'Player' : 'Team';
 }
 
 onValue(ref(db, LOBBY_PATH), snap => {
@@ -429,7 +436,7 @@ async function resetAll() {
   if (!await requireAdmin(lobbyId)) return;
   openModal({
     title: '⚠️ Reset scoreboard?',
-    bodyHtml: `<p>Wipe all scores and history for lobby <strong>${escapeHtml(lobbyId)}</strong>? Teams are kept. This affects everyone in this lobby and can't be undone.</p>`,
+    bodyHtml: `<p>Wipe all scores and history for lobby <strong>${escapeHtml(lobbyId)}</strong>? ${participantNoun()}s are kept. This affects everyone in this lobby and can't be undone.</p>`,
     confirmLabel: 'Reset everything',
     danger: true,
     onConfirm: async () => {
@@ -477,7 +484,7 @@ function renderControls() {
       confetti(140);
       const dialog = document.createElement('dialog');
       dialog.className = 'winner-pop';
-      dialog.innerHTML = `<h2>🏆 ${escapeHtml(w.name || ('Team ' + w.id))}</h2>
+      dialog.innerHTML = `<h2>🏆 ${escapeHtml(w.name || (participantNoun() + ' ' + w.id))}</h2>
         <p>${formatPts(w.total)} points — current leader</p>
         <button type="button" id="winClose">Close</button>`;
       document.body.appendChild(dialog);
@@ -575,7 +582,8 @@ function computeLeader() {
 function render() {
   const list = document.getElementById('leaderboard');
   if (state.teams.length === 0) {
-    list.innerHTML = '<div class="empty"><h3>No teams yet</h3><p>Create a lobby from the join page to add teams.</p></div>';
+    const plural = participantNoun().toLowerCase() + 's';
+    list.innerHTML = `<div class="empty"><h3>No ${plural} yet</h3><p>Create a lobby from the join page to add ${plural}.</p></div>`;
     return;
   }
   const bumpedTeamId = bumpedTeam && bumpedTeam.until > Date.now() ? bumpedTeam.id : null;
@@ -645,7 +653,7 @@ function render() {
   const head = `
     <div class="matrix-row matrix-head">
       <div class="cell-rank">#</div>
-      <div>Team</div>
+      <div>${participantNoun()}</div>
       ${headCells}
       <div class="cell-total">Total</div>
     </div>
@@ -676,8 +684,8 @@ function render() {
         <div class="cell-rank">${i + 1}</div>
         <div>
           ${editing
-            ? `<input class="name-input" data-team="${t.id}" maxlength="24" value="${escapeHtml(t.name || ('Team ' + t.id))}">`
-            : `<div class="cell-team-name">${escapeHtml(t.name || ('Team ' + t.id))}</div>`}
+            ? `<input class="name-input" data-team="${t.id}" maxlength="24" value="${escapeHtml(t.name || (participantNoun() + ' ' + t.id))}">`
+            : `<div class="cell-team-name">${escapeHtml(t.name || (participantNoun() + ' ' + t.id))}</div>`}
           <div class="cell-team-meta">${t.gameCount}/${gameKeys.length} games</div>
         </div>
         ${cells}

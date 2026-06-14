@@ -25,6 +25,8 @@ import {
   finalScore,
   segmentSecondsLeft,
   rotateSecondsLeft,
+  RAMP_S_SOLO, SPEED_MAX_SOLO, SPAWN_FRAMES_MIN_SOLO, HIGH_PROB_MAX_SOLO,
+  SOLO_JUMP_STRENGTH,
 } from '../ps-offsite-2026/shared/dino-logic.js';
 
 describe('constants', () => {
@@ -120,6 +122,37 @@ describe('highObstacleProb', () => {
   it('past ramp → HIGH_PROB_MAX (plateau)', () =>
     expect(highObstacleProb(RAMP_S * 2)).toBeCloseTo(HIGH_PROB_MAX));
   it('negative → HIGH_PROB_MIN (clamped)', () => expect(highObstacleProb(-5)).toBeCloseTo(HIGH_PROB_MIN));
+});
+
+describe('solo (hard) difficulty — moderately tighter than teams', () => {
+  it('solo ramp is shorter than team ramp', () => expect(RAMP_S_SOLO).toBeLessThan(RAMP_S));
+  it('start is identical regardless of hard flag', () => {
+    expect(runSpeed(0, true)).toBe(SPEED_MIN);
+    expect(spawnIntervalFrames(0, true)).toBe(SPAWN_FRAMES_MAX);
+    expect(highObstacleProb(0, true)).toBeCloseTo(HIGH_PROB_MIN);
+  });
+  it('solo peak speed exceeds team peak', () => {
+    expect(runSpeed(RAMP_S_SOLO, true)).toBeCloseTo(SPEED_MAX_SOLO);
+    expect(SPEED_MAX_SOLO).toBeGreaterThan(SPEED_MAX);
+  });
+  it('solo peak spawn gap is tighter (denser) than teams', () => {
+    expect(spawnIntervalFrames(RAMP_S_SOLO, true)).toBeCloseTo(SPAWN_FRAMES_MIN_SOLO);
+    expect(SPAWN_FRAMES_MIN_SOLO).toBeLessThan(SPAWN_FRAMES_MIN);
+  });
+  it('solo peak high-obstacle prob exceeds teams', () => {
+    expect(highObstacleProb(RAMP_S_SOLO, true)).toBeCloseTo(HIGH_PROB_MAX_SOLO);
+    expect(HIGH_PROB_MAX_SOLO).toBeGreaterThan(HIGH_PROB_MAX);
+  });
+  it('at a fixed mid time, solo is harder than teams (faster, denser)', () => {
+    const t = 25;
+    expect(runSpeed(t, true)).toBeGreaterThan(runSpeed(t, false));
+    expect(spawnIntervalFrames(t, true)).toBeLessThan(spawnIntervalFrames(t, false));
+    expect(highObstacleProb(t, true)).toBeGreaterThan(highObstacleProb(t, false));
+  });
+  it('SOLO_JUMP_STRENGTH is a fixed mid-range jump (one-hand jump)', () => {
+    expect(SOLO_JUMP_STRENGTH).toBeGreaterThan(0);
+    expect(SOLO_JUMP_STRENGTH).toBeLessThan(22);
+  });
 });
 
 describe('scoreAttempt (endless: score = obstacles passed)', () => {

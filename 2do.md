@@ -1,0 +1,43 @@
+- Pantomima
+    - ✅ Zrušit 2 people pozy nefungují spolehlivě -> nahradit jinými (duo zrušeno, 8 solo poz: 2 easy + 3 medium + 3 hard)
+    - ✅ Lock position on camera screen -> výraznější zelená čára obtahující rám kamery (right→bottom→left→top) + "HOLD STILL" label, konzistentní s gesture lockem
+- flappy ✅
+    - o trochu dál prekazky od sebe (vertikálně o trochu víc prostoru na průlet)
+    - vysvětlit, že flappy může narážet na zem i na strop (v pravidlech)
+- Gesture Lock ✅
+    - větší obdelníky (jak v sekvenci tak při hraní) + vertikální dělitele po 4 v UI "|", obdelníky se mohou zalamovat do více řádků 
+    - wrong gesture netahá tu čáru na poznání → čáru by se měla tahat stejně jako při dobrým gestu → čáru změnit ze zelené na neutrální barvu (vypadalo by divně, kdyby se tahala zelená čára a poté "wrong gesture")
+    - někdy to gesto nerozezná, mělo by tam být upozornění “unknown gesture” např. -> aby dali ruku pryč z viewportu a dali znova -> možná lepší hláška než jen "unknown gesture"
+    - upravit pravidla, aby bylo zřejmé, že všichni hrajou najednou, je ok přistoupit blízko ke kameře, ať mají ruce za záda, aby se vyhnuli omylem rozpoznání
+- Dino ✅
+    - hrajou jen 2-3 hráči najednou (podle týmu) 
+    - vždy musí běžet 20s
+    - pak běží panák 10s bez překáže a je na screenu rotate (to jako u pantomimy)
+    - horní překážky se spawnují častějí už od začátku
+    - otestovat jak to bere ty jednotlivé ruce a výskoky
+- Game Portal
+    - ✅ arcade mode
+        - remove all Alien stuff -> remove al PS offsite mentioning -> make it generic
+        - create new title for games, rewrite rules, remove landing page top section, use icons instead of images for games library etc.
+    - ✅ games page admin menu -> new page /games from admin view -> landing page from admin perspective
+    - ✅ přesunout admin funkce ze scoreboardu do /games (game mgmt; score entry zůstal na scoreboardu)
+    - ✅ UI games bude list her -> název, ikona, akce (lock - unlock, add - remove (to lobby eye icon -> new type of action, rules changes + timer for nonplayable games)
+    - ✅ lobby ID should not have PS prefix
+    - ✅ ukládat v local storage lobby id -> pro lobby join (prefill automatically) + query parameter
+    - ✅ možnost vytváření non playable her -> set icon, games name, games rules -> should have other action as other non playable games
+    - ✅ all playable games are added by default all non payable are not added by default
+    - ✅ cipher, math no brain, math big brain are removed from portal
+    - ✅ přidat switcher if lobby is for individuals or teams
+    - ✅ na create lobby přidat text, že týmy jsou 2-20
+    - ✅ doporučit počet hráčů 2-6 per tým
+    - ✅ winners screen → admin button and popover -> confets across whole screen
+    - ✅ tymy se mohou prejmenovat → topbar + admin edit mode scoreboard
+    - ✅ readme → návod k adminování → pantomima kontrast s pozadím, airlock → kontrast ruky s pozadím
+    - ✅ kalibrace rukou → tlačítko na potvrzení, že jsou ruce správně v záběru a nečekat celých 20s → či překopání systému
+    - modely stáhnout ze CDN a uložit přímo do repa -> lazy loading bundlu před hraním
+    - ✅ mode pro lobby kde nejsou týmy, ale hráči
+        - ✅ guest lock 12 guest -> nemusí se řešit separators po 4
+        - ✅ pantomime remove "next player"
+        - ✅ flappy voice -> no choice
+        - ✅ dino -> remove rotate players -> harder difficulty -> jumping with one hand only
+        - ✅ remove number of hands pre-game locking
