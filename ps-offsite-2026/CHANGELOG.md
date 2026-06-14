@@ -36,3 +36,46 @@
 - MediaPipe runtime i modely jsou self-hostované, ne z CDN.
 - Modely stahuje scripts/fetch-vision-assets.mjs při install / dev / build.
 - Runtime se lazy-loaduje až při startu mise. Nezdržuje načtení stránky.
+
+## Základ (před 2026-06-14)
+
+### Mise v prohlížeči
+
+- Airlock Override (Gesture Lock). Kamera čte ruce. Tým opakuje sekvenci gest po paměti.
+- Human Mimic Checkpoint (Pantomime). Kamera čte tělo. Tým trefuje pózy.
+- Gravity Corridor (Dino Dash). Kamera čte ruce. Tým skáče s panáčkem.
+- Sonic Stabilizer (Flappy Voice). Mikrofon. Tým křikem nadnáší objekt.
+- Každá mise dává 0 až 100 bodů. Zapisuje se sama do scoreboardu.
+
+### Výzvy bodované hostem
+
+- Math No-Brain, Math Big-Brain, Cipher, Gandalf, Hidden Document, Draw & Guess.
+- Hrají se mimo obrazovku. Body zadává host.
+
+### Lobby a skóre
+
+- Host založí lobby. Zadá počet týmů (2 až 20).
+- Dostane ID lobby, admin heslo a heslo pro každý tým.
+- Tým se připojí přes ID a týmové heslo.
+- Skóre teče živě přes Firebase do společného scoreboardu.
+- Žádné ruční submit kódy. Vše jde přes lobby.
+
+### Hostitelský panel
+
+- Scoreboard.html ukazuje žebříček živě. Vhodné na projektor.
+- Host zadává body za ručně bodované výzvy.
+- Reset smaže všechna skóre a historii lobby.
+
+### Pub Quiz
+
+- Host řídí kvíz v quiz-admin.html.
+- Aplikace drží jen kategorie, počty otázek a bonusy. Ne otázky a odpovědi.
+- Host čte otázky nahlas. Týmy píšou odpovědi v quiz.html.
+- Vždy jen jedna kategorie. Zpět to nejde.
+- Host známkuje ✓ / ✗. +1 za správnou, +1 za bonus.
+
+### Technické
+
+- Celé v prohlížeči. Build přes Vite.
+- Jednorázové nastavení Firebase. Viz SETUP.md.
+- Stačí běžný notebook z posledních ~5 let a aktuální prohlížeč.
