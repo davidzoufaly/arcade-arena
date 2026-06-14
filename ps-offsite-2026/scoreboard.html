@@ -111,6 +111,9 @@
     overflow: hidden;
   }
   .matrix-row:last-child { border-bottom: none; }
+  /* Lock team-row height so edit mode (single-line name input) matches view
+     mode (name + "X/Y games" meta) — same height, name aligns with scores. */
+  .matrix-row.team { min-height: 68px; }
   .matrix-row.shine::before {
     content: '';
     position: absolute;
