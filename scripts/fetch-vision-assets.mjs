@@ -1,9 +1,11 @@
 // Fetch mediapipe runtime + models into ps-offsite-2026/public/mediapipe.
 // These are large binaries (~60MB) kept out of git (see .gitignore). Run on
 // install/build/dev so local + Netlify always have them. Idempotent: skips
-// files that already exist, so re-runs are cheap.
-import { cp, mkdir, stat, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+// non-empty files already in place, so re-runs are cheap. Downloads land via a
+// temp file + atomic rename, so an interrupted run never leaves a truncated
+// model that a later run would treat as complete.
+import { cp, mkdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../..');
@@ -21,7 +23,8 @@ const MODELS = {
   'pose_landmarker_heavy.task': `${BASE}/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task`,
 };
 
-const exists = async (p) => !!(await stat(p).catch(() => null));
+const statOf = async (p) => stat(p).catch(() => null);
+const exists = async (p) => !!(await statOf(p));
 
 async function copyWasm() {
   if (await exists(resolve(WASM_DST, 'vision_wasm_internal.wasm'))) {
@@ -40,14 +43,29 @@ async function fetchModels() {
   await mkdir(MODELS_DST, { recursive: true });
   for (const [name, url] of Object.entries(MODELS)) {
     const dst = resolve(MODELS_DST, name);
-    if (await exists(dst)) {
+    // A non-empty file at the final path means a previous run finished this
+    // download (we only rename into place after a complete write), so skip.
+    const st = await statOf(dst);
+    if (st && st.size > 0) {
       console.log(`model ${name}: already present, skip`);
       continue;
     }
     process.stdout.write(`model ${name}: downloading… `);
     const res = await fetch(url);
     if (!res.ok) throw new Error(`failed ${url}: ${res.status} ${res.statusText}`);
-    await writeFile(dst, Buffer.from(await res.arrayBuffer()));
+    const bytes = Buffer.from(await res.arrayBuffer());
+    if (bytes.length === 0) throw new Error(`empty download for ${url}`);
+    // Download to a temp path, then atomically rename on success. An interrupted
+    // run leaves only the .tmp (cleaned up below / next run), never a truncated
+    // file at the real path that future runs would mistake for complete.
+    const tmp = `${dst}.tmp`;
+    try {
+      await writeFile(tmp, bytes);
+      await rename(tmp, dst);
+    } catch (e) {
+      await rm(tmp, { force: true });
+      throw e;
+    }
     console.log('done');
   }
 }

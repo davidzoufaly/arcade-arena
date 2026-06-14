@@ -178,7 +178,6 @@
   .difficulty.easy { background: rgba(0,230,118,0.15); color: var(--easy); }
   .difficulty.medium { background: rgba(255,216,77,0.15); color: var(--medium); }
   .difficulty.hard { background: rgba(255,77,109,0.15); color: var(--hard); }
-  .difficulty.duo { background: rgba(218,254,133,0.15); color: var(--accent-2); }
 
   .pose-card .name { font-size: 24px; font-weight: 800; margin: 6px 0; }
   .pose-card .desc { font-size: 15px; color: var(--muted); margin: 8px 0 16px; line-height: 1.4; }
@@ -397,12 +396,12 @@
 
         <div class="stats">
           <div class="stat"><div class="value" id="poseIdx">—</div><div class="label">Pose</div></div>
-          <div class="stat"><div class="value" id="poseTimer">90</div><div class="label">Timeout</div></div>
+          <div class="stat"><div class="value" id="poseTimer">25</div><div class="label">Timeout</div></div>
           <div class="stat"><div class="value" id="totalScore">0</div><div class="label">Points</div></div>
         </div>
         <div style="display:flex; gap:8px;">
           <button class="secondary" style="flex:1" onclick="skipCurrent()">Skip pose</button>
-          <button class="secondary" style="flex:1" onclick="resetGame()">Restart</button>
+          <button class="secondary" style="flex:1" onclick="replayFromFinal()">Restart</button>
         </div>
       </div>
     </div>
@@ -513,17 +512,7 @@ function renderRefSvg(pose) {
   const W = 200, H = 200;
   const svg = document.getElementById('poseRefSvg');
 
-  // Duo: two figures, each in its half of a fixed padded viewBox.
-  if ((pose.people ?? 1) === 2 && Array.isArray(pose.refs)) {
-    const yMap = y => 14 + y * (H - 28);
-    const leftMap = x => 8 + x * 86;     // [8, 94]
-    const rightMap = x => 106 + x * 86;  // [106, 192]
-    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    svg.innerHTML = refToSvg(pose.refs[0], leftMap, yMap) + refToSvg(pose.refs[1], rightMap, yMap);
-    return;
-  }
-
-  // Solo: single figure with auto-expanding viewBox (raised arms can spill above).
+  // Single figure with auto-expanding viewBox (raised arms can spill above).
   const ref = pose.ref;
   const idMap = v => v * W; // x and y share scale at W===H
   const head = ref.nose;
@@ -549,7 +538,6 @@ function setHoldProgress(pct) {
 }
 const SIM_THRESHOLD = 0.85; // tighter than before
 const STABILITY_MAX_DRIFT = 0.015; // max landmark drift over recent window — anything more = wobble
-const STABILITY_MAX_DRIFT_DUO = 0.06; // looser: two people can't freeze as still
 const STABILITY_WINDOW = 8; // recent frames to track for stability
 const HOLD_GRACE_FRAMES = 5; // brief sim/wobble blips pause the hold bar instead of zeroing it
 let landmarker = null;
@@ -566,7 +554,6 @@ let stepStartTs = 0;
 let recentLandmarks = []; // for stability check
 let lastCamCount = -1;
 const MAX_ATTEMPTS = 2;
-let attemptIdx = 0;
 let attempts = []; // [{ score, scores }] — one per completed run, best counts
 
 document.getElementById('startBtn').addEventListener('click', () => {
@@ -749,92 +736,57 @@ function torsoSize(lm) {
 function primaryBody(bodies) {
   return bodies.slice().sort((a, b) => torsoSize(b) - torsoSize(a))[0];
 }
-function sortedPair(bodies) {
-  const hipX = lm => (lm[LM.L_HIP].x + lm[LM.R_HIP].x) / 2;
-  return bodies.slice().sort((a, b) => hipX(a) - hipX(b)); // left (smaller x) first
-}
-function bodyVisible(lm, lenient = false) {
+function bodyVisible(lm) {
   if (!lm || lm.length < 33) return false;
-  // Duo poses (arch, twins) are upper-body shapes — arms overhead — and two
-  // people stand further back, so legs are often low-confidence. Require only
-  // the core torso joints at a looser threshold so the 2nd body isn't dropped.
-  if (lenient) {
-    const core = [LM.L_SHOULDER, LM.R_SHOULDER, LM.L_HIP, LM.R_HIP];
-    return core.every(i => (lm[i].visibility ?? 1) > 0.3);
-  }
   const required = [LM.L_SHOULDER, LM.R_SHOULDER, LM.L_HIP, LM.R_HIP, LM.L_KNEE, LM.R_KNEE, LM.L_ANKLE, LM.R_ANKLE];
   return required.every(i => (lm[i].visibility ?? 1) > 0.4);
 }
 
 function handlePose(result) {
   const pose = POSES[stepIndex];
-  const isDuo = (pose?.people ?? 1) === 2;
   const bodies = (result.landmarks || []).filter(b => b && b.length >= 33);
 
-  let checkResults, frameForStability, seriesKeys;
-
-  if (isDuo) {
-    const visBodies = bodies.filter(b => bodyVisible(b, true));
-    if (visBodies.length < 2) {
-      document.getElementById('hint').textContent = 'Need 2 people in frame, full body visible';
-      document.getElementById('simFill').style.width = '0%';
-      document.getElementById('simText').textContent = '—';
-      document.getElementById('holdFill').style.width = '0%';
-      document.getElementById('poseCard').classList.remove('match');
-      holdStart = 0;
-      recentLandmarks = []; // duo buffer requires both bodies; reset on dropout
-      return;
-    }
-    const [a, b] = sortedPair(visBodies);
-    document.getElementById('hint').textContent = '✓ Both bodies detected';
-    checkResults = pose.checks.map(c => ({ name: c.name, val: c.fn(a, b) }));
-    frameForStability = { a: a.map(p => ({ x: p.x, y: p.y })), b: b.map(p => ({ x: p.x, y: p.y })) };
-    seriesKeys = ['a', 'b'];
-  } else {
-    if (bodies.length === 0) {
-      document.getElementById('hint').textContent = 'Stand in front of the camera, full body visible';
-      document.getElementById('simFill').style.width = '0%';
-      document.getElementById('simText').textContent = '—';
-      holdStart = 0;
-      return;
-    }
-    const lm = primaryBody(bodies);
-    if (!bodyVisible(lm)) {
-      document.getElementById('hint').textContent = 'Move so your full body is visible';
-      document.getElementById('simFill').style.width = '0%';
-      document.getElementById('simText').textContent = '—';
-      holdStart = 0;
-      return;
-    }
-    document.getElementById('hint').textContent = '✓ Full body detected';
-    checkResults = pose.checks.map(c => ({ name: c.name, val: c.fn(lm) }));
-    frameForStability = lm.map(p => ({ x: p.x, y: p.y }));
-    seriesKeys = [null];
+  if (bodies.length === 0) {
+    document.getElementById('hint').textContent = 'Stand in front of the camera, full body visible';
+    document.getElementById('simFill').style.width = '0%';
+    document.getElementById('simText').textContent = '—';
+    holdStart = 0;
+    recentLandmarks = []; // dropout: don't mix pre/post frames in the stability window
+    return;
   }
+  const lm = primaryBody(bodies);
+  if (!bodyVisible(lm)) {
+    document.getElementById('hint').textContent = 'Move so your full body is visible';
+    document.getElementById('simFill').style.width = '0%';
+    document.getElementById('simText').textContent = '—';
+    holdStart = 0;
+    recentLandmarks = []; // dropout: don't mix pre/post frames in the stability window
+    return;
+  }
+  document.getElementById('hint').textContent = '✓ Full body detected';
+  const checkResults = pose.checks.map(c => ({ name: c.name, val: c.fn(lm) }));
+  const frameForStability = lm.map(p => ({ x: p.x, y: p.y }));
 
   const sim = checkResults.reduce((s, c) => s + c.val, 0) / checkResults.length;
   const pct = Math.round(sim * 100);
 
-  // Stability: max per-joint drift across the recent window (over both bodies if duo)
+  // Stability: max per-joint drift across the recent window.
   recentLandmarks.push(frameForStability);
   if (recentLandmarks.length > STABILITY_WINDOW) recentLandmarks.shift();
-  const driftThreshold = isDuo ? STABILITY_MAX_DRIFT_DUO : STABILITY_MAX_DRIFT;
   const joints = [LM.L_WRIST, LM.R_WRIST, LM.L_ANKLE, LM.R_ANKLE, LM.L_KNEE, LM.R_KNEE];
   let stabilityDrift = 0;
   if (recentLandmarks.length >= STABILITY_WINDOW) {
-    for (const key of seriesKeys) {
-      for (const j of joints) {
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        for (const frame of recentLandmarks) {
-          const p = key ? frame[key][j] : frame[j];
-          if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-          if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
-        }
-        stabilityDrift = Math.max(stabilityDrift, maxX - minX, maxY - minY);
+    for (const j of joints) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const frame of recentLandmarks) {
+        const p = frame[j];
+        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
       }
+      stabilityDrift = Math.max(stabilityDrift, maxX - minX, maxY - minY);
     }
   }
-  const stable = stabilityDrift <= driftThreshold;
+  const stable = stabilityDrift <= STABILITY_MAX_DRIFT;
 
   document.getElementById('simFill').style.width = pct + '%';
   document.getElementById('simText').textContent = pct + '%';
@@ -845,7 +797,7 @@ function handlePose(result) {
   }).join('');
   document.getElementById('checks').innerHTML += `<div class="check ${stable ? 'pass' : ''}"><span>Hold steady (no wobble)</span><span>${stable ? '✓' : '◌'} ${(stabilityDrift * 100).toFixed(1)}%</span></div>`;
 
-  const holdMs = HOLD_MS_BY_DIFFICULTY[pose.difficulty] || 2500;
+  const holdMs = HOLD_MS_BY_DIFFICULTY[pose.difficulty];
 
   if (sim > SIM_THRESHOLD && stable) {
     if (holdStart === 0) holdStart = performance.now();
@@ -906,7 +858,7 @@ phaseEnter['attempt-end'] = () => {
   const last = attempts[attempts.length - 1];
   $('pmAttemptTitle').textContent = `Attempt ${attempts.length} of ${MAX_ATTEMPTS} complete`;
   $('pmAttemptScore').textContent = last.score;
-  $('pmTryAgain').onclick = () => { attemptIdx++; goto('loading'); };
+  $('pmTryAgain').onclick = () => { goto('loading'); };
   $('pmFinish').onclick = () => goto('final');
 };
 
@@ -960,7 +912,7 @@ window.resetGame = function() {
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
   scores = []; stepIndex = 0;
   POSES = [];
-  attempts = []; attemptIdx = 0;
+  attempts = [];
   goto('setup');
 };
 
@@ -994,6 +946,12 @@ document.addEventListener('visibilitychange', () => {
   } else if (hiddenAt && stepStartTs) {
     stepStartTs += performance.now() - hiddenAt;
     hiddenAt = 0;
+    // rAF was paused while hidden, so any in-progress hold has a stale
+    // holdStart. Force a fresh hold + stability window so the first frame
+    // back doesn't compute an inflated "held" time and lock instantly.
+    holdStart = 0;
+    holdPausedAt = 0;
+    recentLandmarks = [];
   }
 });
 

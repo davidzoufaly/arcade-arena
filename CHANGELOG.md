@@ -1,4 +1,4 @@
-# Changelog
+ Changelog
 
 ## 2026-06-14
 
@@ -24,6 +24,8 @@
 - The topbar counts points from added missions only.
 - The portal was rebranded to the generic Arcade Arena.
 - Removed the Hidden Document challenge from the catalog.
+- Removed the Math No-Brain, Math Big-Brain, and Cipher challenges from the catalog.
+- Gandalf was renamed AI Jailbreak.
 
 ### Missions
 

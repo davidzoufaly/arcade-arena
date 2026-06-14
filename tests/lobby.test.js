@@ -146,10 +146,16 @@ describe('createLobbyApi.createLobby', () => {
 
     const stored = a.data().lobbies[result.lobbyId];
     expect(stored.meta.teamCount).toBe(4);
-    expect(stored.meta.adminPwd).toBe(result.adminPwd);
     expect(stored.meta.mode).toBe('teams');
     expect(result.mode).toBe('teams');
-    expect(stored.teams[1].pwd).toBe(result.teams[0].pwd);
+    // Passwords are stored hashed (SHA-256 hex), never as plaintext.
+    expect(stored.meta.adminPwd).toBeUndefined();
+    expect(stored.meta.adminPwdHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(stored.teams[1].pwd).toBeUndefined();
+    expect(stored.teams[1].pwdHash).toMatch(/^[0-9a-f]{64}$/);
+    const blob = JSON.stringify(stored);
+    expect(blob).not.toContain(result.adminPwd);
+    expect(blob).not.toContain(result.teams[0].pwd);
 
     // quiz pre-seed: 4 categories c1..c4, 8 questions each
     expect(Object.keys(stored.quiz.categories)).toEqual(['c1', 'c2', 'c3', 'c4']);
@@ -205,6 +211,14 @@ describe('createLobbyApi.createLobby', () => {
     const api = createLobbyApi(fakeAdapter());
     await expect(api.createLobby(1)).rejects.toThrow(/team count/i);
     await expect(api.createLobby(21)).rejects.toThrow(/team count/i);
+  });
+
+  it('caps individuals mode at 12 players', async () => {
+    const api = createLobbyApi(fakeAdapter());
+    await expect(api.createLobby(13, 'individuals')).rejects.toThrow(/player count must be 2\.\.12/i);
+    // 12 is allowed in individuals mode; 20 is allowed in teams mode.
+    await expect(api.createLobby(12, 'individuals')).resolves.toMatchObject({ mode: 'individuals' });
+    await expect(api.createLobby(20, 'teams')).resolves.toMatchObject({ mode: 'teams' });
   });
 });
 

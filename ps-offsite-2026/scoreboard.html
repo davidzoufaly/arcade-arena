@@ -410,14 +410,13 @@ if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-let state = { teams: [], history: [] };
+let state = { teams: [], history: [], mode: 'teams' };
 let initialized = false;
 let editing = false;
 let lastUpdate = null;
 let connected = true;
 let locks = null, quiz = null;  // latest live nodes (locks kept read-only for header badges)
 let gamesNode = null;           // lobbies/{id}/games delta node
-let pendingScores = null;
 
 function snapshotToState(snap) {
   const root = snap.val() ?? {};
@@ -455,7 +454,9 @@ onValue(ref(db, LOBBY_PATH), snap => {
     return;
   }
   render();
-  if (initialized && leader && leaderId !== prevLeaderId && state.teams.length > 0) {
+  // Celebrate only a real lead change — not the first snapshot, and not the
+  // all-zero leader that appears when teams first load or after a Reset.
+  if (initialized && leader && (leader.total ?? 0) > 0 && leaderId !== prevLeaderId && state.teams.length > 0) {
     bumpedTeam = { id: leaderId, until: Date.now() + 4000 };
     confetti();
     render();
@@ -505,7 +506,9 @@ function renderControls() {
   } else {
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
-    editBtn.addEventListener('click', startEdits);
+    // Verify the admin password before entering edit mode — the isAdmin flag
+    // alone is user-forgeable, and Save writes scores straight to the DB.
+    editBtn.addEventListener('click', async () => { if (await requireAdmin(lobbyId)) startEdits(); });
     const celebrateBtn = document.createElement('button');
     celebrateBtn.id = 'celebrateBtn';
     celebrateBtn.type = 'button';
@@ -557,14 +560,12 @@ function renderControls() {
 
 function startEdits() {
   editing = true;
-  pendingScores = {};
   renderControls();
   render();
 }
 
 function cancelEdits() {
   editing = false;
-  pendingScores = null;
   renderControls();
   render();
 }
@@ -598,7 +599,6 @@ async function saveEdits() {
   }
   for (const [path, val] of writes) await set(ref(db, path), val);
   editing = false;
-  pendingScores = null;
   renderControls();
   render();
 }
@@ -729,8 +729,7 @@ function render() {
     const cells = gameKeys.map(g => {
       const v = t.scores[g];
       if (editing) {
-        const typed = pendingScores?.[String(t.id)]?.[g];
-        const val = typed !== undefined ? typed : (v ?? '');
+        const val = v ?? '';
         return `<div class="cell-game edit"><input class="cell-input" type="number" min="0" step="1" inputmode="numeric" data-team="${t.id}" data-game="${g}" value="${escapeHtml(String(val))}" placeholder="-"></div>`;
       }
       if (v === undefined) {

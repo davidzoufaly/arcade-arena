@@ -72,45 +72,6 @@
     color: var(--text);
   }
 
-  .video-wrap {
-    position: relative; background: #000; border: 2px solid var(--accent);
-    border-radius: 20px; overflow: hidden; aspect-ratio: 4/3;
-    box-shadow: 0 0 0 0 rgba(0,230,118,0);
-    transition: box-shadow 0.15s ease-out;
-  }
-  .video-wrap.match-pulse {
-    animation: match-pulse 0.6s ease-out;
-  }
-  .video-wrap.wrong-flash {
-    animation: wrong-flash 0.45s ease-out;
-  }
-  @keyframes match-pulse {
-    0%   { box-shadow: 0 0 0 0 rgba(0,230,118,0.9), inset 0 0 0 6px rgba(0,230,118,0.0); }
-    30%  { box-shadow: 0 0 32px 8px rgba(0,230,118,0.65), inset 0 0 0 6px rgba(0,230,118,0.85); }
-    100% { box-shadow: 0 0 0 0 rgba(0,230,118,0),   inset 0 0 0 6px rgba(0,230,118,0.0); }
-  }
-  @keyframes wrong-flash {
-    0%, 100% { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.0); }
-    50%      { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.9); }
-  }
-  .step-badge {
-    position: absolute; top: 16px; right: 16px;
-    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-    padding: 8px 14px; border-radius: 999px;
-    font-size: 16px; font-weight: 800; letter-spacing: 0.5px;
-    color: var(--accent);
-  }
-  .video-wrap video, .video-wrap canvas {
-    width: 100%; height: 100%;
-    object-fit: cover; display: block;
-  }
-  .video-wrap canvas { position: absolute; inset: 0; pointer-events: none; }
-  .video-overlay {
-    position: absolute; bottom: 16px; left: 16px;
-    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-    padding: 8px 14px; border-radius: 10px;
-    font-size: 16px; font-family: ui-monospace, monospace;
-  }
   /* Canvas on top (full width), controls in a strip below. */
   .game { display: flex; flex-direction: column; gap: 20px; }
 
@@ -132,37 +93,6 @@
     font-size: 28px; font-weight: 900; margin-top: 4px;
   }
 
-  .progress-dots {
-    display: flex; gap: 8px; justify-content: center; margin-top: 8px;
-  }
-  .dot {
-    flex: 1; aspect-ratio: 1;
-    background: var(--bg-2);
-    border: 2px solid var(--border);
-    border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 28px;
-    transition: all 0.2s;
-  }
-  .dot.done {
-    background: rgba(0,230,118,0.18);
-    border-color: var(--good);
-  }
-  .dot.flashing {
-    border-color: var(--accent);
-    box-shadow: 0 0 24px rgba(218,254,133,0.5);
-  }
-
-  .progress-bar {
-    height: 6px; background: rgba(255,255,255,0.08);
-    border-radius: 999px; overflow: hidden; margin-top: 16px;
-  }
-  .progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--good));
-    width: 0%; transition: width 0.1s linear;
-  }
-
   .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .stat {
     background: var(--bg-2); padding: 16px;
@@ -170,24 +100,6 @@
   }
   .stat .value { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .stat .label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
-
-  .big-flash {
-    text-align: center;
-    padding: 40px 24px;
-  }
-  .big-flash .emoji { font-size: 160px; line-height: 1; }
-  .big-flash .name { font-size: 22px; color: var(--muted); margin-top: 12px; }
-
-  .countdown {
-    text-align: center;
-    padding: 60px 24px;
-  }
-  .countdown .num {
-    font-size: 180px; font-weight: 900;
-    background: linear-gradient(135deg, var(--accent), var(--gold));
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    line-height: 1;
-  }
 
   .result { text-align: center; padding: 32px; }
   .result h2 { font-size: 32px; margin-bottom: 8px; }
@@ -220,6 +132,11 @@
     display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
   }
   .hidden { display: none !important; }
+  /* Visually hidden but exposed to screen readers (phase announcements). */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
   .loading { text-align: center; color: var(--muted); padding: 40px; }
   .calib-card { display: flex; flex-direction: column; gap: 16px; align-items: center; }
   .calib-banner { text-align: center; }
@@ -265,6 +182,7 @@
     font-size: 16px;
   }
 </style>
+<link rel="stylesheet" href="../shared/theme.css">
 <link rel="stylesheet" href="../shared/topbar.css">
 </head>
 <body>
@@ -275,7 +193,7 @@
 <main>
   <div class="card briefing" id="briefing">
     Control the runner together with your hands — the more players coordinate the 'jump' gesture, the higher it leaps. Teamwork becomes lift.<br><br>
-    <strong>Goal:</strong> Steer the runner 🦖 with your hands in front of the laptop camera — only 2–3 players are active per wave, and the team rotates who plays. The runner jumps ⬆️ and ducks ⬇️ past obstacles 🌵; it plays in <strong>~20-second waves 💨</strong>, then a 10-second breather to swap players. <strong>First, a 20-second calibration:</strong> the active players raise their hands so the game can detect how many are playing — your jump strength scales with it. Then: <strong>more open palms ✋ = higher jump.</strong> Make a fist ✊ to duck. Hold a victory sign ✌️ to stay ready (no jump, no duck) — useful between obstacles so an idle palm doesn't trigger a false jump. Survive across waves; your score is the number of obstacles passed. <strong>5 attempts</strong>, best score counts 🏆.
+    <strong>Goal:</strong> Steer the runner 🦖 with your hands in front of the laptop camera — only 2–3 players are active per wave, and the team rotates who plays. The runner jumps ⬆️ and ducks ⬇️ past obstacles 🌵; it plays in <strong>~20-second waves 💨</strong>, then a 10-second breather to swap players. <strong>First, a 20-second calibration:</strong> the active players raise their hands so the game can detect how many are playing — your jump strength scales with it. Each run then opens with a <strong>~10-second warm-up</strong> to practise the gestures — no obstacles appear until it ends. Then: <strong>more open palms ✋ = higher jump.</strong> Make a fist ✊ to duck. Hold a victory sign ✌️ to stay ready (no jump, no duck) — useful between obstacles so an idle palm doesn't trigger a false jump. Survive across waves; your score is the number of obstacles passed. <strong>5 attempts</strong>, best score counts 🏆.
   </div>
 
   <!-- BOOT -->
@@ -308,6 +226,7 @@
     <h2 style="font-size: 28px; margin-bottom: 8px;">Attempt <span id="introNum">1</span> of 5</h2>
     <p class="briefing" id="introBrief">
       <strong>Wave run</strong> — 20s obstacles, then 10s to rotate players; make the runner 🌀 jump ⬆️ and duck ⬇️ past obstacles 🌵 with your hands; it keeps speeding up 💨.<br>
+      Starts with a <strong>~10s warm-up</strong> to practise the gestures — no obstacles until it ends.<br>
       ✋ Open palms = jump (more / higher hands = higher jump)<br>
       ✊ Fist = duck · ✌️ Victory = stay ready between jumps<br>
       Score = obstacles passed. Best of <strong>5 attempts</strong> counts 🏆.
@@ -318,7 +237,8 @@
   <!-- PLAY -->
   <div id="phase-play" class="hidden">
     <div class="game">
-      <canvas id="dinoCanvas"></canvas>
+      <canvas id="dinoCanvas" role="img" aria-label="Endless runner game — control the runner with hand gestures in front of the camera."></canvas>
+      <div id="phaseAnnounce" class="sr-only" aria-live="polite"></div>
       <div class="panel">
         <div style="text-align:center"><video id="camPreview" class="cam-preview" playsinline autoplay muted></video></div>
         <div>
@@ -352,7 +272,7 @@
   <!-- FINAL -->
   <div id="phase-final" class="card result hidden">
     <h2 id="finalTitle">Run complete</h2>
-    <p style="color:var(--muted)"><span id="resTeamLabel">Team</span> <strong id="resTeam"></strong></p>
+    <p id="resTeamRow" style="color:var(--muted)"><span id="resTeamLabel">Team</span> <strong id="resTeam"></strong></p>
     <div class="score" id="resScore">0</div>
     <div id="saveStatus" class="save-status">SAVING…</div>
     <div class="result-row" style="margin-top: 14px;">

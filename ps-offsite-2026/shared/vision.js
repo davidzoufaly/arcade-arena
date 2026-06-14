@@ -5,19 +5,18 @@
 const WASM_URL = '/mediapipe/wasm';
 export const MODEL_URL = {
   hand: '/mediapipe/models/hand_landmarker.task',
-  poseLite: '/mediapipe/models/pose_landmarker_lite.task',
-  poseHeavy: '/mediapipe/models/pose_landmarker_heavy.task',
-  gesture: '/mediapipe/models/gesture_recognizer.task',
 };
 
 let visionPromise;
 export async function loadVision() {
   if (!visionPromise) {
+    // Cache only on success: clear the cached promise on failure so a transient
+    // wasm/model load error isn't pinned forever and the next call can retry.
     visionPromise = (async () => {
       const mod = await import('@mediapipe/tasks-vision');
       const fileset = await mod.FilesetResolver.forVisionTasks(WASM_URL);
       return { mod, fileset };
-    })();
+    })().catch(e => { visionPromise = undefined; throw e; });
   }
   return visionPromise;
 }
@@ -26,13 +25,21 @@ export async function createCamStream({ width = 640, height = 480 } = {}) {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { width, height, facingMode: 'user' }
   });
-  const video = document.createElement('video');
-  video.srcObject = stream;
-  video.autoplay = true;
-  video.playsInline = true;
-  await new Promise(r => video.addEventListener('loadedmetadata', r, { once: true }));
-  await video.play();
-  return { video, stream };
+  try {
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.autoplay = true;
+    video.playsInline = true;
+    await new Promise(r => video.addEventListener('loadedmetadata', r, { once: true }));
+    await video.play();
+    return { video, stream };
+  } catch (e) {
+    // getUserMedia already turned the camera on; if play()/loadedmetadata
+    // rejects, stop the tracks so we don't leak a live MediaStream (the
+    // camera light staying on with no consumer).
+    stream.getTracks().forEach(t => t.stop());
+    throw e;
+  }
 }
 
 export async function createHandTracker(video, { numHands = 4, minRunMs = 0 } = {}) {
@@ -53,8 +60,15 @@ export async function createHandTracker(video, { numHands = 4, minRunMs = 0 } = 
     const ts = performance.now();
     if (video.readyState >= 2 && ts - lastTs >= minRunMs) {
       lastTs = ts;
-      const result = tracker.detectForVideo(video, ts);
-      latest = { hands: result.landmarks ?? [] };
+      // A transient detectForVideo throw (e.g. mid-frame GPU hiccup) must not
+      // permanently kill the loop — log and keep the last good result, retry
+      // next frame.
+      try {
+        const result = tracker.detectForVideo(video, ts);
+        latest = { hands: result.landmarks ?? [] };
+      } catch (e) {
+        console.warn('hand detectForVideo failed (continuing)', e);
+      }
     }
     raf = requestAnimationFrame(loop);
   }
@@ -66,44 +80,7 @@ export async function createHandTracker(video, { numHands = 4, minRunMs = 0 } = 
   };
 }
 
-export async function createPoseTracker(video) {
-  const { mod, fileset } = await loadVision();
-  const tracker = await mod.PoseLandmarker.createFromOptions(fileset, {
-    baseOptions: {
-      modelAssetPath: MODEL_URL.poseLite,
-      delegate: 'GPU'
-    },
-    numPoses: 1,
-    runningMode: 'VIDEO'
-  });
-
-  let latest = { pose: null };
-  let raf;
-  let lastTs = 0;
-  function loop() {
-    const ts = performance.now();
-    if (video.readyState >= 2 && ts - lastTs > 33) {
-      lastTs = ts;
-      const result = tracker.detectForVideo(video, ts);
-      latest = { pose: result.landmarks?.[0] ?? null };
-    }
-    raf = requestAnimationFrame(loop);
-  }
-  loop();
-
-  return {
-    latest() { return latest; },
-    stop() { cancelAnimationFrame(raf); tracker.close(); }
-  };
-}
-
-// Helpers used by dino/main.js for gesture interpretation
-export function isFingerUp(hand) {
-  if (!hand || !hand[8] || !hand[6] || !hand[0]) return false;
-  // tip clearly above PIP, OR whole hand raised high in frame
-  return hand[8].y < hand[6].y - 0.02 || hand[0].y < 0.45;
-}
-
+// Helpers used by dino for gesture interpretation
 export function isPalmOpen(hand) {
   if (!hand) return false;
   const tips = [8, 12, 16, 20];
@@ -129,40 +106,4 @@ export function isVictorySign(hand) {
   const down = [[16, 14], [20, 18]]; // ring, pinky: tip below pip
   return up.every(([t, p]) => hand[t].y < hand[p].y)
       && down.every(([t, p]) => hand[t].y > hand[p].y);
-}
-
-export function isArmOverhead(hand) {
-  if (!hand || !hand[0]) return false;
-  return hand[0].y < 0.3; // wrist in upper third of frame
-}
-
-export function isJumpingPose(pose, baselineShoulderY) {
-  if (!pose) return false;
-  const shoulderY = (pose[11].y + pose[12].y) / 2;
-  return shoulderY < baselineShoulderY - 0.08;
-}
-
-export function isCrouchingPose(pose, baselineHipY) {
-  if (!pose) return false;
-  const hipY = (pose[23].y + pose[24].y) / 2;
-  return hipY > baselineHipY + 0.06;
-}
-
-export function countFingersUp(hand) {
-  if (!hand) return 0;
-  let n = 0;
-  // four fingers: index, middle, ring, pinky — tip Y above PIP Y means raised
-  const tips = [8, 12, 16, 20];
-  const pips = [6, 10, 14, 18];
-  for (let i = 0; i < tips.length; i++) {
-    if (hand[tips[i]] && hand[pips[i]] && hand[tips[i]].y < hand[pips[i]].y - 0.015) n++;
-  }
-  // thumb: extended when tip is significantly farther from wrist than the knuckle
-  const t4 = hand[4], t2 = hand[2], t0 = hand[0];
-  if (t4 && t2 && t0) {
-    const dTip = Math.hypot(t4.x - t0.x, t4.y - t0.y);
-    const dKnuckle = Math.hypot(t2.x - t0.x, t2.y - t0.y);
-    if (dTip > dKnuckle * 1.2) n++;
-  }
-  return n;
 }

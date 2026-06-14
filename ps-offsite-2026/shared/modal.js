@@ -5,13 +5,18 @@
 export function openModal({ title, bodyHtml, onConfirm, confirmLabel = 'Confirm', danger = false }) {
   const dialog = document.createElement('dialog');
   dialog.className = 'modal-box';
+  // Only bodyHtml is trusted HTML (callers build it). title and confirmLabel are
+  // plain text and may contain user-controlled data (e.g. a custom game name),
+  // so they are set via textContent to avoid HTML injection.
   dialog.innerHTML = `
-    <h2>${title}</h2>
+    <h2></h2>
     <div class="modal-body">${bodyHtml}</div>
     <div class="modal-actions">
       <button type="button" id="modalCancel">Cancel</button>
-      <button type="button" class="${danger ? 'danger' : 'primary'}" id="modalConfirm">${confirmLabel}</button>
+      <button type="button" class="${danger ? 'danger' : 'primary'}" id="modalConfirm"></button>
     </div>`;
+  dialog.querySelector('h2').textContent = title;
+  dialog.querySelector('#modalConfirm').textContent = confirmLabel;
   document.body.appendChild(dialog);
   dialog.addEventListener('close', () => dialog.remove());
   dialog.querySelector('#modalCancel').addEventListener('click', () => dialog.close());

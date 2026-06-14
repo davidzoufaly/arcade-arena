@@ -49,6 +49,21 @@ describe('targetVelocity (linear meter→speed map)', () => {
   });
   it('louder → more upward (monotonic)', () =>
     expect(targetVelocity(0.20, 0.04)).toBeLessThan(targetVelocity(0.10, 0.04)));
+
+  // Loud-room guard (#7): when the calibrated floor lands at/above METER_MAX the
+  // span would collapse and the orb could only ever fall (unwinnable). A clearly
+  // louder-than-floor input must still produce a rising (negative) target.
+  it('floor AT meterMax: loud input still rises (not pure descent)', () => {
+    const floor = METER_MAX;                 // degenerate: span would be 0
+    expect(targetVelocity(floor + 0.2, floor)).toBeLessThan(0);
+  });
+  it('floor ABOVE meterMax: loud input still rises', () => {
+    const floor = METER_MAX + 0.1;           // span would be negative
+    expect(targetVelocity(floor + 0.3, floor)).toBeLessThan(0);
+  });
+  it('floor AT meterMax: silence still falls (+FALL_V)', () => {
+    expect(targetVelocity(METER_MAX, METER_MAX)).toBeCloseTo(FALL_V);
+  });
 });
 
 describe('nextVelocity', () => {

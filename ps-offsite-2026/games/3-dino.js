@@ -15,7 +15,7 @@ import {
   scoreAttempt, finalScore,
   runSpeed, spawnIntervalFrames, highObstacleProb,
   SEGMENT_PLAY_S, rotateSecondsLeft, segmentSecondsLeft,
-  SOLO_JUMP_STRENGTH,
+  SOLO_JUMP_STRENGTH, PEAK_JUMP_STRENGTH,
 } from '../shared/dino-logic.js';
 import { warmupSecondsLeft } from '../shared/warmup-logic.js';
 
@@ -116,11 +116,13 @@ function updatePalmHud(n) {
   const pips = palmDotsEl.children;
   for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('on', i < n);
   // Solo: a single palm = a fixed-strength jump (#42), so the meter just reads
-  // armed/idle rather than scaling with hand count.
-  const strength = individuals
-    ? (n > 0 ? SOLO_JUMP_STRENGTH : 0)
-    : palmCountToJumpStrength(n, state.teamN ?? FALLBACK_N);
-  $('jumpFill').style.width = `${(strength / 22) * 100}%`;
+  // armed/idle (100% / 0%) rather than scaling with hand count — otherwise a
+  // fixed SOLO_JUMP_STRENGTH against the team peak divisor would cap the bar at
+  // ~73%. Teams: scale against PEAK_JUMP_STRENGTH so a full team fills the bar.
+  const pct = individuals
+    ? (n > 0 ? 100 : 0)
+    : (palmCountToJumpStrength(n, state.teamN ?? FALLBACK_N) / PEAK_JUMP_STRENGTH) * 100;
+  $('jumpFill').style.width = `${pct}%`;
 }
 
 // Live control-state chip so players see jump-armed vs ducking vs ready.
@@ -290,6 +292,7 @@ phaseEnter.intro = () => {
   if (individuals) {
     $('introBrief').innerHTML =
       '<strong>Solo run</strong> — make the runner 🌀 jump ⬆️ and duck ⬇️ past obstacles 🌵; it keeps speeding up 💨.<br>' +
+      'Each run opens with a <strong>~10s warm-up</strong> to practise the gestures — no obstacles until it ends.<br>' +
       '✋ Open palm = jump · ✊ Fist = duck · ✌️ Victory = stay ready between jumps<br>' +
       'Score = obstacles passed. Best of <strong>5 attempts</strong> counts 🏆.';
   }
@@ -315,6 +318,12 @@ phaseEnter.play = () => {
   $('scoreLabel').textContent = '0';
   $('attemptLabel').textContent = `${state.attemptIdx + 1} / ${MAX_ATTEMPTS}`;
   $('timerLabel').textContent = '0.0';
+
+  // Mirror the canvas-only WARM UP / ROTATE / GO banners into a polite live
+  // region so screen-reader users hear phase changes. Called only on the few
+  // transitions, never per frame, so it stays out of the hot loop.
+  const announce = (msg) => { const el = $('phaseAnnounce'); if (el) el.textContent = msg; };
+  announce('Warm-up — practise the gestures. No obstacles yet.');
 
   const g = {
     y: GROUND_Y - RUNNER_H, vy: 0, ducking: false,
@@ -544,6 +553,12 @@ phaseEnter.play = () => {
       g.subPhase = 'play';
       g.segStartMs = now;
       g.spawnTimer = 0;
+      // Reset the rising-edge tracker (mirrors the rotate→play fix below) so a
+      // player who held an open palm through the warmup isn't denied their first
+      // real jump — jumps fire only on eff>0 && g.lastEff===0.
+      g.lastEff = 0;
+      g.palmWindow = [];
+      announce('Go! Obstacles incoming.');
       return false; // caller falls through to tickPlay this same frame
     }
     $('timerLabel').textContent = 'WARM UP';
@@ -565,6 +580,7 @@ phaseEnter.play = () => {
       g.rotateStartMs = now;
       g.ducking = false;
       g.lastEff = 0; // so the first jump after the break isn't suppressed
+      announce('Rotate — swap players.');
       return false;
     }
     const elapsed = livePlaySec(now);
@@ -585,6 +601,7 @@ phaseEnter.play = () => {
       g.subPhase = 'play';
       g.segStartMs = now;
       g.spawnTimer = 0;
+      announce('Go! Obstacles incoming.');
       return false; // fall through to tickPlay this same frame
     }
     $('timerLabel').textContent = 'ROTATE';
@@ -659,11 +676,24 @@ phaseEnter.final = () => {
 
   const score = finalScore(state.attempts);
   $('finalTitle').textContent = '🏁 Run complete';
-  $('resTeam').textContent = state.teamId;
   $('resScore').textContent = score;
 
   const status = $('saveStatus');
   $('finalReturnLink').href = catalogHref;
+
+  // No lobby session → there's no real team/player to label or submit for
+  // (state.teamId defaults to 0). Hide the participant row and the save chip
+  // instead of printing "Team 0" and writing a score for a phantom team 0.
+  if (!session) {
+    $('resTeamRow').classList.add('hidden');
+    status.classList.add('hidden');
+    wireRestart();
+    return;
+  }
+
+  $('resTeamRow').classList.remove('hidden');
+  $('resTeam').textContent = state.teamId;
+  status.classList.remove('hidden');
   status.className = 'save-status';
   status.textContent = 'SAVING…';
   const trySubmit = async () => {
@@ -716,9 +746,13 @@ function enterAlreadyPlayed(existing) {
   $('phase-final').classList.remove('hidden');
   $('briefing').classList.add('hidden');
   $('finalTitle').textContent = '✅ Already submitted';
+  // Only reachable with a real lobby session (boot guards this), so the
+  // participant row + save chip are always meaningful here.
+  $('resTeamRow').classList.remove('hidden');
   $('resTeam').textContent = state.teamId;
   $('resScore').textContent = existing;
   const status = $('saveStatus');
+  status.classList.remove('hidden');
   status.className = 'save-status ok';
   status.textContent = 'SAVED ✓';
   status.onclick = null;

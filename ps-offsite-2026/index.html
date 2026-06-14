@@ -97,7 +97,7 @@
         <button id="joinContinueBtn">Continue</button>
         <div id="joinErr" class="lobby-banner err" hidden></div>
         <div id="teamPicker" hidden>
-          <label>Pick your team</label>
+          <label id="teamPickLabel">Pick your team</label>
           <div class="team-picker" id="teamPickerList"></div>
           <label for="joinTeamPwd" id="joinPwdLabel">Team password</label>
           <input id="joinTeamPwd" type="text" maxlength="12" autocomplete="off">
@@ -141,6 +141,7 @@ import { firebaseConfig } from './firebase-config.js';
 import {
   createLobbyApi, isValidLobbyId,
   getSession, setSession, isAdminSession,
+  participantNoun, maxParticipants,
 } from './shared/lobby.js';
 
 if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
@@ -190,11 +191,16 @@ function selectedMode() {
     ? 'individuals' : 'teams';
 }
 function syncModeCopy() {
-  const individuals = selectedMode() === 'individuals';
+  const mode = selectedMode();
+  const individuals = mode === 'individuals';
+  const max = maxParticipants(mode);
   $('createCountLabel').textContent = individuals ? 'Number of players' : 'Number of teams';
   $('createCountHint').textContent = individuals
-    ? '2–20 players. Each plays solo.'
-    : '2–20 teams. We recommend 2–6 players per team.';
+    ? `2–${max} players. Each plays solo.`
+    : `2–${max} teams. We recommend 2–6 players per team.`;
+  const countInput = $('createTeamCount');
+  countInput.max = String(max);
+  if (parseInt(countInput.value, 10) > max) countInput.value = String(max);
 }
 $('modeSwitch').addEventListener('change', syncModeCopy);
 syncModeCopy();
@@ -202,10 +208,11 @@ syncModeCopy();
 $('createBtn').addEventListener('click', async () => {
   hideErr('createErr');
   const mode = selectedMode();
-  const noun = mode === 'individuals' ? 'Player' : 'Team';
+  const noun = participantNoun(mode);
+  const max = maxParticipants(mode);
   const n = parseInt($('createTeamCount').value, 10);
-  if (!Number.isInteger(n) || n < 2 || n > 20) {
-    showErr('createErr', `${noun} count must be 2–20.`);
+  if (!Number.isInteger(n) || n < 2 || n > max) {
+    showErr('createErr', `${noun} count must be 2–${max}.`);
     return;
   }
   $('createBtn').disabled = true;
@@ -254,6 +261,8 @@ function renderCredentials({ lobbyId, adminPwd, teams, mode }) {
 }
 
 // ---------- join flow ----------
+// Mode of the lobby being joined, read from meta/mode in revealTeamPicker.
+let joinMode = 'teams';
 $('joinLobbyId').addEventListener('input', e => {
   e.target.value = e.target.value.toUpperCase();
 });
@@ -274,9 +283,14 @@ async function revealTeamPicker(lobbyId) {
     const teams = await api.loadLobbyTeams(lobbyId);
     if (!teams.length) {
       $('teamPicker').hidden = true;
-      showErr('joinErr', 'Lobby has no teams yet.');
+      showErr('joinErr', 'Lobby has no participants yet.');
       return;
     }
+    // Read the lobby mode so the picker copy matches ("Player" vs "Team").
+    const modeSnap = await get(ref(db, `lobbies/${lobbyId}/meta/mode`));
+    joinMode = modeSnap.exists() ? modeSnap.val() : 'teams';
+    const noun = participantNoun(joinMode);
+    $('teamPickLabel').textContent = `Pick your ${noun.toLowerCase()}`;
     const list = $('teamPickerList');
     list.innerHTML = teams.map((t, i) => `
       <label class="team-option">
@@ -290,9 +304,9 @@ async function revealTeamPicker(lobbyId) {
       </label>`;
     list.onchange = () => {
       const isAdmin = document.querySelector('input[name="teamPick"]:checked')?.value === '__admin__';
-      $('joinPwdLabel').textContent = isAdmin ? 'Admin password' : 'Team password';
+      $('joinPwdLabel').textContent = isAdmin ? 'Admin password' : `${noun} password`;
     };
-    $('joinPwdLabel').textContent = 'Team password';
+    $('joinPwdLabel').textContent = `${noun} password`;
     $('teamPicker').hidden = false;
     $('joinFinalBtn').onclick = () => doJoin(lobbyId);
   } catch (e) {
@@ -305,7 +319,7 @@ async function revealTeamPicker(lobbyId) {
 async function doJoin(lobbyId) {
   hideErr('joinErr');
   const radio = document.querySelector('input[name="teamPick"]:checked');
-  if (!radio) { showErr('joinErr', 'Pick a team.'); return; }
+  if (!radio) { showErr('joinErr', `Pick a ${participantNoun(joinMode).toLowerCase()}.`); return; }
   const pwd = $('joinTeamPwd').value.trim().toUpperCase();
   if (!pwd) { showErr('joinErr', 'Enter password.'); return; }
   if (radio.value === '__admin__') {

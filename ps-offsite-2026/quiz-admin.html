@@ -128,7 +128,7 @@ import { getDatabase, ref, get, set, update, push, onValue } from 'https://www.g
 import { firebaseConfig } from './firebase-config.js';
 import { mountTopbar } from './shared/topbar.js';
 import { requireAdmin } from './shared/admin-gate.js';
-import { getSession, isAdminSession } from './shared/lobby.js';
+import { getSession, isAdminSession, participantNoun } from './shared/lobby.js';
 import { orderedCategories, nextOrder, teamQuizScore, seedCategories, DEFAULT_QUESTION_COUNT } from './shared/quiz.js';
 import { submitScore, firebaseWriter } from './shared/score-submit.js';
 import { openModal } from './shared/modal.js';
@@ -150,7 +150,9 @@ const LOBBY = `lobbies/${lobbyId}`;
 const session = getSession();
 const isAdmin = isAdminSession(session) && session.lobbyId === lobbyId;
 
-let categories = null, submissions = null, teams = [], grades = null, gradedFlags = null;
+let categories = null, submissions = null, teams = [], grades = null, gradedFlags = null, mode = 'teams';
+// "2 teams" / "1 player" — mode-aware, pluralized.
+const pluralParticipants = n => `${n} ${participantNoun(mode).toLowerCase()}${n === 1 ? '' : 's'}`;
 const pending = {};               // pending[teamId][catId][idx] = { q:bool, b:bool }
 const gradeStatus = {};           // gradeStatus[catId] = { cls, text } — survives re-renders
 const submitting = new Set();     // catIds with an in-flight submit (keeps button disabled)
@@ -428,7 +430,7 @@ async function submitCategoryGrades(catId) {
     const tail = updated > 0
       ? `${updated} score${updated === 1 ? '' : 's'} updated`
       : 'scores already up to date';
-    setGradeStatus(catId, 'good', `Graded · ${affected.length} teams · ${tail}`);
+    setGradeStatus(catId, 'good', `Graded · ${pluralParticipants(affected.length)} · ${tail}`);
     renderSubmissions();   // repaint ✓ header + "Resubmit" label
   } catch (e) {
     setGradeStatus(catId, 'bad', `Save failed after ${saved}/${affected.length} teams: ` + (e.message || 'unknown error'));
@@ -454,6 +456,13 @@ async function resetQuiz() {
   await set(ref(db, `${LOBBY}/quiz`), { categories: seedCategories() });
   for (const t of teams) await set(ref(db, `${LOBBY}/scores/${t.id}/PQ`), null);
   for (const k of Object.keys(pending)) delete pending[k];
+  // Clear in-memory grading caches too. seedCategories() re-mints the same
+  // c1..c4 keys, so without this the reseeded (empty) categories would still
+  // read as already-graded from this session's gradedCats/gradeStatus and show
+  // a stale "✓ Completed" / "Redo" / "Graded · N …" state.
+  gradedCats.clear();
+  submitting.clear();
+  for (const k of Object.keys(gradeStatus)) delete gradeStatus[k];
 }
 
 function renderHeadActions() {
@@ -480,7 +489,7 @@ function renderHeadActions() {
 
 function renderAll() {
   document.getElementById('subtitle').textContent =
-    `${orderedCategories(catSource()).length} categories · ${teams.length} teams`;
+    `${orderedCategories(catSource()).length} categories · ${pluralParticipants(teams.length)}`;
   renderCatEditor();
   renderSubmissions();
   renderHeadActions();
@@ -496,6 +505,9 @@ function renderAll() {
       </div>`;
     return;
   }
+  onValue(ref(db, `${LOBBY}/meta/mode`), snap => {
+    mode = snap.exists() ? snap.val() : 'teams'; renderAll();
+  });
   onValue(ref(db, `${LOBBY}/teams`), snap => {
     const obj = snap.exists() ? snap.val() : {};
     teams = Object.values(obj).filter(Boolean).map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.id - b.id);

@@ -586,7 +586,9 @@ export const POSE_POOL = [
       { name: 'Body leaned forward', fn: lm => {
         const sh = (lm[LM.L_SHOULDER].y + lm[LM.R_SHOULDER].y) / 2;
         const hip = (lm[LM.L_HIP].y + lm[LM.R_HIP].y) / 2;
-        // Less torso vertical separation = leaning
+        // Rewards a normal upright torso's hip-to-shoulder vertical gap (~0.18);
+        // a deep forward lean foreshortens it and scores lower. Comment fixed to
+        // match the actual scoring (no behavior change).
         return smoothScore(hip - sh, 0.18, 0.10);
       }},
     ],

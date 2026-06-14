@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "vision:assets": "node scripts/fetch-vision-assets.mjs",
     "postinstall": "node scripts/fetch-vision-assets.mjs",

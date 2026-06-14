@@ -120,6 +120,7 @@ let categories = null;
 let catsLoaded = false;
 let submissions = null;
 let currentRules = null;
+let renderedActiveCatId = null;  // active category in the last render — gates draft restore
 
 function rulesText() {
   return resolveRule(currentRules, KEY, session.teamId, game.rules);
@@ -142,6 +143,12 @@ function render() {
   // Stack every already-submitted category (locked, answers shown) and, below
   // them, the one currently being answered. Future categories stay hidden until
   // reached. When all are submitted, append the "awaiting host" note.
+  // Preserve any in-progress answers across a live re-render (e.g. the host
+  // edits categories) so a teammate who is mid-typing doesn't lose their input.
+  // Only restore when the active category is unchanged from the last render.
+  const liveDraft = {};
+  container.querySelectorAll('input[id]:not([disabled])').forEach(el => { liveDraft[el.id] = el.value; });
+
   const curId = currentCategoryId(categories, submissions);
   let activeCat = null;
   let panels = '';
@@ -149,7 +156,11 @@ function render() {
     const cat = ordered[pos];
     const sub = (submissions || {})[cat.id];
     if (sub) { panels += submittedPanel(cat, sub, pos + 1, ordered.length); continue; }
-    if (cat.id === curId) { activeCat = cat; panels += activePanel(cat, pos + 1, ordered.length); }
+    if (cat.id === curId) {
+      activeCat = cat;
+      const prefill = cat.id === renderedActiveCatId ? liveDraft : {};
+      panels += activePanel(cat, pos + 1, ordered.length, prefill);
+    }
     break; // never render past the current category
   }
   if (curId === null) {
@@ -159,6 +170,7 @@ function render() {
     </div>`;
   }
   container.innerHTML = shell(`${panels}`);
+  renderedActiveCatId = activeCat ? activeCat.id : null;
   if (activeCat) document.getElementById('submitCat').addEventListener('click', () => submitCategory(activeCat));
 }
 
@@ -182,13 +194,13 @@ function submittedPanel(cat, sub, pos, total) {
 }
 
 // The editable panel for the category the team is currently answering.
-function activePanel(cat, pos, total) {
+function activePanel(cat, pos, total, prefill = {}) {
   const n = cat.questionCount || 0;
   let qs = '';
   for (let i = 0; i < n; i++) {
-    qs += `<div class="q"><label for="q${i}">Question ${i + 1}</label><input id="q${i}" type="text" autocomplete="off" /></div>`;
+    qs += `<div class="q"><label for="q${i}">Question ${i + 1}</label><input id="q${i}" type="text" autocomplete="off" value="${esc(prefill[`q${i}`] ?? '')}" /></div>`;
     if (cat.bonus?.[i]) {
-      qs += `<div class="q bonus"><label for="qb${i}">Question ${i + 1} — Bonus</label><input id="qb${i}" type="text" autocomplete="off" /></div>`;
+      qs += `<div class="q bonus"><label for="qb${i}">Question ${i + 1} — Bonus</label><input id="qb${i}" type="text" autocomplete="off" value="${esc(prefill[`qb${i}`] ?? '')}" /></div>`;
     }
   }
   return `<div class="panel">
@@ -207,7 +219,9 @@ async function submitCategory(cat) {
   const answers = {};
   const bonusAnswers = {};
   for (let i = 0; i < n; i++) {
-    answers[i] = document.getElementById(`q${i}`).value.trim();
+    const el = document.getElementById(`q${i}`);
+    if (!el) return; // active panel was rebuilt mid-submit (host edited categories) — abort this stale submit; the re-render wires a fresh button
+    answers[i] = el.value.trim();
     if (cat.bonus?.[i]) {
       const bEl = document.getElementById(`qb${i}`);
       if (bEl) bonusAnswers[i] = bEl.value.trim();

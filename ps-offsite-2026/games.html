@@ -190,7 +190,8 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getDatabase, ref, onValue, get, set } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 import { firebaseConfig } from './firebase-config.js';
-import { resolveSession, isAdminSession } from './shared/lobby.js';
+import { resolveSession, isAdminSession, participantNoun } from './shared/lobby.js';
+import { requireAdmin } from './shared/admin-gate.js';
 import { mountTopbar } from './shared/topbar.js';
 import { GAMES } from './shared/games-catalog.js';
 import { resolveCatalog, nextCustomKey, makeCustomGame, validateCustomGame } from './shared/lobby-games.js';
@@ -216,7 +217,18 @@ const db = getDatabase(app);
 
 if (isAdminSession(session)) {
   document.getElementById('team-view').hidden = true;
-  mountAdminGames(db, session.lobbyId);
+  // The admin session flag is user-forgeable and every action here writes to the
+  // DB (locks, timers, rules, custom games). Verify the host password first.
+  (async () => {
+    const ok = await requireAdmin(session.lobbyId);
+    const adminSection = document.getElementById('admin-games');
+    if (!ok) {
+      adminSection.hidden = false;
+      adminSection.innerHTML = `<h1>Admins only</h1><p class="subtitle">Enter the host password to manage games. <a href="index.html" style="color:var(--accent)">Back to lobby</a></p>`;
+      return;
+    }
+    mountAdminGames(db, session.lobbyId);
+  })();
 } else {
   document.getElementById('admin-games').hidden = true;
   mountTeamGrid(db, session);
@@ -369,7 +381,8 @@ function mountAdminGames(db, lobbyId) {
   section.hidden = false;
   const listEl = document.getElementById('adminList');
 
-  let gamesNode = null, locks = null, timers = null, rules = null, teams = [];
+  let gamesNode = null, locks = null, timers = null, rules = null, teams = [], mode = 'teams';
+  const noun = () => participantNoun(mode);
 
   const path = p => `lobbies/${lobbyId}/${p}`;
   onValue(ref(db, path('games')),  s => { gamesNode = s.val() || null; render(); });
@@ -377,6 +390,7 @@ function mountAdminGames(db, lobbyId) {
   onValue(ref(db, path('timers')), s => { timers = s.val() || null; render(); });
   onValue(ref(db, path('rules')),  s => { rules = s.val() || null; render(); });
   onValue(ref(db, path('teams')),  s => { teams = s.exists() ? Object.values(s.val()) : []; render(); });
+  onValue(ref(db, path('meta/mode')), s => { mode = s.val() || 'teams'; render(); });
 
   // Whole-node get→mutate→set. Single-admin event tool: no concurrent-write guard needed.
   async function writeNode(name, mutate) {
@@ -403,7 +417,7 @@ function mountAdminGames(db, lobbyId) {
         <button data-act="lock" class="${locked ? '' : 'on'}" title="${locked ? 'Locked' : 'Unlocked'}">${locked ? '🔒' : '🔓'}</button>
         <button data-act="rules" title="Edit rules">📋</button>
         ${canTimer ? `<button data-act="timer" title="Set time limit">⏱${mins ? ' ' + mins + 'm' : ''}</button>` : ''}
-        <button data-act="perteam" title="Per-team overrides">⋯</button>` : ''}
+        <button data-act="perteam" title="Per-${noun().toLowerCase()} overrides">⋯</button>` : ''}
         ${g.custom ? `<button data-act="delete" title="Delete game">🗑</button>` : ''}
       </span>
     </div>`;
@@ -477,7 +491,7 @@ function mountAdminGames(db, lobbyId) {
       const locked = resolveLock(locks, key, t.id) === 'locked';
       const mins = resolveTimer(timers, key, t.id);
       return `<div class="apt-row" data-team="${t.id}">
-        <span class="apt-name">${esc(t.name || ('Team ' + t.id))}</span>
+        <span class="apt-name">${esc(t.name || (noun() + ' ' + t.id))}</span>
         <button data-pt="lock">${locked ? '🔒' : '🔓'}</button>
         <button data-pt="timer">⏱${mins ? ' ' + mins + 'm' : ''}</button>
         <button data-pt="rules">📋</button>
@@ -489,7 +503,7 @@ function mountAdminGames(db, lobbyId) {
         const cur = resolveLock(n, key, teamId) === 'locked';
         setCell(n, key, teamId, cur ? 'unlocked' : 'locked');
       });
-      const tName = esc(teams.find(t => t.id === teamId)?.name || ('Team ' + teamId));
+      const tName = esc(teams.find(t => t.id === teamId)?.name || (noun() + ' ' + teamId));
       r.querySelector('[data-pt="timer"]').onclick = () => {
         const cur = resolveTimer(timers, key, teamId);
         openModal({

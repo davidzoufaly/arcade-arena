@@ -112,8 +112,8 @@ phaseEnter.play = () => {
   $('timerLabel').textContent = '0.0';
 
   const g = {
-    y: CANVAS_H / 2, vy: 0, score: 0,
-    pipes: [], spawnTimer: 0, worldX: 0,
+    y: CANVAS_H / 2, vy: 0, score: 0, r: ORB_R, _thrusting: false,
+    pipes: [], spawnTimer: 0,
     floor: 0, calibrating: true, calibStart: performance.now(), calibSamples: [],
     warming: false, warmStartMs: 0, startMs: 0,
   };
@@ -137,13 +137,21 @@ phaseEnter.play = () => {
   };
   document.addEventListener('visibilitychange', onVis);
 
+  // Mic device-loss mid-run (e.g. USB headset unplugged): end the attempt with a
+  // clear message instead of the orb silently free-falling. Mirrors dino's camera
+  // 'ended' handler.
+  const track = state.audio?.track;
+  const onMicEnded = () => endAttempt(true, '🎤 Microphone disconnected');
+  track?.addEventListener('ended', onMicEnded);
+
   function endAttempt(died, msg) {
     if (cancelled) return;
     cancelled = true;
     if (rafId) cancelAnimationFrame(rafId);
+    track?.removeEventListener('ended', onMicEnded);
     document.removeEventListener('visibilitychange', onVis);
     const timeSec = g.startMs ? (performance.now() - g.startMs) / 1000 : 0;
-    const score = scoreAttempt({ completed: g.score, timeSec });
+    const score = scoreAttempt({ completed: g.score });
     state.attempts.push({ score, completed: g.score, timeSec, died, msg });
     goto('attempt-end');
   }
@@ -168,14 +176,19 @@ phaseEnter.play = () => {
     // Real-time control: vy chases a sound-driven target speed (no momentum coast).
     g.vy = nextVelocity(g.vy, amp, g.floor, dt);
     g.y += g.vy * dt;
+    // One radius drives BOTH the drawn orb and its hitbox: rising → pulse bigger.
+    // (Previously the orb was drawn at ORB_R*1.1 while thrusting but the hitbox
+    // stayed ORB_R, so a thrusting orb visibly overlapped pipes without crashing.)
+    g._thrusting = g.vy < 0;
+    const r = g._thrusting ? ORB_R * 1.1 : ORB_R;
+    g.r = r;
     // Clamp to the play area: the orb gets stuck against the top/bottom edge
     // instead of failing the attempt. Pipe collisions still end it.
-    if (g.y < ORB_R) { g.y = ORB_R; if (g.vy < 0) g.vy = 0; }
-    else if (g.y > CANVAS_H - ORB_R) { g.y = CANVAS_H - ORB_R; if (g.vy > 0) g.vy = 0; }
+    if (g.y < r) { g.y = r; if (g.vy < 0) g.vy = 0; }
+    else if (g.y > CANVAS_H - r) { g.y = CANVAS_H - r; if (g.vy > 0) g.vy = 0; }
 
     // Endless difficulty ramps with elapsed time (mirrors dino).
     const speed = pipeSpeed(elapsedSec);
-    g.worldX += speed * dt;
     if (!g.warming) {
       g.spawnTimer -= dt;
       if (g.spawnTimer <= 0) { spawnPipe(elapsedSec); g.spawnTimer = pipeSpawnFrames(elapsedSec); }
@@ -188,14 +201,13 @@ phaseEnter.play = () => {
         g.score += 1;
         $('scoreLabel').textContent = `${g.score}`;
       }
-      const inX = ORB_X + ORB_R > p.x && ORB_X - ORB_R < p.x + PIPE_W;
+      const inX = ORB_X + r > p.x && ORB_X - r < p.x + PIPE_W;
       if (inX) {
-        const inGap = g.y - ORB_R > p.topH && g.y + ORB_R < p.topH + p.gap;
+        const inGap = g.y - r > p.topH && g.y + r < p.topH + p.gap;
         if (!inGap) { endAttempt(true); return; }
       }
     }
     g.pipes = g.pipes.filter(p => p.x + PIPE_W > 0);
-    g._thrusting = g.vy < 0;  // rising → orb pulses bigger
   }
 
   function draw() {
@@ -211,7 +223,8 @@ phaseEnter.play = () => {
       ctx.fillRect(p.x, by, PIPE_W, CANVAS_H - by);
       ctx.strokeRect(p.x, by, PIPE_W, CANVAS_H - by);
     }
-    const r = g._thrusting ? ORB_R * 1.1 : ORB_R;
+    // Same radius the hitbox uses (set in step) so drawing and collision agree.
+    const r = g.r ?? ORB_R;
     ctx.fillStyle = css('--accent');
     ctx.beginPath();
     ctx.arc(ORB_X, g.y, r, 0, Math.PI * 2);
@@ -240,7 +253,11 @@ phaseEnter.play = () => {
       g.calibSamples.push(state.audio.amplitude());
       if (now - g.calibStart >= CALIB_MS) {
         g.calibSamples.sort((a, b) => a - b);
-        g.floor = g.calibSamples[Math.floor(g.calibSamples.length / 2)] || 0;
+        const median = g.calibSamples[Math.floor(g.calibSamples.length / 2)] || 0;
+        // Loud-room guard: cap the noise floor below METER_MAX so a usable rise
+        // range always remains. Without this, a noisy room calibrates the floor
+        // at/above the meter max and the orb can only ever fall (unwinnable).
+        g.floor = Math.min(median, METER_MAX * 0.7);
         g.calibrating = false;
         g.warming = true;
         g.warmStartMs = now;
@@ -292,6 +309,7 @@ phaseEnter.play = () => {
   activeCleanup = () => {
     cancelled = true;
     if (rafId) cancelAnimationFrame(rafId);
+    track?.removeEventListener('ended', onMicEnded);
     document.removeEventListener('visibilitychange', onVis);
     calibOverlay.classList.add('hidden');
   };
