@@ -293,22 +293,44 @@
     50% { transform: scale(1.08); }
   }
 
-  .winner-pop { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 16px; padding: 28px 32px; text-align: center; }
-  .winner-pop::backdrop { background: rgba(0,0,0,0.5); }
-  .winner-pop h2 { font-size: 28px; margin-bottom: 8px; }
-  .winner-pop button { margin-top: 16px; background: var(--bg-2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 18px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  /* Winner celebration — 3 stacked fixed layers so confetti (210) rains in
+     front of the dark backdrop (200) but behind the centered card (220). */
+  .win-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); }
+  .winner-pop {
+    position: fixed; inset: 0; margin: auto; z-index: 220;
+    width: max-content; height: max-content;
+    background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 32px 40px 40px; text-align: center;
+    min-width: 460px; max-width: min(92vw, 640px);
+    box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+  }
+  .winner-pop h2 { font-size: 30px; margin-bottom: 4px; }
+  .winner-pop .win-sub { color: var(--muted, #9aa); font-size: 14px; margin-bottom: 8px; }
+  .winner-pop .win-close { margin-top: 28px; background: var(--bg-2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 22px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
+  .podium { display: flex; align-items: flex-end; justify-content: center; gap: 14px; margin-top: 26px; }
+  .podium-col { display: flex; flex-direction: column; align-items: center; width: 120px; }
+  .podium-col .medal { font-size: 40px; line-height: 1; }
+  .podium-col .pname { font-weight: 800; margin: 8px 0 2px; font-size: 16px; max-width: 116px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .podium-col .ppts { color: var(--accent); font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+  .podium-block { width: 100%; border-radius: 12px 12px 0 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 10px; font-size: 30px; font-weight: 900; color: #09090C; box-shadow: inset 0 2px 0 rgba(255,255,255,0.4); }
+  .podium-1 .podium-block { height: 150px; background: linear-gradient(180deg, #FFE694, #FFC02E); }
+  .podium-2 .podium-block { height: 112px; background: linear-gradient(180deg, #EEF2F8, #AEB7C6); }
+  .podium-3 .podium-block { height: 84px;  background: linear-gradient(180deg, #F2BE8E, #CE7B43); }
 
   .confetti {
     position: fixed;
     pointer-events: none;
     inset: 0;
-    z-index: 100;
+    z-index: 210;
     overflow: hidden;
   }
   .confetti span {
     position: absolute;
-    width: 10px; height: 14px;
-    top: -20px;
+    width: 12px; height: 16px;
+    top: -24px;
+    border-radius: 2px;
     animation: fall 3s linear forwards;
   }
   @keyframes fall {
@@ -479,18 +501,45 @@ function renderControls() {
     celebrateBtn.type = 'button';
     celebrateBtn.textContent = '🎉 Celebrate winner';
     celebrateBtn.addEventListener('click', () => {
-      const w = computeLeader();
-      if (!w) return;
-      confetti(140);
-      const dialog = document.createElement('dialog');
-      dialog.className = 'winner-pop';
-      dialog.innerHTML = `<h2>🏆 ${escapeHtml(w.name || (participantNoun() + ' ' + w.id))}</h2>
-        <p>${formatPts(w.total)} points — current leader</p>
-        <button type="button" id="winClose">Close</button>`;
-      document.body.appendChild(dialog);
-      dialog.addEventListener('close', () => dialog.remove());
-      dialog.querySelector('#winClose').addEventListener('click', () => dialog.close());
-      dialog.showModal();
+      const ranking = computeRanking();
+      const winner = ranking[0];
+      if (!winner) return;
+      const top3 = ranking.slice(0, 3);
+      const stopConfetti = startConfetti();
+
+      const nameOf = (t) => escapeHtml(t.name || (participantNoun() + ' ' + t.id));
+      // Podium order: 2nd on the left, 1st (tallest) in the middle, 3rd on the right.
+      const order = [top3[1], top3[0], top3[2]];
+      const medals = new Map([[top3[0], '🥇'], [top3[1], '🥈'], [top3[2], '🥉']]);
+      const rankClass = new Map([[top3[0], 1], [top3[1], 2], [top3[2], 3]]);
+      const podiumHtml = order.filter(Boolean).map(t => `
+        <div class="podium-col podium-${rankClass.get(t)}">
+          <div class="medal">${medals.get(t)}</div>
+          <div class="pname">${nameOf(t)}</div>
+          <div class="ppts">${formatPts(t.total)} pts</div>
+          <div class="podium-block">${rankClass.get(t)}</div>
+        </div>`).join('');
+
+      const overlay = document.createElement('div');
+      overlay.className = 'win-overlay';
+      const card = document.createElement('div');
+      card.className = 'winner-pop';
+      card.innerHTML = `<h2>🏆 ${nameOf(winner)}</h2>
+        <div class="win-sub">current leader · ${formatPts(winner.total)} points</div>
+        <div class="podium">${podiumHtml}</div>
+        <button type="button" class="win-close" id="winClose">Close</button>`;
+      document.body.append(overlay, card);
+
+      const close = () => {
+        stopConfetti();
+        overlay.remove();
+        card.remove();
+        document.removeEventListener('keydown', onKey);
+      };
+      const onKey = (e) => { if (e.key === 'Escape') close(); };
+      overlay.addEventListener('click', close);
+      card.querySelector('#winClose').addEventListener('click', close);
+      document.addEventListener('keydown', onKey);
     });
     controls.append(editBtn, celebrateBtn);
   }
@@ -557,7 +606,8 @@ function effectiveGames() {
   return resolveCatalog(GAMES, gamesNode).filter(g => g.added);
 }
 
-function computeLeader() {
+// Full leaderboard, highest total first (ties broken by id for stability).
+function computeRanking() {
   const gameKeys = addedKeys(resolveCatalog(GAMES, gamesNode));
   const teamCount = state.teams.length;
   const rankByGame = {};
@@ -569,14 +619,17 @@ function computeLeader() {
     }
     rankByGame[g] = rankPointsByTeam({ teamCount, raw });
   }
-  const sorted = [...state.teams]
+  return [...state.teams]
     .map(t => {
       let total = 0;
       for (const g of gameKeys) total += rankByGame[g]?.[t.id] ?? 0;
       return { ...t, total };
     })
-    .sort((a, b) => b.total - a.total);
-  return sorted[0];
+    .sort((a, b) => b.total - a.total || a.id - b.id);
+}
+
+function computeLeader() {
+  return computeRanking()[0];
 }
 
 function render() {
@@ -707,18 +760,38 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-function confetti(count = 60) {
+// Bright neon palette, glowing pieces.
+const CONFETTI_COLORS = ['#FFE600','#00E5FF','#FF1FA2','#7CFF00','#FF5630','#B14BFF','#FFFFFF'];
+
+function confettiBurst(count = 60) {
   const wrap = document.getElementById('confetti');
-  const colors = ['#DAFE85','#657BC7','#ffd84d','#00e676','#ff4d6d'];
+  if (!wrap) return;
   for (let i = 0; i < count; i++) {
     const s = document.createElement('span');
+    const color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
     s.style.left = Math.random() * 100 + 'vw';
-    s.style.background = colors[Math.floor(Math.random() * colors.length)];
-    s.style.animationDelay = Math.random() * 0.5 + 's';
+    s.style.background = color;
+    s.style.boxShadow = `0 0 6px ${color}`;
+    s.style.animationDuration = (2.4 + Math.random() * 1.6) + 's';
+    s.style.animationDelay = Math.random() * 0.4 + 's';
     s.style.transform = `rotate(${Math.random() * 360}deg)`;
     wrap.appendChild(s);
-    setTimeout(() => s.remove(), 3500);
+    setTimeout(() => s.remove(), 4500);
   }
+}
+
+// Back-compat: a single burst (used on leader change).
+function confetti(count = 60) { confettiBurst(count); }
+
+// Infinite confetti — keeps raining until the returned stop() is called.
+function startConfetti() {
+  confettiBurst(120);
+  const id = setInterval(() => confettiBurst(40), 450);
+  return function stop() {
+    clearInterval(id);
+    const wrap = document.getElementById('confetti');
+    if (wrap) wrap.innerHTML = '';
+  };
 }
 
 let bumpedTeam = null;
