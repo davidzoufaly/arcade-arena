@@ -393,7 +393,7 @@ function mountAdminGames(db, lobbyId) {
     const locked = resolveGameLock(locks, g.key) === 'locked';
     const mins = resolveTimer(timers, g.key);
     const kindLabel = g.custom ? 'Custom' : g.kind === 'play' ? 'Playable' : g.kind === 'quiz' ? 'Quiz' : 'Manual entry';
-    const canTimer = g.kind !== 'play'; // manual-entry + custom
+    const canTimer = g.kind === 'manual'; // manual-entry + custom only; quiz isn't time-enforceable
     return `<div class="admin-row" data-key="${g.key}">
       <span class="ar-emoji">${g.emoji}</span>
       <span class="ar-name">${esc(g.name)} <span class="ar-kind">${kindLabel}</span></span>
