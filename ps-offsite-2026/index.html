@@ -312,7 +312,7 @@ async function doJoin(lobbyId) {
     if (!ok) { showErr('joinErr', 'Wrong admin password.'); return; }
     rememberLobby(lobbyId);
     setSession({ lobbyId, role: 'admin' });
-    location.href = `scoreboard.html?lobby=${encodeURIComponent(lobbyId)}`;
+    location.href = `games.html?lobby=${encodeURIComponent(lobbyId)}`;
     return;
   }
   const teamId = parseInt(radio.value, 10);
@@ -326,7 +326,7 @@ async function doJoin(lobbyId) {
 // ---------- bootstrap ----------
 const session = getSession();
 if (session && isAdminSession(session)) {
-  location.replace(`scoreboard.html?lobby=${encodeURIComponent(session.lobbyId)}`);
+  location.replace(`games.html?lobby=${encodeURIComponent(session.lobbyId)}`);
 } else if (session) {
   location.replace(`games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`);
 } else {
