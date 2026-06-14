@@ -68,7 +68,6 @@
   .banner { margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-size: 15px; font-weight: 700; }
   .banner.ok  { background: rgba(0,230,118,0.12); color: var(--good); }
   .banner.bad { background: rgba(255,77,109,0.12); color: var(--bad); }
-  .back-link { display: inline-block; margin-top: 14px; color: var(--accent); text-decoration: none; font-weight: 700; font-size: 15px; }
 </style>
 </head>
 <body>
@@ -137,7 +136,7 @@ function render() {
   if (!catsLoaded) return; // keep "Loading…" until first categories snapshot
   const ordered = orderedCategories(categories);
   if (ordered.length === 0) {
-    container.innerHTML = shell(`<div class="panel"><h2>Quiz not ready</h2><p class="current">The host hasn't set up any categories yet. Check back soon.</p><a class="back-link" href="${catalogHref}">← Back to catalog</a></div>`);
+    container.innerHTML = shell(`<div class="panel"><h2>Quiz not ready</h2><p class="current">The host hasn't set up any categories yet. Check back soon.</p></div>`);
     return;
   }
   // Stack every already-submitted category (locked, answers shown) and, below
@@ -159,7 +158,7 @@ function render() {
       <p class="current">You're done — the host will mark your answers and score your team. Nothing more to do here.</p>
     </div>`;
   }
-  container.innerHTML = shell(`${panels}<a class="back-link" href="${catalogHref}">← Back to catalog</a>`);
+  container.innerHTML = shell(`${panels}`);
   if (activeCat) document.getElementById('submitCat').addEventListener('click', () => submitCategory(activeCat));
 }
 
