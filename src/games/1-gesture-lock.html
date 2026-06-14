@@ -93,13 +93,6 @@
     0%, 100% { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.0); }
     50%      { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.9); }
   }
-  .step-badge {
-    position: absolute; top: 16px; right: 16px;
-    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-    padding: 8px 14px; border-radius: 999px;
-    font-size: 16px; font-weight: 800; letter-spacing: 0.5px;
-    color: var(--accent);
-  }
   video, canvas {
     width: 100%; height: 100%;
     object-fit: cover; display: block;
@@ -178,20 +171,19 @@
      (with a gap around it), one side at a time — right ↓, bottom ←, left ↑,
      top → — as you hold a gesture. Full loop = locked. It sits on the dark page
      background just outside the video, NOT over the camera feed, so it stays
-     high-contrast and readable. Uses the theme foreground (var(--text): white on
-     dark, near-black on light) so it stays visible in both themes — and the same
-     neutral color for BOTH correct and wrong holds, fills the same way over the
-     same time either way, so a completed loop never reads as "correct" right
-     before a wrong-gesture fail. Right/wrong is signalled by the skeleton line
-     color, not this border. */
+     high-contrast and readable. Uses the theme accent (var(--accent): lime on
+     dark, blue on light) so it stays visible in both themes — and the same color
+     for BOTH correct and wrong holds, fills the same way over the same time either
+     way, so a completed loop never reads as "correct" right before a wrong-gesture
+     fail. Right/wrong is signalled by the skeleton line color, not this border. */
   .cam-stage { position: relative; align-self: start; }
   .lock-border {
     position: absolute; inset: -16px;   /* push the loop outside the frame, with a gap */
     pointer-events: none; z-index: 3;
   }
   .lock-border .lb-seg {
-    position: absolute; background: var(--text);
-    box-shadow: 0 0 10px var(--text);
+    position: absolute; background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
     transition: width 0.1s linear, height 0.1s linear;
   }
   .lb-right  { top: 0;    right: 0; width: 8px;  height: 0; } /* ↓ */
@@ -346,7 +338,6 @@
         <div class="video-wrap" id="videoWrap">
           <video id="video" playsinline autoplay muted></video>
           <canvas id="overlay"></canvas>
-          <div class="step-badge" id="stepBadge">1 / ?</div>
           <div class="video-overlay">
             Detected: <span id="currentGesture">—</span>
           </div>
@@ -851,7 +842,7 @@ phaseEnter.recall = () => {
   $('currentGesture').textContent = '—';
   $('timer').textContent = GESTURE_TIME_S.toFixed(1);
   $('timer').style.color = '';
-  updateStepBadge();
+  announceNextGesture();
 
   let rafId = null;
   let cancelled = false;
@@ -882,8 +873,7 @@ phaseEnter.recall = () => {
   };
   document.addEventListener('visibilitychange', onVis);
 
-  function updateStepBadge() {
-    $('stepBadge').textContent = `${Math.min(state.stepIdx + 1, state.sequenceLen)} / ${state.sequenceLen}`;
+  function announceNextGesture() {
     flashCam(individuals ? '👉 Next gesture' : '👥 Next gesture — your team decides who');
   }
 
@@ -981,7 +971,7 @@ phaseEnter.recall = () => {
           endAttempt('success');
           return;
         }
-        updateStepBadge();
+        announceNextGesture();
       }
     } else {
       // Not the correct gesture → line stays neutral grey (covers wrong,
