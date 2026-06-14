@@ -726,6 +726,20 @@ function enterAlreadyPlayed(existing) {
   wireRestart();
 }
 
+// Solo mode has no rotation, no hand calibration and a fixed jump — rewrite the
+// team-centric briefing/setup copy so a single player sees no "team" wording.
+function applyIndividualsCopy() {
+  if (!individuals) return;
+  const lbl = document.getElementById('resTeamLabel');
+  if (lbl) lbl.textContent = 'Player';
+  const brief = document.getElementById('briefing');
+  if (brief) brief.innerHTML =
+    "Control the runner 🦖 with your hand in front of the laptop camera. The faster it goes, the trickier it gets.<br><br>" +
+    "<strong>Goal:</strong> <strong>Open palm ✋ = jump ⬆️</strong>, make a fist ✊ to duck ⬇️ past obstacles 🌵, and hold a victory sign ✌️ to stay ready (no jump, no duck) — useful between obstacles so an idle palm doesn't trigger a false jump. The game keeps speeding up 💨; your score is the number of obstacles passed. <strong>5 attempts</strong>, best score counts 🏆.";
+  const hint = document.getElementById('setupHint');
+  if (hint) hint.textContent = 'Allow camera access when prompted. Get yourself in frame.';
+}
+
 // Bootstrap
 async function boot() {
   if (session?.lobbyId) {
@@ -736,6 +750,7 @@ async function boot() {
   }
   // Solo-dev: ?debug&individuals forces solo mode without a live lobby.
   if (DEBUG && new URLSearchParams(location.search).has('individuals')) individuals = true;
+  applyIndividualsCopy();
   if (session?.lobbyId) {
     try {
       const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${state.teamId}/${GAME_CODE}`));

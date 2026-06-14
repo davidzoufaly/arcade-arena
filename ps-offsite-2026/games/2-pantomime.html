@@ -325,16 +325,16 @@
 
 <main>
   <div class="card briefing" id="briefing">
-    The camera watches how you move. Your team must mimic the target pose with speed and precision to score.<br><br>
+    The camera watches how you move. <span id="pmIntroLine">Your team must mimic the target pose with speed and precision to score.</span><br><br>
     <strong>Goal:</strong> Match each target pose with your body. The <strong>reference pose</strong> is shown beside the video so you can see what to aim for. Each pose has multiple checks — get every check above 85 %, then <strong>hold the pose still</strong> for the required time (1.2 s easy, 1.5 s medium, 2 s hard). Wobbling resets the hold timer.
     <br><br>
     <strong>Speed wins:</strong> each pose is worth up to 100 points — half from how clean your form is, half from <strong>how fast you lock it in</strong>. Nail it instantly = near 100; dawdle until the timer almost runs out = far fewer. Don't overthink — strike the pose and lock it fast.
     <br><br>
-    <strong>8 poses per run</strong>, escalating from easy to hard. 25 s per pose. Run out of time = pose is skipped (zero points). Players take turns — one person poses each round, the rest direct. <strong>2 attempts — best score counts 🏆.</strong>
+    <strong>8 poses per run</strong>, escalating from easy to hard. 25 s per pose. Run out of time = pose is skipped (zero points). <span id="pmTurnsLine">Players take turns — one person poses each round, the rest direct. </span><strong>2 attempts — best score counts 🏆.</strong>
   </div>
 
   <div id="phase-boot" class="card">
-    <div class="briefing" style="text-align:center; padding:40px;">Checking your team's progress…</div>
+    <div class="briefing" style="text-align:center; padding:40px;">Checking your progress…</div>
   </div>
 
   <div class="card hidden" id="phase-setup">
@@ -420,7 +420,7 @@
 
   <div id="phase-final" class="card result hidden">
     <h2>👁️ Checkpoint cleared</h2>
-    <p style="color:var(--muted)">Team <strong id="resTeam"></strong></p>
+    <p style="color:var(--muted)"><span id="resTeamLabel">Team</span> <strong id="resTeam"></strong></p>
     <div class="score" id="resScore">0</div>
     <div class="breakdown" id="resBreakdown"></div>
     <div id="saveStatus" class="save-status">SAVING…</div>
@@ -997,6 +997,16 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+function applyIndividualsCopy() {
+  if (!individuals) return;
+  const lbl = document.getElementById('resTeamLabel');
+  if (lbl) lbl.textContent = 'Player';
+  const intro = document.getElementById('pmIntroLine');
+  if (intro) intro.textContent = 'You mimic the target pose with speed and precision to score.';
+  const turns = document.getElementById('pmTurnsLine');
+  if (turns) turns.textContent = '';
+}
+
 async function boot() {
   teamId = _session?.teamId ?? 0;
   if (session?.lobbyId) {
@@ -1007,6 +1017,7 @@ async function boot() {
   }
   const params = new URLSearchParams(location.search);
   if (params.has('debug') && params.has('individuals')) individuals = true;
+  applyIndividualsCopy();
   if (session?.lobbyId) {
     try {
       const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${teamId}/${GAME_CODE}`));

@@ -384,6 +384,10 @@ function applyIndividualsCopy() {
   if (who) who.textContent = 'yell';
   const introWho = $('flappyIntroWho');
   if (introWho) introWho.textContent = 'When the run starts, yell to fly.';
+  const vol = $('flappyVolLabel');
+  if (vol) vol.textContent = 'Volume';
+  const lbl = $('resTeamLabel');
+  if (lbl) lbl.textContent = 'Player';
 }
 
 async function boot() {

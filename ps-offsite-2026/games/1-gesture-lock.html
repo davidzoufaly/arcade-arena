@@ -277,7 +277,7 @@
   </div>
 
   <!-- BOOT -->
-  <div id="phase-boot" class="card loading">Checking your team's progress…</div>
+  <div id="phase-boot" class="card loading">Checking your progress…</div>
 
   <!-- SETUP -->
   <div id="phase-setup" class="card hidden">
@@ -375,7 +375,7 @@
   <!-- FINAL_RESULT -->
   <div id="phase-final" class="card result hidden">
     <h2 id="finalTitle">🔓 Vault unlocked!</h2>
-    <p style="color:var(--muted)">Team <strong id="resTeam"></strong></p>
+    <p style="color:var(--muted)"><span id="resTeamLabel">Team</span> <strong id="resTeam"></strong></p>
     <div class="score" id="resScore">0</div>
     <div id="saveStatus" class="save-status">SAVING…</div>
     <div class="result-row" style="margin-top: 14px;">
@@ -822,7 +822,7 @@ phaseEnter.recall = () => {
 
   function updateStepBadge() {
     $('stepBadge').textContent = `${Math.min(state.stepIdx + 1, state.sequenceLen)} / ${state.sequenceLen}`;
-    flashCam('👥 Next gesture — your team decides who');
+    flashCam(individuals ? '👉 Next gesture' : '👥 Next gesture — your team decides who');
   }
 
   function flashCam(text) {
@@ -1114,6 +1114,8 @@ document.addEventListener('visibilitychange', () => {
 // Bootstrap
 function applyIndividualsCopy() {
   if (!individuals) return;
+  const lbl = document.getElementById('resTeamLabel');
+  if (lbl) lbl.textContent = 'Player';
   $('briefIntro').innerHTML =
     "The camera verifies a gesture sequence like a living password. Watch it once, then repeat it back from memory — one wrong move and you're locked out.<br><br>" +
     "<strong>Goal:</strong> Watch a 12-gesture sequence flash by once, then repeat it back from memory. <strong>Step up close so your hand fills the frame</strong>, and keep your other hand down so the camera doesn't catch a stray gesture. Each gesture has a <strong>10 s timer</strong> — run out and the attempt fails. Go in order. <strong>5 attempts</strong>, best score counts; the faster you finish, the higher the score.";

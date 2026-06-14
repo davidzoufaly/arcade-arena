@@ -155,7 +155,7 @@ function render() {
   if (curId === null) {
     panels += `<div class="panel done">
       <div class="progress">All ${ordered.length} categories completed</div>
-      <p class="current">You're done — the host will mark your answers and score your team. Nothing more to do here.</p>
+      <p class="current">You're done — the host will mark your answers and tally your score. Nothing more to do here.</p>
     </div>`;
   }
   container.innerHTML = shell(`${panels}`);

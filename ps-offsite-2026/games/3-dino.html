@@ -279,13 +279,13 @@
   </div>
 
   <!-- BOOT -->
-  <div id="phase-boot" class="card loading">Checking your team's progress…</div>
+  <div id="phase-boot" class="card loading">Checking your progress…</div>
 
   <!-- SETUP -->
   <div id="phase-setup" class="card hidden">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup"><button id="startBtn">Start game</button></div>
-    <div class="briefing" style="margin-top: 12px; font-size: 15px;">Allow camera access when prompted. Get the active players (2–3 per wave) in frame.</div>
+    <div class="briefing" id="setupHint" style="margin-top: 12px; font-size: 15px;">Allow camera access when prompted. Get the active players (2–3 per wave) in frame.</div>
   </div>
 
   <!-- LOADING -->
@@ -352,7 +352,7 @@
   <!-- FINAL -->
   <div id="phase-final" class="card result hidden">
     <h2 id="finalTitle">Run complete</h2>
-    <p style="color:var(--muted)">Team <strong id="resTeam"></strong></p>
+    <p style="color:var(--muted)"><span id="resTeamLabel">Team</span> <strong id="resTeam"></strong></p>
     <div class="score" id="resScore">0</div>
     <div id="saveStatus" class="save-status">SAVING…</div>
     <div class="result-row" style="margin-top: 14px;">
