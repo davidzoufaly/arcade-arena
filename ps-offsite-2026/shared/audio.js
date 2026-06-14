@@ -41,6 +41,10 @@ export class SustainTracker {
 export async function createAudioInput({ smoothing = 0.4, sustainThreshold = 0.12, sustainMs = 1000 } = {}) {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const ctx = new AudioContext();
+  // Browsers create the AudioContext suspended until a user gesture; without
+  // this the analyser only ever reads silence (zero amplitude). createAudioInput
+  // is itself called from a click handler, so the resume is allowed.
+  if (ctx.state === 'suspended') { try { await ctx.resume(); } catch {} }
   const src = ctx.createMediaStreamSource(stream);
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 2048;
@@ -64,6 +68,10 @@ export async function createAudioInput({ smoothing = 0.4, sustainThreshold = 0.1
     amplitude() { return sm.value(); },
     isSustained() { return sus.isSustained(); },
     setSustainThreshold(v) { sus.threshold = v; },
+    // Exposed so callers can detect a mid-run mic disconnect via the track's
+    // 'ended' event (mirrors how the camera games watch the video track).
+    stream,
+    track: stream.getAudioTracks()[0] ?? null,
     stop() { cancelAnimationFrame(raf); stream.getTracks().forEach(t => t.stop()); ctx.close(); }
   };
 }

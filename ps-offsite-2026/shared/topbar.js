@@ -8,11 +8,8 @@ import { rankPointsByTeam } from './ranking.js';
 import { createToggle, removeFloating } from './theme.js';
 
 function prefix() {
-  const p = location.pathname;
-  if (p.includes('/games/') || p.includes('/dino/') || p.includes('/flappy/')) {
-    return '../';
-  }
-  return './';
+  // Game pages live one level down in /games/; everything else is at the root.
+  return location.pathname.includes('/games/') ? '../' : './';
 }
 
 function esc(s) {
@@ -41,7 +38,7 @@ function buildHeader({ lobbyId, teamId }, activePage, admin, teamName) {
        <a data-nav="scoreboard" href="${scoreHref}">Scoreboard</a>`;
   const info = admin
     ? `Lobby <code>${esc(lobbyId)}</code> · <strong>Admin</strong>`
-    : `Lobby <code>${esc(lobbyId)}</code> · <strong class="ps-topbar-team" title="Click to rename" style="cursor:pointer">${esc(teamName || `Team ${teamId}`)}</strong> · <strong class="ps-topbar-pts" title="Total rank-points across all entered games">— pts</strong>`;
+    : `Lobby <code>${esc(lobbyId)}</code> · <strong class="ps-topbar-team" title="Click to rename" style="cursor:pointer">${esc(teamName || `#${teamId}`)}</strong> · <strong class="ps-topbar-pts" title="Total rank-points across all entered games">— pts</strong>`;
   const brandHref = admin ? scoreHref : gamesHref;
   const leaveLabel = 'Leave';
 

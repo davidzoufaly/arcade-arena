@@ -17,8 +17,21 @@ export function generateLobbyId() {
   return pick(4);
 }
 
-export function generatePwd(len = 6) {
-  return pick(len);
+// Easy, unambiguous English words for memorable passwords (word + 3 digits).
+export const PWD_WORDS = [
+  'TIGER', 'EAGLE', 'MANGO', 'LEMON', 'PANDA', 'ROBOT', 'PIZZA', 'COMET',
+  'ZEBRA', 'OTTER', 'LASER', 'MELON', 'RIVER', 'CLOUD', 'STORM', 'PLANT',
+  'TURBO', 'MAGIC', 'NINJA', 'PILOT', 'SHARK', 'FLAME', 'PEARL', 'BISON',
+  'JELLY', 'KOALA', 'LLAMA', 'RAVEN', 'TOAST', 'WAGON',
+];
+
+// Memorable password: an easy word followed by three digits, e.g. "TIGER042".
+// Join input is upper-cased before compare, so the word is upper-case to match.
+export function generatePwd() {
+  const word = PWD_WORDS[Math.floor(Math.random() * PWD_WORDS.length)];
+  let digits = '';
+  for (let i = 0; i < 3; i++) digits += Math.floor(Math.random() * 10);
+  return word + digits;
 }
 
 export function isValidLobbyId(s) {
@@ -27,6 +40,9 @@ export function isValidLobbyId(s) {
 
 export const SESSION_KEY = 'psOffsite2026.lobby';
 export const LEGACY_TEAM_KEY = 'psOffsite2026.team';
+// Prefix for the per-lobby admin password cached in sessionStorage (see
+// admin-gate.js). Cleared on leave so the next user on this tab can't inherit it.
+export const ADMIN_PWD_PREFIX = 'psOffsite2026.adminPwd.';
 
 // Lobby mode: 'teams' (default — N teams of players) or 'individuals'
 // (N solo players). Mode lives at lobbies/{id}/meta/mode and drives both the
@@ -44,6 +60,29 @@ export function participantNoun(mode) {
   return isIndividualsMode(mode) ? 'Player' : 'Team';
 }
 
+// Participant count caps. Teams mode allows up to 20; individuals mode caps at
+// 12 (one solo player each — documented in README/CHANGELOG and enforced here
+// and in the create form).
+export const MAX_TEAMS = 20;
+export const MAX_INDIVIDUALS = 12;
+export function maxParticipants(mode) {
+  return isIndividualsMode(mode) ? MAX_INDIVIDUALS : MAX_TEAMS;
+}
+
+// Hash a password for storage and verification. This is a *fun-portal* hardening
+// measure, NOT real auth: the Realtime Database is world-readable, so we never
+// write plaintext passwords into it. Salting with the lobby id + a per-slot
+// scope ('admin' or the team id) means the same memorable word+digits password
+// produces a different hash in every lobby/slot, defeating trivial precomputed
+// lookups. The password space is still small (word + 3 digits), so a motivated
+// attacker with DB read access can brute-force a hash offline — see SETUP.md for
+// the full threat model. Uses Web Crypto (browser + Node >=18).
+export async function hashPwd(lobbyId, scope, pwd) {
+  const data = new TextEncoder().encode(`psoffsite2026:${lobbyId}:${scope}:${pwd}`);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+}
+
 // Drop stale key from the old (pre-lobby) version. Runs once per module load.
 try {
   if (typeof localStorage !== 'undefined') localStorage.removeItem(LEGACY_TEAM_KEY);
@@ -55,7 +94,11 @@ export function getSession() {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed.lobbyId === 'string') {
-      // Admin sessions carry no password — the admin gate re-verifies via sessionStorage.
+      // NOTE: this stored object is fully user-controlled (it's plain
+      // localStorage). The `role:'admin'` flag therefore only decides which UI
+      // affordances are shown — it grants NO trust on its own. Every privileged
+      // action is re-verified against the hashed admin password by requireAdmin
+      // (admin-gate.js), so forging this flag does not unlock admin writes.
       if (parsed.role === 'admin') {
         return parsed;
       }
@@ -82,17 +125,25 @@ export function setSession(s) {
 
 export function clearSession() {
   try { localStorage.removeItem(SESSION_KEY); } catch {}
+  // Drop any cached admin passwords so leaving fully de-authenticates this tab.
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(ADMIN_PWD_PREFIX)) sessionStorage.removeItem(k);
+    }
+  } catch {}
 }
 
 const MAX_CREATE_RETRIES = 5;
 
 export function createLobbyApi({ get, set }) {
   async function createLobby(teamCount, mode = MODE_TEAMS) {
-    if (!Number.isInteger(teamCount) || teamCount < 2 || teamCount > 20) {
-      throw new Error('team count must be 2..20');
-    }
     const resolvedMode = isIndividualsMode(mode) ? MODE_INDIVIDUALS : MODE_TEAMS;
     const noun = participantNoun(resolvedMode);
+    const max = maxParticipants(resolvedMode);
+    if (!Number.isInteger(teamCount) || teamCount < 2 || teamCount > max) {
+      throw new Error(`${noun.toLowerCase()} count must be 2..${max}`);
+    }
     let lobbyId = null;
     for (let attempt = 0; attempt < MAX_CREATE_RETRIES; attempt++) {
       const candidate = generateLobbyId();
@@ -101,15 +152,25 @@ export function createLobbyApi({ get, set }) {
     }
     if (!lobbyId) throw new Error(`lobby id collision after ${MAX_CREATE_RETRIES} attempts`);
 
+    // Plaintext passwords are generated for display to the host (returned below)
+    // but only their salted hashes are written to the world-readable DB.
     const adminPwd = generatePwd();
     const teams = Array.from({ length: teamCount }, (_, i) => ({
       id: i + 1,
       name: `${noun} ${i + 1}`,
       pwd: generatePwd(),
     }));
-    const teamsObj = Object.fromEntries(teams.map(t => [t.id, t]));
+    const teamsObj = {};
+    for (const t of teams) {
+      teamsObj[t.id] = { id: t.id, name: t.name, pwdHash: await hashPwd(lobbyId, t.id, t.pwd) };
+    }
     await set(`lobbies/${lobbyId}`, {
-      meta: { createdAt: Date.now(), teamCount, mode: resolvedMode, adminPwd },
+      meta: {
+        createdAt: Date.now(),
+        teamCount,
+        mode: resolvedMode,
+        adminPwdHash: await hashPwd(lobbyId, 'admin', adminPwd),
+      },
       teams: teamsObj,
       quiz: { categories: seedCategories() },
     });
@@ -130,13 +191,15 @@ export function createLobbyApi({ get, set }) {
   }
 
   async function verifyTeamPwd(lobbyId, teamId, pwd) {
-    const stored = await get(`lobbies/${lobbyId}/teams/${teamId}/pwd`);
-    return typeof stored === 'string' && stored === pwd;
+    const stored = await get(`lobbies/${lobbyId}/teams/${teamId}/pwdHash`);
+    if (typeof stored !== 'string') return false;
+    return stored === await hashPwd(lobbyId, teamId, pwd);
   }
 
   async function verifyAdminPwd(lobbyId, pwd) {
-    const stored = await get(`lobbies/${lobbyId}/meta/adminPwd`);
-    return typeof stored === 'string' && stored === pwd;
+    const stored = await get(`lobbies/${lobbyId}/meta/adminPwdHash`);
+    if (typeof stored !== 'string') return false;
+    return stored === await hashPwd(lobbyId, 'admin', pwd);
   }
 
   return { createLobby, loadLobbyTeams, verifyTeamPwd, verifyAdminPwd };

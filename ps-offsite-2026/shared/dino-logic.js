@@ -40,6 +40,11 @@ export const SPEED_MAX_SOLO = 11.6;
 export const SPAWN_FRAMES_MIN_SOLO = 46;
 export const HIGH_PROB_MAX_SOLO = 0.46;
 
+// Peak jump velocity — the ceiling a full team's palm count maps to, and the
+// upper bound of the jump meter. Single source of truth so the HUD divisor in
+// 3-dino.js and the clamp below can't drift apart.
+export const PEAK_JUMP_STRENGTH = 22;
+
 // Solo jump: a single open palm = one jump (#42), with a fixed velocity that
 // does NOT scale with detected hand count. Sits between the team per-hand
 // values so a one-hand jump clears obstacles but is not as floaty as peak 22.
@@ -57,9 +62,10 @@ export const rotateSecondsLeft = (elapsedSec) =>
   Math.max(0, Math.min(ROTATE_BREAK_S, Math.ceil(ROTATE_BREAK_S - elapsedSec)));
 
 // 0 palms → no jump. 1..teamN palms → jump velocity scaled so that the team's
-// own hand total equals peak jump (22). Base 7 keeps tiny-team jumps from
-// feeling identical regardless of palm count. Velocity ~7% higher than before
-// → ~15% more clearance height (height ∝ v²/2g), matching the eased difficulty.
+// own hand total equals peak jump (PEAK_JUMP_STRENGTH). Base 7 keeps tiny-team
+// jumps from feeling identical regardless of palm count. Velocity ~7% higher
+// than before → ~15% more clearance height (height ∝ v²/2g), matching the eased
+// difficulty.
 //
 // Uses `??` not `||` so that teamN === 0 stays 0 (then clamped up to MIN_N by
 // Math.max), while teamN === null/undefined falls back to FALLBACK_N. This
@@ -67,7 +73,7 @@ export const rotateSecondsLeft = (elapsedSec) =>
 export function palmCountToJumpStrength(n, teamN) {
   if (n <= 0) return 0;
   const T = Math.max(MIN_N, teamN ?? FALLBACK_N);
-  return Math.min(22, Math.round(7 + n * (15 / T)));
+  return Math.min(PEAK_JUMP_STRENGTH, Math.round(7 + n * (15 / T)));
 }
 
 // Mode of the sample array. Ties resolve to the higher count

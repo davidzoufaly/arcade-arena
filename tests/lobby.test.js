@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  generateLobbyId, generatePwd, isValidLobbyId, ALPHABET,
+  generateLobbyId, generatePwd, isValidLobbyId, ALPHABET, PWD_WORDS,
   getSession, setSession, clearSession, SESSION_KEY, LEGACY_TEAM_KEY,
   createLobbyApi, isAdminSession,
 } from '../ps-offsite-2026/shared/lobby.js';
@@ -24,15 +24,16 @@ describe('generateLobbyId', () => {
 });
 
 describe('generatePwd', () => {
-  it('defaults to length 6 using ALPHABET', () => {
+  it('is an easy word followed by three digits', () => {
     const pwd = generatePwd();
-    expect(pwd).toHaveLength(6);
-    for (const c of pwd) expect(ALPHABET).toContain(c);
+    expect(pwd).toMatch(/^[A-Z]+[0-9]{3}$/);
   });
-  it('honors explicit length and stays within ALPHABET', () => {
-    const pwd = generatePwd(10);
-    expect(pwd).toHaveLength(10);
-    for (const c of pwd) expect(ALPHABET).toContain(c);
+  it('uses a word from the PWD_WORDS list', () => {
+    for (let i = 0; i < 50; i++) {
+      const pwd = generatePwd();
+      const word = pwd.slice(0, -3);
+      expect(PWD_WORDS).toContain(word);
+    }
   });
 });
 
@@ -135,20 +136,26 @@ describe('createLobbyApi.createLobby', () => {
     const result = await api.createLobby(4);
 
     expect(result.lobbyId).toMatch(/^[A-HJ-NP-Z2-9]{4}$/);
-    expect(result.adminPwd).toHaveLength(6);
+    expect(result.adminPwd).toMatch(/^[A-Z]+[0-9]{3}$/);
     expect(result.teams).toHaveLength(4);
     expect(result.teams.map(t => t.id)).toEqual([1, 2, 3, 4]);
     for (const t of result.teams) {
       expect(t.name).toBe(`Team ${t.id}`);
-      expect(t.pwd).toHaveLength(6);
+      expect(t.pwd).toMatch(/^[A-Z]+[0-9]{3}$/);
     }
 
     const stored = a.data().lobbies[result.lobbyId];
     expect(stored.meta.teamCount).toBe(4);
-    expect(stored.meta.adminPwd).toBe(result.adminPwd);
     expect(stored.meta.mode).toBe('teams');
     expect(result.mode).toBe('teams');
-    expect(stored.teams[1].pwd).toBe(result.teams[0].pwd);
+    // Passwords are stored hashed (SHA-256 hex), never as plaintext.
+    expect(stored.meta.adminPwd).toBeUndefined();
+    expect(stored.meta.adminPwdHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(stored.teams[1].pwd).toBeUndefined();
+    expect(stored.teams[1].pwdHash).toMatch(/^[0-9a-f]{64}$/);
+    const blob = JSON.stringify(stored);
+    expect(blob).not.toContain(result.adminPwd);
+    expect(blob).not.toContain(result.teams[0].pwd);
 
     // quiz pre-seed: 4 categories c1..c4, 8 questions each
     expect(Object.keys(stored.quiz.categories)).toEqual(['c1', 'c2', 'c3', 'c4']);
@@ -204,6 +211,14 @@ describe('createLobbyApi.createLobby', () => {
     const api = createLobbyApi(fakeAdapter());
     await expect(api.createLobby(1)).rejects.toThrow(/team count/i);
     await expect(api.createLobby(21)).rejects.toThrow(/team count/i);
+  });
+
+  it('caps individuals mode at 12 players', async () => {
+    const api = createLobbyApi(fakeAdapter());
+    await expect(api.createLobby(13, 'individuals')).rejects.toThrow(/player count must be 2\.\.12/i);
+    // 12 is allowed in individuals mode; 20 is allowed in teams mode.
+    await expect(api.createLobby(12, 'individuals')).resolves.toMatchObject({ mode: 'individuals' });
+    await expect(api.createLobby(20, 'teams')).resolves.toMatchObject({ mode: 'teams' });
   });
 });
 

@@ -20,6 +20,7 @@
     --gold: #ffd84d;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     background: radial-gradient(circle at 50% 0%, var(--bg-2) 0%, var(--bg) 60%);
@@ -39,6 +40,10 @@
     body { padding: 20px; }
   }
 
+  /* Join card is shorter than Create; pin its form block to the bottom so the
+     "Join lobby" heading sits at top and Lobby ID / Continue sit at bottom. */
+  .lobby-card label[for="joinLobbyId"] { margin-top: auto; }
+  .lobby-card #createBtn { margin-top: auto; }
   .mode-switch { display: flex; gap: 8px; margin-bottom: 14px; }
   .mode-option {
     flex: 1; display: flex; align-items: center; justify-content: center;
@@ -92,10 +97,10 @@
         <button id="joinContinueBtn">Continue</button>
         <div id="joinErr" class="lobby-banner err" hidden></div>
         <div id="teamPicker" hidden>
-          <label>Pick your team</label>
+          <label id="teamPickLabel">Pick your team</label>
           <div class="team-picker" id="teamPickerList"></div>
           <label for="joinTeamPwd" id="joinPwdLabel">Team password</label>
-          <input id="joinTeamPwd" type="text" maxlength="6" autocomplete="off">
+          <input id="joinTeamPwd" type="text" maxlength="12" autocomplete="off">
           <button id="joinFinalBtn">Join</button>
         </div>
       </div>
@@ -136,6 +141,7 @@ import { firebaseConfig } from './firebase-config.js';
 import {
   createLobbyApi, isValidLobbyId,
   getSession, setSession, isAdminSession,
+  participantNoun, maxParticipants,
 } from './shared/lobby.js';
 
 if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
@@ -171,25 +177,22 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-const LAST_LOBBY_KEY = 'arcade.lastLobbyId';
-function rememberLobby(id) {
-  try { localStorage.setItem(LAST_LOBBY_KEY, id); } catch {}
-}
-function recallLobby() {
-  try { return localStorage.getItem(LAST_LOBBY_KEY) || ''; } catch { return ''; }
-}
-
 // ---------- create flow ----------
 function selectedMode() {
   return document.querySelector('input[name="lobbyMode"]:checked')?.value === 'individuals'
     ? 'individuals' : 'teams';
 }
 function syncModeCopy() {
-  const individuals = selectedMode() === 'individuals';
+  const mode = selectedMode();
+  const individuals = mode === 'individuals';
+  const max = maxParticipants(mode);
   $('createCountLabel').textContent = individuals ? 'Number of players' : 'Number of teams';
   $('createCountHint').textContent = individuals
-    ? '2–20 players. Each plays solo.'
-    : '2–20 teams. We recommend 2–6 players per team.';
+    ? `2–${max} players. Each plays solo.`
+    : `2–${max} teams. We recommend 2–6 players per team.`;
+  const countInput = $('createTeamCount');
+  countInput.max = String(max);
+  if (parseInt(countInput.value, 10) > max) countInput.value = String(max);
 }
 $('modeSwitch').addEventListener('change', syncModeCopy);
 syncModeCopy();
@@ -197,16 +200,16 @@ syncModeCopy();
 $('createBtn').addEventListener('click', async () => {
   hideErr('createErr');
   const mode = selectedMode();
-  const noun = mode === 'individuals' ? 'Player' : 'Team';
+  const noun = participantNoun(mode);
+  const max = maxParticipants(mode);
   const n = parseInt($('createTeamCount').value, 10);
-  if (!Number.isInteger(n) || n < 2 || n > 20) {
-    showErr('createErr', `${noun} count must be 2–20.`);
+  if (!Number.isInteger(n) || n < 2 || n > max) {
+    showErr('createErr', `${noun} count must be 2–${max}.`);
     return;
   }
   $('createBtn').disabled = true;
   try {
     const { lobbyId, adminPwd, teams } = await api.createLobby(n, mode);
-    rememberLobby(lobbyId);
     renderCredentials({ lobbyId, adminPwd, teams, mode });
     show('view-credentials');
   } catch (e) {
@@ -249,6 +252,8 @@ function renderCredentials({ lobbyId, adminPwd, teams, mode }) {
 }
 
 // ---------- join flow ----------
+// Mode of the lobby being joined, read from meta/mode in revealTeamPicker.
+let joinMode = 'teams';
 $('joinLobbyId').addEventListener('input', e => {
   e.target.value = e.target.value.toUpperCase();
 });
@@ -269,9 +274,14 @@ async function revealTeamPicker(lobbyId) {
     const teams = await api.loadLobbyTeams(lobbyId);
     if (!teams.length) {
       $('teamPicker').hidden = true;
-      showErr('joinErr', 'Lobby has no teams yet.');
+      showErr('joinErr', 'Lobby has no participants yet.');
       return;
     }
+    // Read the lobby mode so the picker copy matches ("Player" vs "Team").
+    const modeSnap = await get(ref(db, `lobbies/${lobbyId}/meta/mode`));
+    joinMode = modeSnap.exists() ? modeSnap.val() : 'teams';
+    const noun = participantNoun(joinMode);
+    $('teamPickLabel').textContent = `Pick your ${noun.toLowerCase()}`;
     const list = $('teamPickerList');
     list.innerHTML = teams.map((t, i) => `
       <label class="team-option">
@@ -285,9 +295,9 @@ async function revealTeamPicker(lobbyId) {
       </label>`;
     list.onchange = () => {
       const isAdmin = document.querySelector('input[name="teamPick"]:checked')?.value === '__admin__';
-      $('joinPwdLabel').textContent = isAdmin ? 'Admin password' : 'Team password';
+      $('joinPwdLabel').textContent = isAdmin ? 'Admin password' : `${noun} password`;
     };
-    $('joinPwdLabel').textContent = 'Team password';
+    $('joinPwdLabel').textContent = `${noun} password`;
     $('teamPicker').hidden = false;
     $('joinFinalBtn').onclick = () => doJoin(lobbyId);
   } catch (e) {
@@ -300,21 +310,19 @@ async function revealTeamPicker(lobbyId) {
 async function doJoin(lobbyId) {
   hideErr('joinErr');
   const radio = document.querySelector('input[name="teamPick"]:checked');
-  if (!radio) { showErr('joinErr', 'Pick a team.'); return; }
+  if (!radio) { showErr('joinErr', `Pick a ${participantNoun(joinMode).toLowerCase()}.`); return; }
   const pwd = $('joinTeamPwd').value.trim().toUpperCase();
   if (!pwd) { showErr('joinErr', 'Enter password.'); return; }
   if (radio.value === '__admin__') {
     const ok = await api.verifyAdminPwd(lobbyId, pwd);
     if (!ok) { showErr('joinErr', 'Wrong admin password.'); return; }
-    rememberLobby(lobbyId);
     setSession({ lobbyId, role: 'admin' });
-    location.href = `scoreboard.html?lobby=${encodeURIComponent(lobbyId)}`;
+    location.href = `games.html?lobby=${encodeURIComponent(lobbyId)}`;
     return;
   }
   const teamId = parseInt(radio.value, 10);
   const ok = await api.verifyTeamPwd(lobbyId, teamId, pwd);
   if (!ok) { showErr('joinErr', 'Wrong password.'); return; }
-  rememberLobby(lobbyId);
   setSession({ lobbyId, teamId });
   location.href = `games.html?lobby=${encodeURIComponent(lobbyId)}&team=${teamId}`;
 }
@@ -322,14 +330,16 @@ async function doJoin(lobbyId) {
 // ---------- bootstrap ----------
 const session = getSession();
 if (session && isAdminSession(session)) {
-  location.replace(`scoreboard.html?lobby=${encodeURIComponent(session.lobbyId)}`);
+  location.replace(`games.html?lobby=${encodeURIComponent(session.lobbyId)}`);
 } else if (session) {
   location.replace(`games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`);
 } else {
   show('view-create-join');
-  // Prefill the join field from ?lobby=… (shared link) or the last lobby this device used.
+  // Prefill the join field only from ?lobby=… (an explicit shared link).
+  // No localStorage recall — a stale last-used lobby prefilling a different
+  // lobby than the user wants to join is confusing.
   const urlLobby = new URLSearchParams(location.search).get('lobby');
-  const prefill = (urlLobby || recallLobby() || '').toUpperCase();
+  const prefill = (urlLobby || '').toUpperCase();
   if (prefill) {
     $('joinLobbyId').value = prefill;
     if (isValidLobbyId(prefill)) revealTeamPicker(prefill);

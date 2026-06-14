@@ -21,6 +21,7 @@
     --gold: #ffd84d;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     background: radial-gradient(circle at 20% 0%, var(--bg-2) 0%, var(--bg) 60%);
@@ -258,7 +259,9 @@
     margin: 0 auto;
   }
 </style>
+<link rel="stylesheet" href="../shared/theme.css">
 <link rel="stylesheet" href="../shared/topbar.css">
+<link rel="stylesheet" href="../shared/modal.css">
 </head>
 <body>
 <header>
@@ -268,10 +271,10 @@
 <main>
   <div class="card briefing" id="briefing">
     This flappy bird flies on your voice. Louder lifts it, quiet lets it drop — your voice is the throttle. Find the balance and thread the gaps.<br><br>
-    <strong>Goal:</strong> Control the on-screen orb 🟠 with your voice — <span id="flappyGoalWho">the whole team yells</span> into the laptop mic to keep it flying through the gaps. <strong>Louder = higher.</strong> Mind the edges — the orb crashes if it hits the <strong>floor</strong> or the <strong>ceiling</strong>, not just the gates. It's <strong>endless and keeps speeding up 💨</strong> — survive as long as you can; your score is the number of gates passed. <strong>5 attempts</strong>, best score counts 🏆.
+    <strong>Goal:</strong> Control the on-screen orb 🟠 with your voice — <span id="flappyGoalWho">the whole team yells</span> into the laptop mic to keep it flying through the gaps. <strong>Louder = higher.</strong> The floor and ceiling just block you — only hitting a <strong>gate</strong> crashes the orb. It's <strong>endless and keeps speeding up 💨</strong> — survive as long as you can; your score is the number of gates passed. <strong>5 attempts</strong>, best score counts 🏆.
   </div>
 
-  <div id="phase-boot" class="card loading">Checking your team's progress…</div>
+  <div id="phase-boot" class="card loading">Checking your progress…</div>
 
   <div id="phase-setup" class="card hidden">
     <h3 style="margin-bottom: 12px">Get ready</h3>
@@ -295,7 +298,7 @@
       </div>
       <div class="panel">
         <div>
-          <div style="font-size: 13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center">Team volume</div>
+          <div id="flappyVolLabel" style="font-size: 13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center">Team volume</div>
           <div class="voice-meter"><div class="fill" id="voiceFill"></div><div class="floor-line" id="floorLine" style="left:0%"></div></div>
         </div>
         <div class="player-banner">
@@ -321,7 +324,7 @@
 
   <div id="phase-final" class="card result hidden">
     <h2 id="finalTitle">Run complete</h2>
-    <p style="color:var(--muted)">Team <strong id="resTeam"></strong></p>
+    <p style="color:var(--muted)"><span id="resTeamLabel">Team</span> <strong id="resTeam"></strong></p>
     <div class="score" id="resScore">0</div>
     <div id="saveStatus" class="save-status">SAVING…</div>
     <div class="result-row" style="margin-top: 14px;">

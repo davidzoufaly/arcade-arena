@@ -27,6 +27,7 @@ import {
   rotateSecondsLeft,
   RAMP_S_SOLO, SPEED_MAX_SOLO, SPAWN_FRAMES_MIN_SOLO, HIGH_PROB_MAX_SOLO,
   SOLO_JUMP_STRENGTH,
+  PEAK_JUMP_STRENGTH,
 } from '../ps-offsite-2026/shared/dino-logic.js';
 
 describe('constants', () => {
@@ -41,23 +42,24 @@ describe('constants', () => {
   it('HIGH_PROB_MIN is 0.20', () => expect(HIGH_PROB_MIN).toBe(0.20));
   it('SEGMENT_PLAY_S is 20', () => expect(SEGMENT_PLAY_S).toBe(20));
   it('ROTATE_BREAK_S is 10', () => expect(ROTATE_BREAK_S).toBe(10));
+  it('PEAK_JUMP_STRENGTH is 22', () => expect(PEAK_JUMP_STRENGTH).toBe(22));
 });
 
 describe('palmCountToJumpStrength', () => {
   it('0 palms → 0',            () => expect(palmCountToJumpStrength(0, 4)).toBe(0));
   it('negative palms → 0',     () => expect(palmCountToJumpStrength(-3, 4)).toBe(0));
   it('teamN=2, 1 palm → 15',   () => expect(palmCountToJumpStrength(1, 2)).toBe(15));
-  it('teamN=2, 2 palms → 22',  () => expect(palmCountToJumpStrength(2, 2)).toBe(22));
+  it('teamN=2, 2 palms → peak',  () => expect(palmCountToJumpStrength(2, 2)).toBe(PEAK_JUMP_STRENGTH));
   it('teamN=7, 4 palms → 16',  () => expect(palmCountToJumpStrength(4, 7)).toBe(16));
-  it('teamN=7, 7 palms → 22',  () => expect(palmCountToJumpStrength(7, 7)).toBe(22));
-  it('teamN=14, 14 palms → 22',           () => expect(palmCountToJumpStrength(14, 14)).toBe(22));
-  it('teamN=14, 20 palms → 22 (clamped)', () => expect(palmCountToJumpStrength(20, 14)).toBe(22));
+  it('teamN=7, 7 palms → peak',  () => expect(palmCountToJumpStrength(7, 7)).toBe(PEAK_JUMP_STRENGTH));
+  it('teamN=14, 14 palms → peak',           () => expect(palmCountToJumpStrength(14, 14)).toBe(PEAK_JUMP_STRENGTH));
+  it('teamN=14, 20 palms → peak (clamped)', () => expect(palmCountToJumpStrength(20, 14)).toBe(PEAK_JUMP_STRENGTH));
   it('teamN nullish → uses FALLBACK_N (4)', () => expect(palmCountToJumpStrength(4, null)).toBe(palmCountToJumpStrength(4, 4)));
   it('teamN undefined → uses FALLBACK_N',   () => expect(palmCountToJumpStrength(4, undefined)).toBe(palmCountToJumpStrength(4, 4)));
   // teamN=0 means "no team detected, but value was supplied" — clamped up to
   // MIN_N (1). One palm against teamN=0 = peak jump 22.
-  it('teamN=0 → clamped to MIN_N',          () => expect(palmCountToJumpStrength(1, 0)).toBe(22));
-  it('teamN=0, 2 palms → still clamped to 22', () => expect(palmCountToJumpStrength(2, 0)).toBe(22));
+  it('teamN=0 → clamped to MIN_N',          () => expect(palmCountToJumpStrength(1, 0)).toBe(PEAK_JUMP_STRENGTH));
+  it('teamN=0, 2 palms → still clamped to peak', () => expect(palmCountToJumpStrength(2, 0)).toBe(PEAK_JUMP_STRENGTH));
 });
 
 describe('pickCalibratedHandCount', () => {
@@ -151,7 +153,7 @@ describe('solo (hard) difficulty — moderately tighter than teams', () => {
   });
   it('SOLO_JUMP_STRENGTH is a fixed mid-range jump (one-hand jump)', () => {
     expect(SOLO_JUMP_STRENGTH).toBeGreaterThan(0);
-    expect(SOLO_JUMP_STRENGTH).toBeLessThan(22);
+    expect(SOLO_JUMP_STRENGTH).toBeLessThan(PEAK_JUMP_STRENGTH);
   });
 });
 

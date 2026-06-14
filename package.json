@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "vision:assets": "node scripts/fetch-vision-assets.mjs",
     "postinstall": "node scripts/fetch-vision-assets.mjs",
@@ -12,9 +15,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest",
-    "deploy": "npm run build && npx --yes netlify-cli deploy --prod --dir=dist",
-    "deploy:preview": "npm run build && npx --yes netlify-cli deploy --dir=dist"
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "vite": "^5.4.0",

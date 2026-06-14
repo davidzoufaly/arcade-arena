@@ -17,9 +17,13 @@ export const RESPONSE = 0.4;   // how fast vy chases its target (0..1 per frame)
 // Vertical speed the orb wants *right now*, mapped linearly across the visible
 // meter range [floor .. METER_MAX]: empty bar → +FALL_V (drop), full bar →
 // -RISE_CAP (climb), half → hover. The orb tracks exactly what the bar shows.
+//
+// Loud-room guard: if the calibrated floor lands at/above meterMax the span
+// collapses and the orb could *only ever fall* (t pinned to 0 → unwinnable).
+// Fall back to a minimum usable span so louder-than-floor still maps to a rise.
 export function targetVelocity(amp, floor, meterMax = METER_MAX) {
-  const span = meterMax - floor;
-  const t = span > 0 ? Math.min(1, Math.max(0, (amp - floor) / span)) : 0;
+  const span = Math.max(meterMax - floor, meterMax * 0.3);
+  const t = Math.min(1, Math.max(0, (amp - floor) / span));
   return FALL_V - t * (FALL_V + RISE_CAP);
 }
 

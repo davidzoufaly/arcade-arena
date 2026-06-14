@@ -8,6 +8,11 @@
 .modal-box::backdrop { background: rgba(0,0,0,0.6); }
 .modal-box h2 { font-size: 18px; margin-bottom: 16px; }
 .modal-body p { color: var(--muted); line-height: 1.6; font-size: 15px; }
+.modal-body .modal-error {
+  color: var(--bad); background: rgba(255,77,109,0.12);
+  border: 1px solid rgba(255,77,109,0.5); border-radius: 8px;
+  padding: 8px 12px; margin-bottom: 12px; font-size: 14px;
+}
 .modal-body label {
   display: block; font-size: 13px; color: var(--muted);
   margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;

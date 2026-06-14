@@ -5,7 +5,7 @@
 //   { all: "locked"|"unlocked",
 //     games: { [gameKey]: "locked"|"unlocked" },
 //     cells: { [gameKey]: { [teamId]: "locked"|"unlocked" } } }
-// Absent node / level => "locked" (default). Precedence: cell > game > all.
+// Absent node / level => "unlocked" (default). Precedence: cell > game > all.
 
 export const LOCKED = 'locked';
 export const UNLOCKED = 'unlocked';
@@ -17,15 +17,15 @@ export function resolveLock(locks, gameKey, teamId) {
   return locks?.cells?.[gameKey]?.[teamId]
     ?? locks?.games?.[gameKey]
     ?? locks?.all
-    ?? LOCKED;
+    ?? UNLOCKED;
 }
 
 export function resolveGameLock(locks, gameKey) {
-  return locks?.games?.[gameKey] ?? locks?.all ?? LOCKED;
+  return locks?.games?.[gameKey] ?? locks?.all ?? UNLOCKED;
 }
 
 export function resolveAllLock(locks) {
-  return locks?.all ?? LOCKED;
+  return locks?.all ?? UNLOCKED;
 }
 
 export function isUnlocked(locks, gameKey, teamId) {

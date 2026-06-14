@@ -21,6 +21,7 @@
     --gold: #ffd84d;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     background: radial-gradient(circle at 20% 0%, var(--bg-2) 0%, var(--bg) 60%);
@@ -261,7 +262,9 @@
   .calib-banner p { font-size: 22px; color: var(--text); margin: 6px 0 0; }
   .calib-card .cam { height: min(58vh, 620px); width: auto; max-width: 92vw; aspect-ratio: 4 / 3; object-fit: cover; transform: scaleX(-1); border-radius: 12px; background: #000; }
 </style>
+<link rel="stylesheet" href="../shared/theme.css">
 <link rel="stylesheet" href="../shared/topbar.css">
+<link rel="stylesheet" href="../shared/modal.css">
 </head>
 <body>
 <header>
@@ -276,7 +279,7 @@
   </div>
 
   <!-- BOOT -->
-  <div id="phase-boot" class="card loading">Checking your team's progress…</div>
+  <div id="phase-boot" class="card loading">Checking your progress…</div>
 
   <!-- SETUP -->
   <div id="phase-setup" class="card hidden">
@@ -307,7 +310,7 @@
       <video id="calibVideo" autoplay playsinline muted class="cam"></video>
       <div class="calib-banner">
         <h1>ONE HAND PER PLAYER</h1>
-        <p><span id="calibCount">0</span> detected · <span id="calibTimer">5</span>s</p>
+        <p><span id="calibCount">0</span> detected · <span id="calibTimer">20</span>s</p>
         <button id="calibConfirmBtn" style="margin-top: 12px;">✓ Confirm — hands ready</button>
       </div>
     </div>
@@ -362,7 +365,7 @@
   <div id="phase-attempt-end" class="card hidden">
     <h2 id="attemptResultTitle" style="font-size: 28px; margin-bottom: 12px;">Attempt complete</h2>
     <p class="briefing">
-      Completed <strong id="attemptCompleted">0</strong> / <span id="attemptTotal">16</span> ·
+      Completed <strong id="attemptCompleted">0</strong> / <span id="attemptTotal">—</span> ·
       attempt score <strong id="attemptScoreVal">0</strong>
     </p>
     <div class="result-row" style="margin-top: 20px;">
@@ -374,7 +377,7 @@
   <!-- FINAL_RESULT -->
   <div id="phase-final" class="card result hidden">
     <h2 id="finalTitle">🔓 Vault unlocked!</h2>
-    <p style="color:var(--muted)">Team <strong id="resTeam"></strong></p>
+    <p style="color:var(--muted)"><span id="resTeamLabel">Team</span> <strong id="resTeam"></strong></p>
     <div class="score" id="resScore">0</div>
     <div id="saveStatus" class="save-status">SAVING…</div>
     <div class="result-row" style="margin-top: 14px;">
@@ -409,7 +412,6 @@ import {
   TRACKER_CEILING,
   CALIB_TOTAL_S,
   CALIB_GRACE_S,
-  FALLBACK_N,
   MIN_N,
   pickCalibratedHandCount,
 } from '../shared/dino-logic.js';
@@ -422,8 +424,8 @@ import { firebaseConfig } from '../firebase-config.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 
-const WASM_URL = '/mediapipe/wasm';
-const GESTURE_MODEL_URL = '/mediapipe/models/gesture_recognizer.task';
+const WASM_URL = `${import.meta.env.BASE_URL}mediapipe/wasm`;
+const GESTURE_MODEL_URL = `${import.meta.env.BASE_URL}mediapipe/models/gesture_recognizer.task`;
 
 mountTopbar({ activePage: 'games' });
 const _session = resolveSession();
@@ -796,6 +798,12 @@ phaseEnter.recall = () => {
   state.recallStartMs = performance.now();
   state.stepStartMs = state.recallStartMs;
 
+  // Reset overlays a failed prior attempt may have left visible (wrong gesture
+  // during the final countdown, or timeout while the hand was unreadable).
+  $('unknownHint').classList.add('hidden');
+  $('camCountdown').classList.add('hidden');
+  $('camCountdown').classList.remove('pop');
+
   // Render empty dots
   const dotsEl = $('recallDots');
   dotsEl.innerHTML = dotsHtml(state.sequence.length);
@@ -803,6 +811,7 @@ phaseEnter.recall = () => {
 
   $('attemptLabel').textContent = `${state.attemptIdx + 1} / ${MAX_ATTEMPTS}`;
   $('progressFill').style.width = '0%';
+  $('progressFill').classList.remove('neutral');
   $('currentGesture').textContent = '—';
   $('timer').textContent = GESTURE_TIME_S.toFixed(1);
   $('timer').style.color = '';
@@ -818,10 +827,27 @@ phaseEnter.recall = () => {
   let wrongName = null;
   let lastCamCount = -1;
   let unknownStart = 0;
+  let hiddenAt = 0;
+
+  // Pause the recall/per-gesture clocks while the tab is hidden so a tab switch
+  // doesn't burn the 10 s timer or inflate the elapsed time. Registered on entry
+  // and torn down in activeCleanup, so it only runs during recall (mirrors
+  // dino/flappy's per-play-phase onVis).
+  const onVis = () => {
+    if (document.hidden) {
+      hiddenAt = performance.now();
+    } else if (hiddenAt) {
+      const paused = performance.now() - hiddenAt;
+      state.recallStartMs += paused;
+      state.stepStartMs += paused;
+      hiddenAt = 0;
+    }
+  };
+  document.addEventListener('visibilitychange', onVis);
 
   function updateStepBadge() {
     $('stepBadge').textContent = `${Math.min(state.stepIdx + 1, state.sequenceLen)} / ${state.sequenceLen}`;
-    flashCam('👥 Next gesture — your team decides who');
+    flashCam(individuals ? '👉 Next gesture' : '👥 Next gesture — your team decides who');
   }
 
   function flashCam(text) {
@@ -993,6 +1019,7 @@ phaseEnter.recall = () => {
   activeCleanup = () => {
     cancelled = true;
     if (rafId) cancelAnimationFrame(rafId);
+    document.removeEventListener('visibilitychange', onVis);
   };
 };
 phaseEnter['attempt-end'] = () => {
@@ -1098,21 +1125,11 @@ function enterAlreadyPlayed(existing) {
   wireRestart();
 }
 
-let hiddenAt = 0;
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    hiddenAt = performance.now();
-  } else if (hiddenAt && state.recallStartMs) {
-    const paused = performance.now() - hiddenAt;
-    state.recallStartMs += paused;
-    state.stepStartMs += paused;
-    hiddenAt = 0;
-  }
-});
-
 // Bootstrap
 function applyIndividualsCopy() {
   if (!individuals) return;
+  const lbl = document.getElementById('resTeamLabel');
+  if (lbl) lbl.textContent = 'Player';
   $('briefIntro').innerHTML =
     "The camera verifies a gesture sequence like a living password. Watch it once, then repeat it back from memory — one wrong move and you're locked out.<br><br>" +
     "<strong>Goal:</strong> Watch a 12-gesture sequence flash by once, then repeat it back from memory. <strong>Step up close so your hand fills the frame</strong>, and keep your other hand down so the camera doesn't catch a stray gesture. Each gesture has a <strong>10 s timer</strong> — run out and the attempt fails. Go in order. <strong>5 attempts</strong>, best score counts; the faster you finish, the higher the score.";

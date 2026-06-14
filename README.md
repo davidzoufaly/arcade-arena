@@ -1,6 +1,6 @@
 # Arcade Arena
 
-A mission-based competition for company offsites, running entirely in the browser. Camera missions, one voice mission, a few live in-room challenges, and a hosted pub quiz. A lobby can run in two modes: **teams**, or **individuals** (each player competes solo). Built for roughly 10 teams, but the count is configurable from 2 to 20. Scores stream live through Firebase to a shared scoreboard, so the projector shows a result the moment a team (or player) finishes.
+A mission-based competition for company offsites, running entirely in the browser. Camera missions, one voice mission, a couple of manual-entry challenges, and a hosted pub quiz. A lobby can run in two modes: **teams**, or **individuals** (each player competes solo). Built for roughly 10 teams, but the count is configurable from 2 to 20. Scores stream live through Firebase to a shared scoreboard, so the projector shows a result the moment a team (or player) finishes.
 
 The app lives under [`ps-offsite-2026/`](ps-offsite-2026/). There's a small build step (Vite) and a one-time Firebase setup — see [ps-offsite-2026/SETUP.md](ps-offsite-2026/SETUP.md).
 
@@ -12,16 +12,16 @@ The app lives under [`ps-offsite-2026/`](ps-offsite-2026/). There's a small buil
 
 | Mission | Input | What the team does | Technology |
 |---|---|---|---|
-| Airlock Override [Gesture Lock] | camera (hands) | First a 20s calibration: everyone raises one hand and the mission counts the team size. Then a random sequence flashes once (4 gestures per person, with repeats from six: open palm, fist, thumbs up, thumbs down, victory, index up). The team repeats it from memory. One wrong gesture fails the attempt; 10 seconds per gesture. 5 attempts, best one counts. | MediaPipe Gesture Recognizer |
-| Human Mimic Checkpoint [Pantomime] | camera (full body) | Hit 8 progressively harder poses: 2 easy, 3 medium, 3 hard (no duo poses, you pose solo). Get every geometric check above 85%, then hold still for the required time (1.2 / 1.5 / 2 s by difficulty). Wobbling resets the hold. Points are half form, half how fast you lock in — a green line traces the camera border as the hold runs. 25 s per pose, players take turns (one poses, the rest direct), 2 attempts, best one counts. | MediaPipe Pose Landmarker (heavy) |
-| Gravity Corridor [Dino Dash] | camera (hands) | A runner runs and the team controls it with open palms. Palms are counted, not fingers, so more open palms = higher jump. A fist ducks, victory keeps it steady. Only **2–3 players** are active per wave and the team rotates who plays: a 20s calibration counts raised hands and scales jump strength, then a ~20s wave of obstacles runs, then a 10s break to swap players. Endless, speeds up over time. 5 attempts, best one counts. | MediaPipe Hand Landmarker |
-| Sonic Stabilizer [Flappy Voice] | microphone | The whole team shouts into the mic and lifts an object between gaps, louder = higher. Endless, speeds up. Score is the number of gates passed. 5 attempts, best one counts. | Web Audio (loudness from mic, no ML model) |
+| Gesture Lock | camera (hands) | First a 20s calibration: everyone raises one hand and the mission counts the team size. Then a random sequence flashes once (4 gestures per person, with repeats from six: open palm, fist, thumbs up, thumbs down, victory, index up). The team repeats it from memory. One wrong gesture fails the attempt; 10 seconds per gesture. 5 attempts, best one counts. | MediaPipe Gesture Recognizer |
+| Pantomime | camera (full body) | Hit 8 progressively harder poses: 2 easy, 3 medium, 3 hard (no duo poses, you pose solo). Get every geometric check above 85%, then hold still for the required time (1.2 / 1.5 / 2 s by difficulty). Wobbling resets the hold. Points are half form, half how fast you lock in — a green line traces the camera border as the hold runs. 25 s per pose, players take turns (one poses, the rest direct), 2 attempts, best one counts. | MediaPipe Pose Landmarker (heavy) |
+| Dino Run | camera (hands) | A runner runs and the team controls it with open palms. Palms are counted, not fingers, so more open palms = higher jump. A fist ducks, victory keeps it steady. Only **2–3 players** are active per wave and the team rotates who plays: a 20s calibration counts raised hands and scales jump strength, then a ~20s wave of obstacles runs, then a 10s break to swap players. Endless, speeds up over time. 5 attempts, best one counts. | MediaPipe Hand Landmarker |
+| Flappy | microphone | The whole team shouts into the mic and lifts an object between gaps, louder = higher. Endless, speeds up. Score is the number of gates passed. 5 attempts, best one counts. | Web Audio (loudness from mic, no ML model) |
 
 The four browser missions score 0 to 100 and write it to the shared scoreboard the moment the team joins a lobby.
 
-### Host-scored challenges
+### Manual-entry challenges
 
-A few challenges are played off-screen and the host enters the points: Analog Blackout [Math No-Brain], Systems Recalibration [Math Big-Brain], Transmission Decoder [Cipher], Oracle Breach [Gandalf], Archive Recovery [Hidden Document], and Alien Glyph Activation [Draw & Guess]. Plus a live Pub Quiz. The host enters these points in scoreboard.html and grades the quiz in quiz-admin.html.
+A couple of challenges are played off-screen and the host enters the points: AI Jailbreak and Draw & Guess. Plus a live Pub Quiz. The host enters these points in scoreboard.html and grades the quiz in quiz-admin.html.
 
 ---
 
@@ -41,7 +41,7 @@ There are no manual "submit codes" — scores flow through the lobby:
 
 1. The host opens index.html, hits Create lobby, picks the mode (**Teams** by default, or **Individuals**) and enters the participant count (default 10, range 2 to 20). They get a lobby ID (e.g. PS-7Q2K), an admin password, and a password for each team / player.
 2. A team (or player) opens the join link or index.html, enters the lobby ID, selects themselves, and confirms with the password. Then they land on games.html.
-3. The four browser missions write scores 0 to 100 themselves. The host enters points for host-scored challenges and grades the pub quiz in scoreboard.html and quiz-admin.html.
+3. The four browser missions write scores 0 to 100 themselves. The host enters points for manual-entry challenges and grades the pub quiz in scoreboard.html and quiz-admin.html.
 4. scoreboard.html on the projector shows the ranking live.
 
 ### Mode: teams vs. individuals
@@ -63,7 +63,7 @@ The host runs the event from three admin pages, all requiring the admin password
 
 Outside edit mode it's a live ranking. The **Edit** button switches to edit mode (**Save** / **Cancel** / **Reset**); changes are buffered and only written with **Save**, **Cancel** discards them. In edit mode the host:
 
-- **Enters points** for host-scored challenges — click a team's cell, whole number from 0. The four browser missions write their own scores; the host doesn't touch those.
+- **Enters points** for manual-entry challenges — click a team's cell, whole number from 0. The four browser missions write their own scores; the host doesn't touch those.
 - **Renames teams / players** — inline name fields (max 24 chars).
 
 Columns and ranking **follow the added missions** — only missions enabled in games.html show up, removed ones drop out. A mission's column header carries a **read-only lock indicator** (🔒 / 🔓); the actual locking is done in games.html. Outside edit mode there's a **Celebrate winner** button — a popover with the winner and full-screen confetti.
@@ -75,7 +75,7 @@ The admin view of games.html is the mission control panel for the lobby:
 - **Add / remove missions** — 👁 / 🚫 enables or hides a mission in the team lobby. The scoreboard and topbar only count added missions.
 - **🔒 / 🔓 Lock** — locks/unlocks a mission. A locked mission is greyed out in games.html; on entry the team sees "Mission locked".
 - **📋 Rules** — the rules text the team sees on the mission. Empty = default text from the catalog.
-- **⏱ Time limit** — a limit in minutes for host-scored and custom missions (empty/0 = no limit). The team sees it in games.html and gets a warning before entering.
+- **⏱ Time limit** — a limit in minutes for manual-entry and custom missions (empty/0 = no limit). The team sees it in games.html and gets a warning before entering.
 - **⋯ Per-team** — expands sub-rows to set lock / limit / rules for a single team separately.
 - **Custom missions** — create a new mission (name max 40 chars, emoji, rules, optional limit). Each gets a `CUSTOMxxxx` key and a 🗑 delete button.
 
@@ -112,14 +112,14 @@ Scoring: +1 for each correct question and +1 extra when the bonus is also correc
 
 ## AI models
 
-The camera missions run on MediaPipe: Gesture Recognizer (Airlock Override), Pose Landmarker heavy (Human Mimic Checkpoint), and Hand Landmarker (Gravity Corridor). The runtime and models are **self-hosted**, not from a CDN — `@mediapipe/tasks-vision` comes from npm, and the wasm + `.task` models (~60 MB) live under `ps-offsite-2026/public/mediapipe/` (gitignored, fetched by `scripts/fetch-vision-assets.mjs` on postinstall/predev/prebuild). The runtime is lazy-loaded only when a mission starts. Details in [ps-offsite-2026/SETUP.md](ps-offsite-2026/SETUP.md). Sonic Stabilizer needs no model; it reads loudness from the mic via Web Audio.
+The camera missions run on MediaPipe: Gesture Recognizer (Gesture Lock), Pose Landmarker heavy (Pantomime), and Hand Landmarker (Dino Run). The runtime and models are **self-hosted**, not from a CDN — `@mediapipe/tasks-vision` comes from npm, and the wasm + `.task` models (~60 MB) live under `ps-offsite-2026/public/mediapipe/` (gitignored, fetched by `scripts/fetch-vision-assets.mjs` on postinstall/predev/prebuild). The runtime is lazy-loaded only when a mission starts. Details in [ps-offsite-2026/SETUP.md](ps-offsite-2026/SETUP.md). Flappy needs no model; it reads loudness from the mic via Web Audio.
 
 ### What a team's laptop needs
 
 - Any laptop from roughly the last 5 years. Integrated graphics are enough, no dedicated GPU needed.
 - A current Chrome, Edge, Safari, or Firefox.
 - At least 4 GB RAM.
-- A built-in or USB camera (camera missions) and a working mic (Sonic Stabilizer).
+- A built-in or USB camera (camera missions) and a working mic (Flappy).
 - Internet only for the first load of each mission. After that the model is cached and the mission runs even without wifi.
 
-Airlock Override and Gravity Corridor run smoothly on integrated graphics. Human Mimic Checkpoint uses the heavy pose model, so expect noticeably lower FPS there. It's enough to hold poses, but it's the heaviest mission. Memory per browser tab comes to 200 to 400 MB, more for the heavy model.
+Gesture Lock and Dino Run run smoothly on integrated graphics. Pantomime uses the heavy pose model, so expect noticeably lower FPS there. It's enough to hold poses, but it's the heaviest mission. Memory per browser tab comes to 200 to 400 MB, more for the heavy model.

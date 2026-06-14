@@ -23,6 +23,9 @@
 - The topbar gives the admin Games / Scoreboard / Quiz links.
 - The topbar counts points from added missions only.
 - The portal was rebranded to the generic Arcade Arena.
+- Removed the Hidden Document challenge from the catalog.
+- Removed the Math No-Brain, Math Big-Brain, and Cipher challenges from the catalog.
+- Gandalf was renamed AI Jailbreak.
 
 ### Missions
 
@@ -49,7 +52,7 @@
 
 ### Host-scored challenges
 
-- Math No-Brain, Math Big-Brain, Cipher, Gandalf, Hidden Document, Draw & Guess.
+- Math No-Brain, Math Big-Brain, Cipher, Gandalf, Draw & Guess.
 - Played off-screen. The host enters the points.
 
 ### Lobby and scoring
