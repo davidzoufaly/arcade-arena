@@ -389,7 +389,7 @@ function mountAdminGames(db, lobbyId) {
       const added = g.added;
       const locked = resolveGameLock(locks, g.key) === 'locked';
       const mins = resolveTimer(timers, g.key);
-      const kindLabel = g.custom ? 'Custom' : g.kind === 'play' ? 'Playable' : g.kind === 'quiz' ? 'Quiz' : 'Host-scored';
+      const kindLabel = g.custom ? 'Custom' : g.kind === 'play' ? 'Playable' : g.kind === 'quiz' ? 'Quiz' : 'Manual entry';
       const canTimer = g.kind !== 'play'; // host-scored + custom
       return `<div class="admin-row ${added ? '' : 'not-added'}" data-key="${g.key}">
         <span class="ar-emoji">${g.emoji}</span>
