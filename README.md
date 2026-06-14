@@ -21,7 +21,7 @@ The four browser missions score 0 to 100 and write it to the shared scoreboard t
 
 ### Host-scored challenges
 
-A few challenges are played off-screen and the host enters the points: Analog Blackout [Math No-Brain], Systems Recalibration [Math Big-Brain], Transmission Decoder [Cipher], Oracle Breach [Gandalf], Archive Recovery [Hidden Document], and Alien Glyph Activation [Draw & Guess]. Plus a live Pub Quiz. The host enters these points in scoreboard.html and grades the quiz in quiz-admin.html.
+A few challenges are played off-screen and the host enters the points: Analog Blackout [Math No-Brain], Systems Recalibration [Math Big-Brain], Transmission Decoder [Cipher], Oracle Breach [Gandalf], and Alien Glyph Activation [Draw & Guess]. Plus a live Pub Quiz. The host enters these points in scoreboard.html and grades the quiz in quiz-admin.html.
 
 ---
 
