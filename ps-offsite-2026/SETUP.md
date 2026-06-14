@@ -47,6 +47,12 @@ One-time setup, ~5 min.
 - Local: `npm run dev` then open http://localhost:5173/scoreboard.html
 - CDN: build with `npm run build` (outputs to `dist/`) and drag-drop to Netlify / Vercel / Cloudflare Pages. The bundled `firebase-config.js` ships with it.
 
+## Vision assets (camera games)
+
+The camera games (gesture-lock, pantomime, dino) use the **mediapipe** runtime + ML models. These are self-hosted, not loaded from a CDN. The ~60MB of binaries live under `ps-offsite-2026/public/mediapipe/` and are **gitignored** — `scripts/fetch-vision-assets.mjs` copies the wasm from `node_modules` and downloads the `.task` models.
+
+It runs automatically on `postinstall`, `predev`, and `prebuild`, so a fresh clone (and Netlify) gets them with no extra step. The runtime bundle is lazy-loaded only when a game starts. To re-fetch manually: `npm run vision:assets` (deletes nothing; skips files already present).
+
 ## Resetting state between events
 
 The scoreboard's **Reset** button wipes the shared state for everyone. If you'd rather start a new event with a clean DB without touching anything else, in Firebase Console → Realtime Database → Data → click the root node `(null)` menu → **Delete** — the scoreboard will reseed 10 empty teams on next load.

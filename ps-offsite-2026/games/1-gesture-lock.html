@@ -386,7 +386,17 @@
 </main>
 
 <script type="module">
-import { GestureRecognizer, FilesetResolver, DrawingUtils } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
+// mediapipe runtime is vendored (npm) and lazy-loaded only when the game
+// starts — Vite chunks the dynamic import below so the heavy bundle never
+// blocks initial page load. Bindings are filled by loadMp() before first use.
+let GestureRecognizer, FilesetResolver, DrawingUtils;
+let _mpPromise;
+function loadMp() {
+  if (!_mpPromise) _mpPromise = import('@mediapipe/tasks-vision').then((mod) => {
+    ({ GestureRecognizer, FilesetResolver, DrawingUtils } = mod);
+  });
+  return _mpPromise;
+}
 import {
   GESTURE_POOL,
   sequenceLengthForTeam,
@@ -412,8 +422,8 @@ import { firebaseConfig } from '../firebase-config.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 
-const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
-const GESTURE_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task';
+const WASM_URL = '/mediapipe/wasm';
+const GESTURE_MODEL_URL = '/mediapipe/models/gesture_recognizer.task';
 
 mountTopbar({ activePage: 'games' });
 const _session = resolveSession();
@@ -523,6 +533,7 @@ startBtn.addEventListener('click', () => {
 phaseEnter.loading = async () => {
   try {
     if (!state.recognizer) {
+      await loadMp();
       const vision = await FilesetResolver.forVisionTasks(WASM_URL);
       state.recognizer = await GestureRecognizer.createFromOptions(vision, {
         baseOptions: {
@@ -624,6 +635,7 @@ phaseEnter.calibrate = () => {
     // plays with the ceiling cap — slightly less efficient but functional.
     let newRecognizer = null;
     try {
+      await loadMp();
       const vision = await FilesetResolver.forVisionTasks(WASM_URL);
       newRecognizer = await GestureRecognizer.createFromOptions(vision, {
         baseOptions: { modelAssetPath: GESTURE_MODEL_URL, delegate: 'GPU' },

@@ -34,7 +34,7 @@
     - ✅ tymy se mohou prejmenovat → topbar + admin edit mode scoreboard
     - ✅ readme → návod k adminování → pantomima kontrast s pozadím, airlock → kontrast ruky s pozadím
     - ✅ kalibrace rukou → tlačítko na potvrzení, že jsou ruce správně v záběru a nečekat celých 20s → či překopání systému
-    - modely stáhnout ze CDN a uložit přímo do repa -> lazy loading bundlu před hraním
+    - ✅ modely stáhnout ze CDN a uložit přímo do repa -> lazy loading bundlu před hraním
     - ✅ mode pro lobby kde nejsou týmy, ale hráči
         - ✅ guest lock 12 guest -> nemusí se řešit separators po 4
         - ✅ pantomime remove "next player"
