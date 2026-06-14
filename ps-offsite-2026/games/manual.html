@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Project Future is US! 2026 — Manual Mission</title>
+<title>Arcade Arena — Game</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -81,7 +81,8 @@ import { firebaseConfig } from '../firebase-config.js';
 import { resolveSession } from '../shared/lobby.js';
 import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import { mountTopbar } from '../shared/topbar.js';
-import { getGame } from '../shared/games-catalog.js';
+import { GAMES } from '../shared/games-catalog.js';
+import { resolveCatalog } from '../shared/lobby-games.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 import { resolveTimer, resolveRule, deadlineFor, isExpired, formatMMSS } from '../shared/game-config.js';
 
@@ -94,7 +95,6 @@ mountTopbar({ activePage: 'games' });
 
 const params = new URLSearchParams(location.search);
 const key = params.get('key');
-const game = getGame(key);
 
 const container = document.getElementById('container');
 const catalogHref = `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
@@ -103,17 +103,31 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let gamesSnap;
+try {
+  gamesSnap = await get(ref(db, `lobbies/${session.lobbyId}/games`));
+} catch (e) {
+  container.innerHTML = `
+    <h1>Load error</h1>
+    <p style="color:#848486;margin-top:10px">Couldn't load this game. Check your connection and try again.</p>
+    <a class="back-link" href="${catalogHref}">← Back to catalog</a>
+  `;
+  throw e;
+}
+const effective = resolveCatalog(GAMES, gamesSnap.exists() ? gamesSnap.val() : null);
+const game = effective.find(g => g.key === key) || null;
+
 if (!game || game.kind !== 'manual') {
   container.innerHTML = `
-    <h1>Unknown mission</h1>
-    <p style="color:#848486;margin-top:10px">No manual mission registered for key <code>${esc(key ?? '(none)')}</code>.</p>
+    <h1>Unknown game</h1>
+    <p style="color:#848486;margin-top:10px">No manual game registered for key <code>${esc(key ?? '(none)')}</code>.</p>
     <a class="back-link" href="${catalogHref}">← Back to catalog</a>
   `;
   throw new Error('unknown manual game');
 }
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
 const writer = firebaseWriter({ db, ref, update, push });
 
 const scorePath = `lobbies/${session.lobbyId}/scores/${session.teamId}/${key}`;

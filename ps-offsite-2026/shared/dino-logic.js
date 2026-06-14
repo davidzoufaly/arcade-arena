@@ -30,6 +30,31 @@ export const RAMP_S = 70;
 export const SPEED_MIN = 4, SPEED_MAX = 10.2;          // scroll speed (px/frame)
 export const SPAWN_FRAMES_MAX = 110, SPAWN_FRAMES_MIN = 56; // gap between spawns
 export const HIGH_PROB_MAX = 0.38;                     // chance an obstacle is "high"
+export const HIGH_PROB_MIN = 0.20;                     // base high-obstacle chance from t=0
+
+// Solo (individuals mode) difficulty — moderately tighter than the team curve
+// (#42). Ramps to peak faster and pushes the peaks past the team ceilings so a
+// single player gets a real challenge without the team rotate breaks.
+export const RAMP_S_SOLO = 50;
+export const SPEED_MAX_SOLO = 11.6;
+export const SPAWN_FRAMES_MIN_SOLO = 46;
+export const HIGH_PROB_MAX_SOLO = 0.46;
+
+// Solo jump: a single open palm = one jump (#42), with a fixed velocity that
+// does NOT scale with detected hand count. Sits between the team per-hand
+// values so a one-hand jump clears obstacles but is not as floaty as peak 22.
+export const SOLO_JUMP_STRENGTH = 16;
+
+// Wave structure: alternating active-play segments and auto-run rotate breaks.
+export const SEGMENT_PLAY_S = 20;  // active obstacle play per wave
+export const ROTATE_BREAK_S = 10;  // auto-run break to swap players
+
+// Whole seconds left in the current play segment / rotate break, for the
+// on-canvas countdown. Clamped to [0, duration] — mirrors warmupSecondsLeft.
+export const segmentSecondsLeft = (elapsedSec) =>
+  Math.max(0, Math.min(SEGMENT_PLAY_S, Math.ceil(SEGMENT_PLAY_S - elapsedSec)));
+export const rotateSecondsLeft = (elapsedSec) =>
+  Math.max(0, Math.min(ROTATE_BREAK_S, Math.ceil(ROTATE_BREAK_S - elapsedSec)));
 
 // 0 palms → no jump. 1..teamN palms → jump velocity scaled so that the team's
 // own hand total equals peak jump (22). Base 7 keeps tiny-team jumps from
@@ -71,18 +96,22 @@ export function pickCalibratedHandCount(samples, tailFrac = 1) {
   return Math.max(MIN_N, Math.min(TRACKER_CEILING, bestN || FALLBACK_N));
 }
 
-// Ramp fraction 0→1 over RAMP_S, clamped (negative → 0, past ramp → 1).
-export function difficultyProgress(elapsedSec) {
-  return Math.max(0, Math.min(1, elapsedSec / RAMP_S));
+// Ramp fraction 0→1 over RAMP_S (or the shorter solo ramp when hard), clamped
+// (negative → 0, past ramp → 1).
+export function difficultyProgress(elapsedSec, hard = false) {
+  return Math.max(0, Math.min(1, elapsedSec / (hard ? RAMP_S_SOLO : RAMP_S)));
 }
-export function runSpeed(elapsedSec) {
-  return SPEED_MIN + (SPEED_MAX - SPEED_MIN) * difficultyProgress(elapsedSec);
+export function runSpeed(elapsedSec, hard = false) {
+  const peak = hard ? SPEED_MAX_SOLO : SPEED_MAX;
+  return SPEED_MIN + (peak - SPEED_MIN) * difficultyProgress(elapsedSec, hard);
 }
-export function spawnIntervalFrames(elapsedSec) {
-  return SPAWN_FRAMES_MAX - (SPAWN_FRAMES_MAX - SPAWN_FRAMES_MIN) * difficultyProgress(elapsedSec);
+export function spawnIntervalFrames(elapsedSec, hard = false) {
+  const min = hard ? SPAWN_FRAMES_MIN_SOLO : SPAWN_FRAMES_MIN;
+  return SPAWN_FRAMES_MAX - (SPAWN_FRAMES_MAX - min) * difficultyProgress(elapsedSec, hard);
 }
-export function highObstacleProb(elapsedSec) {
-  return HIGH_PROB_MAX * difficultyProgress(elapsedSec);
+export function highObstacleProb(elapsedSec, hard = false) {
+  const max = hard ? HIGH_PROB_MAX_SOLO : HIGH_PROB_MAX;
+  return HIGH_PROB_MIN + (max - HIGH_PROB_MIN) * difficultyProgress(elapsedSec, hard);
 }
 
 // Endless: the score IS the number of obstacles cleared this attempt.

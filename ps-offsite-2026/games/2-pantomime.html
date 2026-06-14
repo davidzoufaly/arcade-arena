@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mission 2 — Human Mimic Checkpoint</title>
+<title>Pantomime</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -87,6 +87,31 @@
     width: 100%; height: 100%; object-fit: contain; display: block;
   }
   .skel-overlay-canvas { position: absolute; inset: 0; pointer-events: none; }
+
+  /* Lock progress: a green line that traces the camera border (right → bottom
+     → left → top) as you hold the pose. Full loop = locked. */
+  .lock-border {
+    position: absolute; inset: 5px; width: auto; height: auto;
+    pointer-events: none; z-index: 2; overflow: visible;
+  }
+  .lock-border path {
+    fill: none; stroke: var(--good); stroke-width: 7;
+    stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 100; stroke-dashoffset: 100;
+    vector-effect: non-scaling-stroke;
+    filter: drop-shadow(0 0 7px rgba(0,230,118,0.85));
+    transition: stroke-dashoffset 0.1s linear;
+  }
+  .lock-label {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,230,118,0.16); border: 1px solid var(--good);
+    color: var(--good); backdrop-filter: blur(8px);
+    padding: 8px 18px; border-radius: 999px;
+    font-size: 16px; font-weight: 800; letter-spacing: 1px;
+    white-space: nowrap; pointer-events: none;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .lock-label.show { opacity: 1; }
   .video-overlay {
     position: absolute; bottom: 16px; left: 16px;
     background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
@@ -292,17 +317,17 @@
 </head>
 <body>
 <header>
-  <h1>Human Mimic Checkpoint</h1>
+  <h1>Pantomime</h1>
 </header>
 
 <main>
   <div class="card briefing" id="briefing">
-    Skynet deployed visual sentries trained to detect behavior, not identity. They don't care who you are. They care whether you move like you belong. Your team must mimic the target pose with speed and precision to pass. Every incorrect posture teaches the sentry what "wrong" looks like — and tightens the threshold.<br><br>
+    The camera watches how you move. Your team must mimic the target pose with speed and precision to score.<br><br>
     <strong>Goal:</strong> Match each target pose with your body. The <strong>reference pose</strong> is shown beside the video so you can see what to aim for. Each pose has multiple checks — get every check above 85 %, then <strong>hold the pose still</strong> for the required time (1.2 s easy, 1.5 s medium, 2 s hard). Wobbling resets the hold timer.
     <br><br>
     <strong>Speed wins:</strong> each pose is worth up to 100 points — half from how clean your form is, half from <strong>how fast you lock it in</strong>. Nail it instantly = near 100; dawdle until the timer almost runs out = far fewer. Don't overthink — strike the pose and lock it fast.
     <br><br>
-    <strong>8 poses per run — the last 2 need a partner</strong> (two people in frame). 25 s per pose. Run out of time = pose is skipped (zero points). Players take turns — one person poses each round, the rest direct. <strong>2 attempts — best score counts 🏆.</strong>
+    <strong>8 poses per run</strong>, escalating from easy to hard. 25 s per pose. Run out of time = pose is skipped (zero points). Players take turns — one person poses each round, the rest direct. <strong>2 attempts — best score counts 🏆.</strong>
   </div>
 
   <div id="phase-boot" class="card">
@@ -312,7 +337,7 @@
   <div class="card hidden" id="phase-setup">
     <h3 style="margin-bottom: 12px">Get ready</h3>
     <div class="setup">
-      <button id="startBtn">Start mission</button>
+      <button id="startBtn">Start game</button>
     </div>
     <div class="briefing" style="margin-top: 12px; font-size: 15px;">
       Place the laptop at least 2 m from the person — full body must fit in frame (head to ankles). Plain background helps a lot.
@@ -338,6 +363,10 @@
         <div class="video-wrap" id="videoWrap">
           <video id="video" playsinline autoplay muted></video>
           <canvas id="overlay" class="skel-overlay-canvas"></canvas>
+          <svg class="lock-border" id="lockBorder" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path id="lockBorderPath" d="M100 0 L100 100 L0 100 L0 0 Z" pathLength="100" />
+          </svg>
+          <div class="lock-label" id="lockLabel">🔒 HOLD STILL — locking…</div>
           <div class="step-badge" id="stepBadge">1 / 8</div>
           <div class="video-overlay" id="hint">Stand in front of the camera</div>
           <div class="cam-countdown hidden" id="camCountdown"></div>
@@ -393,7 +422,7 @@
     <div class="breakdown" id="resBreakdown"></div>
     <div id="saveStatus" class="save-status">SAVING…</div>
     <div class="result-row" style="margin-top: 14px;">
-      <button onclick="replayFromFinal()">Restart mission</button>
+      <button onclick="replayFromFinal()">Restart game</button>
       <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
     </div>
     <p style="font-size: 14px;color:var(--muted);margin-top:10px">Something went wrong? Restart requires the admin password.</p>
@@ -401,7 +430,17 @@
 </main>
 
 <script type="module">
-import { PoseLandmarker, FilesetResolver, DrawingUtils } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
+// mediapipe runtime vendored (npm) + lazy-loaded only when the game starts —
+// Vite chunks the dynamic import so the heavy bundle never blocks page load.
+// Bindings filled by loadMp() before first use (see loadModel).
+let PoseLandmarker, FilesetResolver, DrawingUtils;
+let _mpPromise;
+function loadMp() {
+  if (!_mpPromise) _mpPromise = import('@mediapipe/tasks-vision').then((mod) => {
+    ({ PoseLandmarker, FilesetResolver, DrawingUtils } = mod);
+  });
+  return _mpPromise;
+}
 import {
   LM,
   SKEL_LINES,
@@ -423,6 +462,9 @@ import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 mountTopbar({ activePage: 'games' });
 const _session = resolveSession();
 const session = _session;
+// Individuals (solo) mode: one player, so no "next player — take turns" prompt
+// (#40). Resolved from lobby meta at boot.
+let individuals = false;
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const writer = firebaseWriter({ db, ref, update, push });
@@ -493,7 +535,15 @@ function renderRefSvg(pose) {
   svg.innerHTML = refToSvg(ref, idMap, idMap);
 }
 
-const HOLD_MS_BY_DIFFICULTY = { easy: 1200, medium: 1500, hard: 2000, duo: 1500 };
+const HOLD_MS_BY_DIFFICULTY = { easy: 1200, medium: 1500, hard: 2000 };
+
+// Drive the hold indicator: the panel bar + the green line tracing the camera
+// border (offset 100→0 draws right → bottom → left → top). pct 0..100.
+function setHoldProgress(pct) {
+  document.getElementById('holdFill').style.width = pct + '%';
+  document.getElementById('lockBorderPath').style.strokeDashoffset = (100 - pct);
+  document.getElementById('lockLabel').classList.toggle('show', pct > 0);
+}
 const SIM_THRESHOLD = 0.85; // tighter than before
 const STABILITY_MAX_DRIFT = 0.015; // max landmark drift over recent window — anything more = wobble
 const STABILITY_MAX_DRIFT_DUO = 0.06; // looser: two people can't freeze as still
@@ -523,20 +573,21 @@ document.getElementById('startBtn').addEventListener('click', () => {
 
 async function loadModel() {
   document.getElementById('startBtn').textContent = 'Loading AI…';
-  const vision = await FilesetResolver.forVisionTasks(
-    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
-  );
+  await loadMp();
+  const vision = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
   landmarker = await PoseLandmarker.createFromOptions(vision, {
     baseOptions: {
-      // Heavy model: better landmark accuracy on the duo poses, where two bodies
-      // stand further back and partly occlude each other. Costs load time + FPS.
-      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task',
+      // Heavy model: best landmark accuracy, which the tighter pose checks rely on.
+      // Costs load time + FPS, but poses are held for ~1–2 s so FPS isn't critical.
+      modelAssetPath: '/mediapipe/models/pose_landmarker_heavy.task',
       delegate: 'GPU',
     },
     runningMode: 'VIDEO',
-    numPoses: 2,
-    // Lowered from 0.5 default so a smaller / partly-occluded second body is
-    // still picked up and kept tracked across frames in the duo rounds.
+    // Solo game: one poser per round, the rest direct. Detecting a single body
+    // avoids spending budget on (and matching against) bystanders in frame.
+    numPoses: 1,
+    // Lowered from 0.5 default so a poser standing further back / partly out of
+    // frame is still picked up and kept tracked across frames.
     minPoseDetectionConfidence: 0.3,
     minPosePresenceConfidence: 0.3,
     minTrackingConfidence: 0.3,
@@ -605,8 +656,9 @@ function startStep() {
   renderRefSvg(pose);
   renderPoseList();
   document.getElementById('camCountdown').classList.add('hidden');
+  document.getElementById('hint').textContent = 'Stand in front of the camera';
   lastCamCount = -1;
-  flashCam((pose.people ?? 1) === 2 ? '👥👥 Grab a partner!' : '👥 Next player — take turns');
+  if (!individuals) flashCam('👥 Next player — take turns');
 }
 
 function flashCam(text) {
@@ -633,7 +685,7 @@ function timeoutStep() {
 function advance() {
   stepIndex++;
   document.getElementById('poseCard').classList.remove('match');
-  document.getElementById('holdFill').style.width = '0%';
+  setHoldProgress(0);
   if (stepIndex >= POSES.length) finish();
   else startStep();
 }
@@ -797,8 +849,9 @@ function handlePose(result) {
     holdMissFrames = 0;
     const held = performance.now() - holdStart;
     holdPausedAt = Math.min(100, (held / holdMs) * 100);
-    document.getElementById('holdFill').style.width = holdPausedAt + '%';
+    setHoldProgress(holdPausedAt);
     document.getElementById('poseCard').classList.add('match');
+    document.getElementById('hint').textContent = '🔒 Hold still — locking…';
     if (held >= holdMs) {
       const elapsed = (performance.now() - stepStartTs) / 1000;
       scores.push(scorePose({ sim, locked: true, elapsed, timeout: pose.timeout }));
@@ -809,13 +862,13 @@ function handlePose(result) {
     // Brief blip mid-hold: freeze the bar instead of zeroing it. holdStart is
     // pushed forward by the blip so dropped frames don't count toward the hold.
     holdStart = performance.now() - (holdPausedAt / 100) * holdMs;
-    document.getElementById('holdFill').style.width = holdPausedAt + '%';
+    setHoldProgress(holdPausedAt);
     document.getElementById('poseCard').classList.add('match');
   } else {
     holdStart = 0;
     holdMissFrames = 0;
     holdPausedAt = 0;
-    document.getElementById('holdFill').style.width = '0%';
+    setHoldProgress(0);
     document.getElementById('poseCard').classList.remove('match');
   }
 }
@@ -943,6 +996,14 @@ document.addEventListener('visibilitychange', () => {
 
 async function boot() {
   teamId = _session?.teamId ?? 0;
+  if (session?.lobbyId) {
+    try {
+      const modeSnap = await get(ref(db, `lobbies/${session.lobbyId}/meta/mode`));
+      individuals = modeSnap.exists() && modeSnap.val() === 'individuals';
+    } catch (e) { console.error('mode read failed', e); }
+  }
+  const params = new URLSearchParams(location.search);
+  if (params.has('debug') && params.has('individuals')) individuals = true;
   if (session?.lobbyId) {
     try {
       const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${teamId}/${GAME_CODE}`));

@@ -5,9 +5,9 @@ import {
 } from '../ps-offsite-2026/shared/games-catalog.js';
 
 describe('GAMES catalog', () => {
-  it('exposes all 11 games with required fields', () => {
+  it('exposes all 8 games with required fields', () => {
     const keys = Object.keys(GAMES);
-    expect(keys).toHaveLength(11);
+    expect(keys).toHaveLength(8);
     for (const k of keys) {
       expect(GAMES[k].name).toBeTruthy();
       expect(GAMES[k].emoji).toBeTruthy();
@@ -21,9 +21,9 @@ describe('GAMES catalog', () => {
     for (const k of ks) expect(GAMES[k].href).toBeTruthy();
   });
 
-  it('has exactly 6 manual games with rules', () => {
+  it('has exactly 3 manual games with rules', () => {
     const ks = manualKeys();
-    expect(ks).toHaveLength(6);
+    expect(ks.sort()).toEqual(['DG', 'GD', 'HD']);
     for (const k of ks) expect(typeof GAMES[k].rules).toBe('string');
   });
 
@@ -35,7 +35,7 @@ describe('GAMES catalog', () => {
 
   it('allEnteredKeys now includes PQ (no soon games remain)', () => {
     expect(allEnteredKeys()).toContain('PQ');
-    expect(allEnteredKeys()).toHaveLength(11);
+    expect(allEnteredKeys()).toHaveLength(8);
   });
 
   it('getGame returns null for unknown key', () => {

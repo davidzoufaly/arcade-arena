@@ -17,6 +17,9 @@ import { warmupSecondsLeft } from '../shared/warmup-logic.js';
 
 mountTopbar({ activePage: 'games' });
 const session = resolveSession();
+// Individuals (solo) mode: input is voice with no choice, just solo briefing
+// copy instead of "the whole team yells" (#41). Resolved from lobby meta at boot.
+let individuals = false;
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const writer = firebaseWriter({ db, ref, update, push });
@@ -375,7 +378,24 @@ function enterAlreadyPlayed(existing) {
 }
 
 // Bootstrap
+function applyIndividualsCopy() {
+  if (!individuals) return;
+  const who = $('flappyGoalWho');
+  if (who) who.textContent = 'yell';
+  const introWho = $('flappyIntroWho');
+  if (introWho) introWho.textContent = 'When the run starts, yell to fly.';
+}
+
 async function boot() {
+  if (session?.lobbyId) {
+    try {
+      const modeSnap = await get(ref(db, `lobbies/${session.lobbyId}/meta/mode`));
+      individuals = modeSnap.exists() && modeSnap.val() === 'individuals';
+    } catch (e) { console.error('mode read failed', e); }
+  }
+  const params = new URLSearchParams(location.search);
+  if (params.has('debug') && params.has('individuals')) individuals = true;
+  applyIndividualsCopy();
   if (session?.lobbyId) {
     try {
       const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${state.teamId}/${GAME_CODE}`));

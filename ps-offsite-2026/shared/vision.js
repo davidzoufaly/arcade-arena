@@ -1,11 +1,20 @@
-const MP_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
-const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
+// Vendored locally — the runtime bundle is npm-installed (Vite chunks it via
+// the dynamic import below, so it only loads when a game actually starts), and
+// the wasm + .task models live under public/mediapipe (fetched by
+// scripts/fetch-vision-assets.mjs). No CDN at runtime.
+const WASM_URL = '/mediapipe/wasm';
+export const MODEL_URL = {
+  hand: '/mediapipe/models/hand_landmarker.task',
+  poseLite: '/mediapipe/models/pose_landmarker_lite.task',
+  poseHeavy: '/mediapipe/models/pose_landmarker_heavy.task',
+  gesture: '/mediapipe/models/gesture_recognizer.task',
+};
 
 let visionPromise;
-async function loadVision() {
+export async function loadVision() {
   if (!visionPromise) {
     visionPromise = (async () => {
-      const mod = await import(MP_URL);
+      const mod = await import('@mediapipe/tasks-vision');
       const fileset = await mod.FilesetResolver.forVisionTasks(WASM_URL);
       return { mod, fileset };
     })();
@@ -30,7 +39,7 @@ export async function createHandTracker(video, { numHands = 4, minRunMs = 0 } = 
   const { mod, fileset } = await loadVision();
   const tracker = await mod.HandLandmarker.createFromOptions(fileset, {
     baseOptions: {
-      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+      modelAssetPath: MODEL_URL.hand,
       delegate: 'GPU'
     },
     numHands,
@@ -61,7 +70,7 @@ export async function createPoseTracker(video) {
   const { mod, fileset } = await loadVision();
   const tracker = await mod.PoseLandmarker.createFromOptions(fileset, {
     baseOptions: {
-      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+      modelAssetPath: MODEL_URL.poseLite,
       delegate: 'GPU'
     },
     numPoses: 1,

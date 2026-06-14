@@ -68,8 +68,12 @@ try {
 } catch {}
 
 // Float by default; topbar.js calls removeFloating() + hosts its own on topbar pages.
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', mountFloating);
-} else {
-  mountFloating();
+// Guarded so modules that import this purely for its exports (e.g. lobby.js in a
+// non-DOM test runner) don't throw on the module-load side effect.
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mountFloating);
+  } else {
+    mountFloating();
+  }
 }
