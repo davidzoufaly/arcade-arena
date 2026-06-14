@@ -122,11 +122,24 @@
     border-radius: 8px; padding: 6px 9px; font-size: 14px; cursor: pointer; font-family: inherit;
   }
   .admin-row .ar-actions button.on { border-color: var(--accent); color: var(--accent); }
-  .admin-newgame { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+  .admin-newgame { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: grid; gap: 10px; width: 100%; }
+  .admin-newgame h2 { font-size: 18px; }
+  /* name | emoji | timer on one row, rules full-width below */
+  .admin-newgame .ng-fields { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; }
+  @media (max-width: 560px) { .admin-newgame .ng-fields { grid-template-columns: 1fr; } }
   .admin-newgame input, .admin-newgame textarea {
     background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
-    border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 15px;
+    border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 15px; width: 100%;
   }
+  .admin-newgame textarea { resize: none; }
+  #ngCreate {
+    justify-self: start; margin-top: 4px;
+    background: linear-gradient(135deg, var(--accent), #657BC7); border: none; color: var(--btn-on-accent);
+    border-radius: 10px; padding: 12px 28px; font-size: 16px; font-weight: 800;
+    cursor: pointer; font-family: inherit; transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
+  }
+  #ngCreate:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(101,123,199,0.35); filter: brightness(1.05); }
+  #ngCreate:active { transform: translateY(0); }
   .admin-perteam { padding: 8px 14px 4px; display: flex; flex-direction: column; gap: 6px; }
   .admin-perteam .apt-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
   .admin-perteam .apt-row .apt-name { flex: 1; color: var(--muted); }
@@ -145,11 +158,13 @@
     <div id="adminList" class="admin-list"></div>
     <div class="admin-newgame">
       <h2>Create a game</h2>
-      <input id="ngName" type="text" maxlength="40" placeholder="Game name">
-      <input id="ngEmoji" type="text" maxlength="8" placeholder="Icon (emoji)">
+      <div class="ng-fields">
+        <input id="ngName" type="text" maxlength="40" placeholder="Game name">
+        <input id="ngEmoji" type="text" maxlength="8" placeholder="Icon (emoji)">
+        <input id="ngTimer" type="number" min="0" placeholder="Time limit (min)">
+      </div>
       <textarea id="ngRules" rows="3" placeholder="Rules (optional)"></textarea>
-      <input id="ngTimer" type="number" min="0" placeholder="Time limit (min, optional)">
-      <button id="ngCreate">Create game</button>
+      <button id="ngCreate">＋ Create game</button>
       <div id="ngErr" class="lobby-banner err" hidden></div>
     </div>
   </section>
