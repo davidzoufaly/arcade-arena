@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gesture Lock</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script>(function(){try{var t=localStorage.getItem('ps-theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<style>
+  :root {
+    --bg: #09090C;
+    --bg-2: #18181B;
+    --card: #222224;
+    --text: #FFFFFF;
+    --muted: #848486;
+    --accent: #DAFE85;
+    --good: #00e676;
+    --bad: #ff4d6d;
+    --gold: #ffd84d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 20% 0%, var(--bg-2) 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  header {
+    padding: 8px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 22px; font-weight: 800; }
+  main { max-width: 1200px; margin: 0 auto; padding: 32px; }
+  .card {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 28px;
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .briefing { font-size: 17px; line-height: 1.6; color: var(--muted); }
+  .briefing strong { color: var(--text); }
+  .setup { display: flex; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  input, select {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 18px;
+    font-family: inherit;
+  }
+  button {
+    background: linear-gradient(135deg, var(--accent), #657BC7);
+    border: none; color: var(--btn-on-accent);
+    padding: 12px 24px; border-radius: 10px;
+    font-size: 18px; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .video-wrap {
+    position: relative; background: #000; border: 2px solid var(--accent);
+    border-radius: 20px; overflow: hidden; aspect-ratio: 4/3;
+    box-shadow: 0 0 0 0 rgba(0,230,118,0);
+    transition: box-shadow 0.15s ease-out;
+  }
+  .video-wrap.match-pulse {
+    animation: match-pulse 0.6s ease-out;
+  }
+  .video-wrap.wrong-flash {
+    animation: wrong-flash 0.45s ease-out;
+  }
+  @keyframes match-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(0,230,118,0.9), inset 0 0 0 6px rgba(0,230,118,0.0); }
+    30%  { box-shadow: 0 0 32px 8px rgba(0,230,118,0.65), inset 0 0 0 6px rgba(0,230,118,0.85); }
+    100% { box-shadow: 0 0 0 0 rgba(0,230,118,0),   inset 0 0 0 6px rgba(0,230,118,0.0); }
+  }
+  @keyframes wrong-flash {
+    0%, 100% { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.0); }
+    50%      { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.9); }
+  }
+  .step-badge {
+    position: absolute; top: 16px; right: 16px;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    padding: 8px 14px; border-radius: 999px;
+    font-size: 16px; font-weight: 800; letter-spacing: 0.5px;
+    color: var(--accent);
+  }
+  video, canvas {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
+  canvas { position: absolute; inset: 0; pointer-events: none; }
+  .video-overlay {
+    position: absolute; bottom: 16px; left: 16px;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+    padding: 8px 14px; border-radius: 10px;
+    font-size: 16px; font-family: ui-monospace, monospace;
+  }
+  .game { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
+  @media (max-width: 900px) { .game { grid-template-columns: 1fr; } }
+
+  .panel { display: flex; flex-direction: column; gap: 16px; }
+
+  .cam-flash {
+    position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.72); backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    padding: 12px 22px; border-radius: 14px;
+    font-size: 22px; font-weight: 800; color: var(--text);
+    white-space: nowrap; pointer-events: none; opacity: 0;
+  }
+  .cam-flash.show { animation: cam-flash-anim 1.6s ease-out forwards; }
+  @keyframes cam-flash-anim {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.92); }
+    15%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    72%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.97); }
+  }
+
+  .cam-countdown {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(120px, 30vh, 260px); font-weight: 900; line-height: 1;
+    color: var(--bad); font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 24px rgba(0,0,0,0.9), 0 4px 30px rgba(0,0,0,0.7);
+    pointer-events: none;
+  }
+  .cam-countdown.pop { animation: cam-pop 0.5s ease-out; }
+  @keyframes cam-pop {
+    0%   { transform: scale(0.4); opacity: 0; }
+    35%  { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .progress-dots {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px;
+  }
+  .dot {
+    flex: 0 0 auto; width: 52px; height: 52px;
+    background: var(--bg-2);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px;
+    transition: all 0.2s;
+  }
+  .dot-divider {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    width: 6px; color: var(--muted); font-size: 30px; font-weight: 300;
+    opacity: 0.5;
+  }
+  .dot.done {
+    background: rgba(0,230,118,0.18);
+    border-color: var(--good);
+  }
+  .dot.flashing {
+    border-color: var(--accent);
+    box-shadow: 0 0 24px rgba(218,254,133,0.5);
+  }
+
+  /* Lock progress: a bright line tracing a rectangle OUTSIDE the camera frame
+     (with a gap around it), one side at a time — right ↓, bottom ←, left ↑,
+     top → — as you hold a gesture. Full loop = locked. It sits on the dark page
+     background just outside the video, NOT over the camera feed, so it stays
+     high-contrast and readable. Uses the theme foreground (var(--text): white on
+     dark, near-black on light) so it stays visible in both themes — and the same
+     neutral color for BOTH correct and wrong holds, fills the same way over the
+     same time either way, so a completed loop never reads as "correct" right
+     before a wrong-gesture fail. Right/wrong is signalled by the skeleton line
+     color, not this border. */
+  .cam-stage { position: relative; align-self: start; }
+  .lock-border {
+    position: absolute; inset: -16px;   /* push the loop outside the frame, with a gap */
+    pointer-events: none; z-index: 3;
+  }
+  .lock-border .lb-seg {
+    position: absolute; background: var(--text);
+    box-shadow: 0 0 10px var(--text);
+    transition: width 0.1s linear, height 0.1s linear;
+  }
+  .lb-right  { top: 0;    right: 0; width: 8px;  height: 0; } /* ↓ */
+  .lb-bottom { bottom: 0; right: 0; height: 8px; width: 0;  } /* ← */
+  .lb-left   { bottom: 0; left: 0;  width: 8px;  height: 0; } /* ↑ */
+  .lb-top    { top: 0;    left: 0;  height: 8px; width: 0;  } /* → */
+  .unknown-hint {
+    position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
+    background: rgba(0,0,0,0.78); backdrop-filter: blur(8px);
+    border: 1px solid var(--gold);
+    padding: 12px 20px; border-radius: 14px; max-width: 88%;
+    font-size: 17px; font-weight: 700; color: var(--gold);
+    text-align: center; pointer-events: none; z-index: 5;
+  }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat {
+    background: var(--bg-2); padding: 16px;
+    border-radius: 12px; text-align: center;
+  }
+  .stat .value { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+  .big-flash {
+    text-align: center;
+    padding: 40px 24px;
+  }
+  .big-flash .emoji { font-size: 160px; line-height: 1; }
+  .big-flash .name { font-size: 22px; color: var(--muted); margin-top: 12px; }
+
+  .countdown {
+    text-align: center;
+    padding: 60px 24px;
+  }
+  .countdown .num {
+    font-size: 180px; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--gold));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    line-height: 1;
+  }
+
+  .result { text-align: center; padding: 32px; }
+  .result h2 { font-size: 32px; margin-bottom: 8px; }
+  .result .score {
+    font-size: 72px; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--gold));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin: 16px 0;
+  }
+  .submit-code {
+    background: var(--bg-2); padding: 16px 24px;
+    border-radius: 12px; font-family: ui-monospace, monospace;
+    font-size: 28px; font-weight: 800; letter-spacing: 4px;
+    display: inline-block; margin: 20px 0;
+    border: 2px dashed var(--accent); color: var(--accent);
+  }
+  .save-status {
+    display: inline-block; margin-top: 14px;
+    font-size: 14px; font-weight: 800; letter-spacing: 1.5px;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(255,255,255,0.08); color: var(--text);
+  }
+  .save-status.ok  { background: rgba(0,230,118,0.18); color: #00e676; }
+  .save-status.bad { background: rgba(255,77,109,0.18); color: #ff4d6d; cursor: pointer; }
+  .secondary-link {
+    color: var(--accent); text-decoration: none; font-weight: 700; font-size: 16px;
+    align-self: center; padding: 8px 14px;
+  }
+  .result-row {
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+  }
+  .hidden { display: none !important; }
+  .loading { text-align: center; color: var(--muted); padding: 40px; }
+  .calib-card { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+  .calib-banner { text-align: center; }
+  .calib-banner h1 { font-size: 34px; font-weight: 800; letter-spacing: 1px; color: var(--accent); margin: 0; }
+  .calib-banner p { font-size: 22px; color: var(--text); margin: 6px 0 0; }
+  .calib-card .cam { height: min(58vh, 620px); width: auto; max-width: 92vw; aspect-ratio: 4 / 3; object-fit: cover; transform: scaleX(-1); border-radius: 12px; background: #000; }
+</style>
+<link rel="stylesheet" href="../shared/theme.css">
+<link rel="stylesheet" href="../shared/topbar.css">
+<link rel="stylesheet" href="../shared/modal.css">
+</head>
+<body>
+<header>
+  <h1>Gesture Lock</h1>
+</header>
+
+<main>
+  <div class="card briefing" id="briefing">
+    <span id="briefIntro">The camera verifies a gesture sequence like a living password. Watch it once, then repeat it back from memory — one wrong move and you're locked out.<br><br>
+    <strong>Goal:</strong> Watch a sequence flash by once, then repeat it back from memory. <strong>First, a 20-second calibration:</strong> everyone raises one hand each so the game can detect team size. <strong>The whole team plays at the same camera together</strong> — step right up close so your hand fills the frame, and <strong>keep hands behind your back until it's your turn</strong> so the camera doesn't catch a stray gesture. <strong>Who performs each gesture is your team's call — split the sequence however your strategy works best.</strong> One wrong move locks you out, and each gesture has a <strong>10 s timer</strong> — run out and the attempt fails. Go in order. <strong>5 attempts</strong>, best score counts; the faster you finish, the higher the score.</span>
+    <div style="margin-top: 14px;"><strong style="color:var(--text)">Gestures used:</strong> <span id="gesturePool" style="font-size:22px;letter-spacing:6px;"></span></div>
+  </div>
+
+  <!-- BOOT -->
+  <div id="phase-boot" class="card loading">Checking your progress…</div>
+
+  <!-- SETUP -->
+  <div id="phase-setup" class="card hidden">
+    <h3 style="margin-bottom: 12px">Get ready</h3>
+    <div class="setup">
+      <button id="startBtn">Start game</button>
+    </div>
+    <div class="briefing" style="margin-top: 12px; font-size: 15px;">
+      Allow camera access when prompted.
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div id="phase-loading" class="card loading hidden">
+    Loading AI model and camera…
+  </div>
+
+  <!-- ATTEMPT_INTRO -->
+  <div id="phase-intro" class="card hidden">
+    <h2 style="font-size: 28px; margin-bottom: 8px;">Attempt <span id="introNum">1</span> of 5</h2>
+    <p class="briefing">Memorize the sequence — each gesture flashes once, no replay.</p>
+    <button id="introStartBtn" style="margin-top: 16px;">Show sequence</button>
+  </div>
+
+  <!-- CALIBRATE -->
+  <section id="phase-calibrate" class="phase hidden">
+    <div class="phase-card calib-card">
+      <video id="calibVideo" autoplay playsinline muted class="cam"></video>
+      <div class="calib-banner">
+        <h1>ONE HAND PER PLAYER</h1>
+        <p><span id="calibCount">0</span> detected · <span id="calibTimer">20</span>s</p>
+        <button id="calibConfirmBtn" style="margin-top: 12px;">✓ Confirm — hands ready</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- MEMORIZE -->
+  <div id="phase-memorize" class="card hidden">
+    <div class="big-flash">
+      <div class="emoji" id="flashEmoji">✋</div>
+      <div class="name" id="flashName">Open Palm</div>
+    </div>
+    <div class="progress-dots" id="memorizeDots"></div>
+  </div>
+
+  <!-- COUNTDOWN -->
+  <div id="phase-countdown" class="card hidden">
+    <div class="countdown"><div class="num" id="countdownNum">3</div></div>
+  </div>
+
+  <!-- RECALL -->
+  <div id="phase-recall" class="hidden">
+    <div class="game">
+      <div class="cam-stage">
+        <div class="video-wrap" id="videoWrap">
+          <video id="video" playsinline autoplay muted></video>
+          <canvas id="overlay"></canvas>
+          <div class="step-badge" id="stepBadge">1 / ?</div>
+          <div class="video-overlay">
+            Detected: <span id="currentGesture">—</span>
+          </div>
+          <div class="cam-flash" id="camFlash"></div>
+          <div class="cam-countdown hidden" id="camCountdown"></div>
+          <div class="unknown-hint hidden" id="unknownHint">🤚 Can't read that gesture — lower your hand, then show it again</div>
+        </div>
+        <!-- Lock-loop lives OUTSIDE the camera (sibling of .video-wrap, which clips
+             via overflow:hidden) so it can sit in the gap around the frame. -->
+        <div class="lock-border" id="lockBorder">
+          <!-- Four sides fill in sequence: right ↓, bottom ←, left ↑, top →. -->
+          <div class="lb-seg lb-right"></div>
+          <div class="lb-seg lb-bottom"></div>
+          <div class="lb-seg lb-left"></div>
+          <div class="lb-seg lb-top"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div>
+          <div style="font-size: 13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center">Progress</div>
+          <div class="progress-dots" id="recallDots"></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="value" id="timer">10.0</div><div class="label">Time left (s)</div></div>
+          <div class="stat"><div class="value" id="attemptLabel">1 / 5</div><div class="label">Attempt</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ATTEMPT_END -->
+  <div id="phase-attempt-end" class="card hidden">
+    <h2 id="attemptResultTitle" style="font-size: 28px; margin-bottom: 12px;">Attempt complete</h2>
+    <p class="briefing">
+      Completed <strong id="attemptCompleted">0</strong> / <span id="attemptTotal">—</span> ·
+      attempt score <strong id="attemptScoreVal">0</strong>
+    </p>
+    <div class="result-row" style="margin-top: 20px;">
+      <button id="attemptTryAgain">Try again</button>
+      <button class="secondary" id="attemptFinish">Finish</button>
+    </div>
+  </div>
+
+  <!-- FINAL_RESULT -->
+  <div id="phase-final" class="card result hidden">
+    <h2 id="finalTitle">🔓 Vault unlocked!</h2>
+    <p style="color:var(--muted)"><span id="resTeamLabel">Team</span> <strong id="resTeam"></strong></p>
+    <div class="score" id="resScore">0</div>
+    <div id="saveStatus" class="save-status">SAVING…</div>
+    <div class="result-row" style="margin-top: 14px;">
+      <button id="finalPlayAgain">Restart game</button>
+      <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
+    </div>
+    <p style="font-size: 14px;color:var(--muted);margin-top:10px">Something went wrong? Restart requires the admin password.</p>
+  </div>
+</main>
+
+<script type="module">
+// mediapipe runtime is vendored (npm) and lazy-loaded only when the game
+// starts — Vite chunks the dynamic import below so the heavy bundle never
+// blocks initial page load. Bindings are filled by loadMp() before first use.
+let GestureRecognizer, FilesetResolver, DrawingUtils;
+let _mpPromise;
+function loadMp() {
+  if (!_mpPromise) _mpPromise = import('@mediapipe/tasks-vision').then((mod) => {
+    ({ GestureRecognizer, FilesetResolver, DrawingUtils } = mod);
+  });
+  return _mpPromise;
+}
+import {
+  GESTURE_POOL,
+  sequenceLengthForTeam,
+  SOLO_SEQUENCE_LEN,
+  pickSequenceWithRepeats,
+  scoreAttempt,
+  finalScore,
+} from '../shared/gesture-lock-logic.js';
+import {
+  TRACKER_CEILING,
+  CALIB_TOTAL_S,
+  CALIB_GRACE_S,
+  MIN_N,
+  pickCalibratedHandCount,
+} from '../shared/dino-logic.js';
+import { mountTopbar } from '../shared/topbar.js';
+import { resolveSession } from '../shared/lobby.js';
+import { requireAdmin } from '../shared/admin-gate.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getDatabase, ref, update, push, get } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { firebaseConfig } from '../firebase-config.js';
+import { submitScore, firebaseWriter } from '../shared/score-submit.js';
+import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
+
+const WASM_URL = `${import.meta.env.BASE_URL}mediapipe/wasm`;
+const GESTURE_MODEL_URL = `${import.meta.env.BASE_URL}mediapipe/models/gesture_recognizer.task`;
+
+mountTopbar({ activePage: 'games' });
+const _session = resolveSession();
+const session = _session;
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const writer = firebaseWriter({ db, ref, update, push });
+const catalogHref = session
+  ? `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`
+  : '../games.html';
+
+const GAME_CODE = 'GZ';
+const MAX_ATTEMPTS = 5;
+const MEMORIZE_FLASH_MS = 800;
+const COUNTDOWN_MS = 3000;
+const HOLD_MS = 500;
+// Wrong-gesture confirm uses the SAME duration as a correct lock so the
+// "hold to lock" bar fills identically whichever gesture you hold — its speed
+// no longer betrays right/wrong (the skeleton line color carries that).
+const WRONG_CONFIRM_MS = HOLD_MS;
+const POST_MATCH_SETTLE_MS = 600;
+const WRONG_CONFIDENCE = 0.65;
+const MATCH_CONFIDENCE = 0.45;
+// Hand-skeleton line color: neutral grey by default (and for wrong/unknown
+// gestures), green only while the correct target gesture is being held — so the
+// line itself signals "you're doing the right thing" without ever flashing
+// green on an incorrect hold.
+const LINE_CORRECT = '#00e676'; // --good
+const LINE_NEUTRAL = '#848486'; // --muted
+const GESTURE_TIME_S = 10;
+const CAM_COUNTDOWN_S = 3;
+// Hand visible but classifier can't name a gesture (or names it with very low
+// confidence) for this long → show the "lower your hand" hint.
+const UNKNOWN_HINT_MS = 1200;
+const UNKNOWN_CONF = 0.4;
+
+const PHASES = ['setup', 'loading', 'calibrate', 'intro', 'memorize', 'countdown', 'recall', 'attempt-end', 'final'];
+let activeCleanup = null;
+
+// Individuals (solo) mode: one player, no hand-count calibration (#43), fixed
+// 12-gesture sequence with no by-4 dividers (#39). Resolved from lobby meta at
+// boot. ?debug&individuals forces it for solo dev.
+let individuals = false;
+
+const state = {
+  teamId: null,
+  recognizer: null,
+  stream: null,
+  teamN: null,         // locked by calibrate phase on attempt 1
+  sequenceLen: null,   // derived from teamN; falls back at memorize-time
+  attemptIdx: 0,
+  sequence: [],
+  stepIdx: 0,
+  recallStartMs: 0,
+  stepStartMs: 0,
+  attempts: [],
+};
+
+// ?debug&team=N skips the calibrate phase and forces state.teamN /
+// sequenceLen at boot. Guarded by ?debug so a stray ?team= production URL
+// cannot suppress calibration. Useful for solo dev when one person cannot
+// supply >2 hands during the 5 s calibrate window.
+// Note: ?debug alone (no team=) → DEBUG_TEAM_N stays null → calibration
+// runs normally. Only ?debug&team=N short-circuits the calibrate phase.
+const DEBUG = new URLSearchParams(location.search).has('debug');
+const DEBUG_TEAM_N = DEBUG ? (() => {
+  const raw = new URLSearchParams(location.search).get('team');
+  if (raw === null) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < MIN_N || n > TRACKER_CEILING) return null;
+  return Math.floor(n);
+})() : null;
+if (DEBUG_TEAM_N !== null) {
+  state.teamN = DEBUG_TEAM_N;
+  state.sequenceLen = sequenceLengthForTeam(DEBUG_TEAM_N);
+}
+
+function $(id) { return document.getElementById(id); }
+
+// Drive the hold indicator: a neutral line tracing the camera border one side
+// at a time (right ↓, bottom ←, left ↑, top →). Each of the 4 segments owns a
+// 25% slice of pct; full loop = locked. pct 0..100.
+const lockSegs = document.querySelectorAll('#lockBorder .lb-seg');
+function setHoldProgress(pct) {
+  lockSegs.forEach((seg, i) => {
+    const local = Math.max(0, Math.min(100, ((pct - i * 25) / 25) * 100));
+    // Segs 0/2 (right, left) grow vertically; 1/3 (bottom, top) horizontally.
+    seg.style[i % 2 === 0 ? 'height' : 'width'] = local + '%';
+  });
+}
+
+// Progress dots with a "|" divider every 4 so a long sequence reads in groups.
+// Returns markup only; callers query `.dot` (not all children) so dividers
+// don't throw off step indexing.
+function dotsHtml(len) {
+  let html = '';
+  for (let i = 0; i < len; i++) {
+    html += '<div class="dot"></div>';
+    // Solo (#39): one player owns the whole sequence, so the by-4 grouping that
+    // helped a team split duties is just noise — drop the dividers.
+    if (!individuals && (i + 1) % 4 === 0 && i < len - 1) html += '<div class="dot-divider">|</div>';
+  }
+  return html;
+}
+
+function goto(phase) {
+  if (activeCleanup) { try { activeCleanup(); } catch {} activeCleanup = null; }
+  $('phase-boot').classList.add('hidden');
+  for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+  $(`phase-${phase}`).classList.remove('hidden');
+  $('briefing').classList.toggle('hidden', phase !== 'setup');
+  const entry = phaseEnter[phase];
+  if (entry) entry();
+}
+
+const phaseEnter = {};
+
+// ----- SETUP -----
+const startBtn = $('startBtn');
+startBtn.addEventListener('click', () => {
+  state.teamId = _session?.teamId ?? 0;
+  state.attempts = [];
+  state.attemptIdx = 0;
+  goto('loading');
+});
+
+// ----- LOADING -----
+phaseEnter.loading = async () => {
+  try {
+    if (!state.recognizer) {
+      await loadMp();
+      const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+      state.recognizer = await GestureRecognizer.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: GESTURE_MODEL_URL,
+          delegate: 'GPU',
+        },
+        runningMode: 'VIDEO',
+        numHands: TRACKER_CEILING,
+        minHandDetectionConfidence: 0.3,
+        minHandPresenceConfidence: 0.3,
+        minTrackingConfidence: 0.3,
+      });
+    }
+    if (!state.stream) {
+      state.stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: 1280, height: 720 },
+      });
+      const video = $('video');
+      video.srcObject = state.stream;
+      await video.play();
+      video.style.transform = 'scaleX(-1)';
+      $('overlay').style.transform = 'scaleX(-1)';
+      $('overlay').width = video.videoWidth;
+      $('overlay').height = video.videoHeight;
+    }
+  } catch (e) {
+    alert('Failed to start AI/camera: ' + (e.message || e));
+    goto('setup');
+    return;
+  }
+  // Individuals (#43): no team-size calibration. One player, fixed 12-gesture
+  // sequence, single-hand recognizer — skip straight to the intro. The
+  // recognizer opened above already uses numHands: TRACKER_CEILING which works
+  // fine for one hand.
+  if (individuals) {
+    state.teamN = 1;
+    state.sequenceLen = SOLO_SEQUENCE_LEN;
+    goto('intro');
+    return;
+  }
+  goto('calibrate');
+};
+
+// ----- ATTEMPT_INTRO -----
+phaseEnter.intro = () => {
+  $('introNum').textContent = state.attemptIdx + 1;
+  $('introStartBtn').onclick = () => goto('memorize');
+};
+
+phaseEnter.calibrate = () => {
+  // Runs once, right after Start game / loading. Attempts 2+ never re-enter
+  // calibrate (attempt-end → intro). The ?debug&team=N path sets state.teamN
+  // at boot, so calibrate is a no-op and jumps straight to the intro.
+  if (state.teamN !== null) {
+    state.sequenceLen ??= sequenceLengthForTeam(state.teamN);
+    goto('intro');
+    return;
+  }
+
+  // Visual preview only — calibVideo shows the player their framing during
+  // calibration. We do NOT feed it to MediaPipe because some browsers pause
+  // a second <video> element sharing the same MediaStream, leaving
+  // currentTime stuck at 0 and recognition stuck at zero hands.
+  const previewVideo = $('calibVideo');
+  previewVideo.srcObject = state.stream;
+  previewVideo.play().catch(e => console.warn('Gesture-lock calibration: preview play() failed', e));
+
+  // Detection reads from the original #video element opened in phaseEnter.
+  // loading — its srcObject was set, play() was awaited, and it has been
+  // decoding the camera stream continuously since. recognizeForVideo on it
+  // returns a fresh frame every tick.
+  const video = $('video');
+
+  // Closure-local per-phase state. g.startedMs is NOT paused on visibility
+  // change — see spec: tab-switch mid-calibrate is a low-probability case in
+  // a live offsite setting; worst case is early lock-in with samples already
+  // collected.
+  const g = {
+    startedMs: performance.now(),
+    samples: [],          // hands.length per frame, only after grace
+    liveBuf: [],          // last ~20 frames for smoothed banner count
+    liveMax: 0,
+    locking: false,       // re-entrancy guard while async lock-in is in flight
+    lastVideoTime: -1,    // dedupe frames so MediaPipe sees monotonic timestamps
+  };
+
+  let cancelled = false;
+  let rafId = null;
+
+  async function lockIn() {
+    g.locking = true;
+    // One hand per person, so the detected count IS the team size. Lock on
+    // the settled count from the final stretch (last ~30% of the window) so a
+    // late ramp-up (2 people up, then 10) locks 10, not the early majority.
+    const detected = pickCalibratedHandCount(g.samples, 0.3);
+
+    // Open a new single-hand recognizer BEFORE closing the multi-hand one.
+    // If construction throws, the old recognizer stays live and the team
+    // plays with the ceiling cap — slightly less efficient but functional.
+    let newRecognizer = null;
+    try {
+      await loadMp();
+      const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+      newRecognizer = await GestureRecognizer.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: GESTURE_MODEL_URL, delegate: 'GPU' },
+        runningMode: 'VIDEO',
+        numHands: 1,
+        minHandDetectionConfidence: 0.3,
+        minHandPresenceConfidence: 0.3,
+        minTrackingConfidence: 0.3,
+      });
+    } catch (e) {
+      console.warn('Gesture-lock calibration: recognizer recreate failed, keeping multi-hand recognizer', e);
+    }
+
+    // If the phase was cancelled during the await, abort cleanly.
+    if (cancelled) {
+      try { newRecognizer?.close(); } catch {}
+      g.locking = false;
+      return;
+    }
+
+    if (newRecognizer) {
+      try { state.recognizer.close(); } catch {}
+      state.recognizer = newRecognizer;
+    }
+
+    state.teamN = detected;
+    state.sequenceLen = sequenceLengthForTeam(detected);
+
+    console.info('Gesture-lock calibration: locked', {
+      teamN: state.teamN,
+      sequenceLen: state.sequenceLen,
+      samples: g.samples.length,
+      recreateOk: !!newRecognizer,
+    });
+
+    g.locking = false;
+    goto('intro');
+  }
+
+  function tick() {
+    if (cancelled) return;
+    const now = performance.now();
+    const elapsed = (now - g.startedMs) / 1000;
+
+    // MediaPipe's gesture recognizer returns one landmark array per detected
+    // hand. We use the length as the hand count.
+    // Guard against re-feeding the same video frame to the recognizer — this
+    // can happen when RAF fires faster than the camera delivers frames, and
+    // MediaPipe warns "timestamp must be monotonically increasing". Both
+    // calibSamples and liveBuf are pushed only on fresh frames so the
+    // 3-second sample window isn't inflated by RAF-vs-camera mismatch.
+    if (video.currentTime !== g.lastVideoTime) {
+      g.lastVideoTime = video.currentTime;
+      const result = state.recognizer.recognizeForVideo(video, now);
+      const handsNow = result.landmarks?.length ?? 0;
+
+      g.liveBuf.push(handsNow);
+      if (g.liveBuf.length > 20) g.liveBuf.shift();
+      g.liveMax = g.liveBuf.reduce((m, v) => v > m ? v : m, 0);
+
+      if (elapsed >= CALIB_GRACE_S && !g.locking) {
+        g.samples.push(handsNow);
+      }
+    }
+
+    // Update banner DOM each frame.
+    $('calibCount').textContent = String(g.liveMax);
+    $('calibTimer').textContent = String(Math.max(0, Math.ceil(CALIB_TOTAL_S - elapsed)));
+
+    if (elapsed >= CALIB_TOTAL_S && !g.locking) {
+      // Fire-and-forget. The RAF chain stops here; lockIn() resolves and
+      // calls goto('intro'). During the ~100ms recreate, the calibrate
+      // banner shows the last-rendered count + "0s" and stays static —
+      // acceptable since nothing else is in flight.
+      lockIn();
+      return;
+    }
+
+    rafId = requestAnimationFrame(tick);
+  }
+
+  rafId = requestAnimationFrame(tick);
+
+  // #36 — lock in early instead of waiting the full 20s; the 20s auto-lock in
+  // tick() stays as the fallback. Clicked before any post-grace samples → use
+  // the live buffer so the detected count reflects the current framing.
+  const confirmBtn = $('calibConfirmBtn');
+  const onConfirm = () => {
+    if (g.locking || cancelled) return;
+    if (rafId) cancelAnimationFrame(rafId);
+    if (!g.samples.length) g.samples = g.liveBuf.slice();
+    lockIn();
+  };
+  confirmBtn?.addEventListener('click', onConfirm);
+
+  activeCleanup = () => {
+    cancelled = true;
+    if (rafId) cancelAnimationFrame(rafId);
+    confirmBtn?.removeEventListener('click', onConfirm);
+  };
+};
+
+// ----- placeholders (filled in later tasks) -----
+phaseEnter.memorize = () => {
+  state.sequenceLen ??= sequenceLengthForTeam(state.teamN);
+  state.sequence = pickSequenceWithRepeats(GESTURE_POOL, state.sequenceLen);
+  state.stepIdx = 0;
+
+  const dotsEl = $('memorizeDots');
+  dotsEl.innerHTML = dotsHtml(state.sequence.length);
+  const dots = [...dotsEl.querySelectorAll('.dot')];
+
+  let i = 0;
+  let timer = null;
+  let cancelled = false;
+
+  function tick() {
+    if (cancelled) return;
+    if (i >= state.sequence.length) {
+      // Brief pause then advance
+      timer = setTimeout(() => { if (!cancelled) goto('countdown'); }, 400);
+      return;
+    }
+    const g = state.sequence[i];
+    $('flashEmoji').textContent = g.emoji;
+    $('flashName').textContent = g.name;
+    dots.forEach(d => d.classList.remove('flashing'));
+    dots[i].classList.add('flashing');
+    i++;
+    timer = setTimeout(tick, MEMORIZE_FLASH_MS);
+  }
+
+  tick();
+
+  activeCleanup = () => {
+    cancelled = true;
+    if (timer) clearTimeout(timer);
+  };
+};
+phaseEnter.countdown = () => {
+  let n = 3;
+  const el = $('countdownNum');
+  el.textContent = n;
+  let timer = setInterval(() => {
+    n--;
+    if (n <= 0) {
+      clearInterval(timer);
+      timer = null;
+      goto('recall');
+    } else {
+      el.textContent = n;
+    }
+  }, 1000);
+  activeCleanup = () => { if (timer) clearInterval(timer); };
+};
+phaseEnter.recall = () => {
+  state.stepIdx = 0;
+  state.recallStartMs = performance.now();
+  state.stepStartMs = state.recallStartMs;
+
+  // Reset overlays a failed prior attempt may have left visible (wrong gesture
+  // during the final countdown, or timeout while the hand was unreadable).
+  $('unknownHint').classList.add('hidden');
+  $('camCountdown').classList.add('hidden');
+  $('camCountdown').classList.remove('pop');
+
+  // Render empty dots
+  const dotsEl = $('recallDots');
+  dotsEl.innerHTML = dotsHtml(state.sequence.length);
+  const dots = [...dotsEl.querySelectorAll('.dot')];
+
+  $('attemptLabel').textContent = `${state.attemptIdx + 1} / ${MAX_ATTEMPTS}`;
+  setHoldProgress(0);
+  $('currentGesture').textContent = '—';
+  $('timer').textContent = GESTURE_TIME_S.toFixed(1);
+  $('timer').style.color = '';
+  updateStepBadge();
+
+  let rafId = null;
+  let cancelled = false;
+  let lastVideoTime = -1;
+  let holdStart = 0;
+  let lastGesture = null;
+  let lastMatchMs = 0;
+  let wrongStart = 0;
+  let wrongName = null;
+  let lastCamCount = -1;
+  let unknownStart = 0;
+  let hiddenAt = 0;
+  let skeletonColor = LINE_NEUTRAL; // updated each frame by handleGesture
+
+  // Pause the recall/per-gesture clocks while the tab is hidden so a tab switch
+  // doesn't burn the 10 s timer or inflate the elapsed time. Registered on entry
+  // and torn down in activeCleanup, so it only runs during recall (mirrors
+  // dino/flappy's per-play-phase onVis).
+  const onVis = () => {
+    if (document.hidden) {
+      hiddenAt = performance.now();
+    } else if (hiddenAt) {
+      const paused = performance.now() - hiddenAt;
+      state.recallStartMs += paused;
+      state.stepStartMs += paused;
+      hiddenAt = 0;
+    }
+  };
+  document.addEventListener('visibilitychange', onVis);
+
+  function updateStepBadge() {
+    $('stepBadge').textContent = `${Math.min(state.stepIdx + 1, state.sequenceLen)} / ${state.sequenceLen}`;
+    flashCam(individuals ? '👉 Next gesture' : '👥 Next gesture — your team decides who');
+  }
+
+  function flashCam(text) {
+    const el = $('camFlash');
+    el.textContent = text;
+    el.classList.remove('show');
+    void el.offsetWidth; // reflow -> restart animation
+    el.classList.add('show');
+  }
+
+  function pulseVideo(cls) {
+    const el = $('videoWrap');
+    el.classList.remove('match-pulse', 'wrong-flash');
+    void el.offsetWidth; // reflow -> restart animation
+    el.classList.add(cls);
+  }
+
+  function endAttempt(result) {
+    if (cancelled) return;
+    cancelled = true;
+    if (rafId) cancelAnimationFrame(rafId);
+    const timeSec = (performance.now() - state.recallStartMs) / 1000;
+    const completed = state.stepIdx;
+    const score = scoreAttempt({ result, completed, timeSec, sequenceLen: state.sequenceLen });
+    state.attempts.push({ result, completed, timeSec, score });
+    goto('attempt-end');
+  }
+
+  function drawLandmarks(result) {
+    const canvas = $('overlay');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!result.landmarks) return;
+    const du = new DrawingUtils(ctx);
+    for (const lm of result.landmarks) {
+      du.drawConnectors(lm, GestureRecognizer.HAND_CONNECTIONS, { color: skeletonColor, lineWidth: 3 });
+      du.drawLandmarks(lm, { color: '#657BC7', lineWidth: 1, radius: 3 });
+    }
+  }
+
+  function handleGesture(result) {
+    const g = (result.gestures && result.gestures[0] && result.gestures[0][0]) || null;
+    const name = g ? g.categoryName : 'None';
+    const conf = g ? g.score : 0;
+    $('currentGesture').textContent = name === 'None' ? '—' : `${name} (${(conf*100).toFixed(0)}%)`;
+
+    if (state.stepIdx >= state.sequence.length) return;
+    const now = performance.now();
+
+    // Unknown-gesture hint: a hand is in frame but the classifier can't name it
+    // (or only with low confidence). Sustained → nudge the player to reset.
+    const handsPresent = (result.landmarks?.length ?? 0) > 0;
+    const recognized = name !== 'None' && conf >= UNKNOWN_CONF;
+    if (handsPresent && !recognized) {
+      if (!unknownStart) unknownStart = now;
+      else if (now - unknownStart >= UNKNOWN_HINT_MS) $('unknownHint').classList.remove('hidden');
+    } else {
+      unknownStart = 0;
+      $('unknownHint').classList.add('hidden');
+    }
+
+    // Settle window after a correct match
+    if (now - lastMatchMs < POST_MATCH_SETTLE_MS) {
+      setHoldProgress(0);
+      skeletonColor = LINE_NEUTRAL;
+      return;
+    }
+
+    const target = state.sequence[state.stepIdx].id;
+
+    if (name === target && conf > MATCH_CONFIDENCE) {
+      skeletonColor = LINE_CORRECT;
+      if (lastGesture !== target) holdStart = now;
+      lastGesture = target;
+      const held = now - holdStart;
+      setHoldProgress(Math.min(100, (held / HOLD_MS) * 100));
+      if (held >= HOLD_MS) {
+        // Advance
+        dots[state.stepIdx].classList.add('done');
+        state.stepIdx++;
+        state.stepStartMs = now;
+        lastMatchMs = now;
+        holdStart = 0;
+        lastGesture = null;
+        wrongStart = 0;
+        wrongName = null;
+        lastCamCount = -1;
+        unknownStart = 0;
+        $('unknownHint').classList.add('hidden');
+        $('camCountdown').classList.add('hidden');
+        setHoldProgress(0);
+        pulseVideo('match-pulse');
+        if (state.stepIdx >= state.sequence.length) {
+          endAttempt('success');
+          return;
+        }
+        updateStepBadge();
+      }
+    } else {
+      // Not the correct gesture → line stays neutral grey (covers wrong,
+      // unknown and idle), never green.
+      skeletonColor = LINE_NEUTRAL;
+      // Wrong-gesture detection
+      if (name !== 'None' && name !== target && conf > WRONG_CONFIDENCE) {
+        if (wrongName !== name) {
+          wrongName = name;
+          wrongStart = now;
+        }
+        // Fill the same bar, same color and same duration as a correct hold so
+        // the player sees the gesture IS being read; the bar never betrays
+        // right vs wrong (the skeleton line color does that).
+        const held = now - wrongStart;
+        setHoldProgress(Math.min(100, (held / WRONG_CONFIRM_MS) * 100));
+        if (held >= WRONG_CONFIRM_MS) {
+          pulseVideo('wrong-flash');
+          endAttempt('fail');
+          return;
+        }
+      } else {
+        wrongStart = 0;
+        wrongName = null;
+        setHoldProgress(0);
+      }
+      lastGesture = name;
+    }
+  }
+
+  function loop() {
+    if (cancelled) return;
+    const now = performance.now();
+
+    const video = $('video');
+    if (video.currentTime !== lastVideoTime) {
+      lastVideoTime = video.currentTime;
+      const result = state.recognizer.recognizeForVideo(video, now);
+      drawLandmarks(result);
+      handleGesture(result);
+    }
+    if (cancelled) return; // detection may have ended the attempt
+
+    // Per-gesture 10 s timer — recomputed after detection (may have reset stepStartMs)
+    const remaining = GESTURE_TIME_S - (performance.now() - state.stepStartMs) / 1000;
+    $('timer').textContent = Math.max(0, remaining).toFixed(1);
+    $('timer').style.color = remaining <= CAM_COUNTDOWN_S ? '#ff4d6d' : '';
+
+    // Big cam overlay shows only the final CAM_COUNTDOWN_S seconds
+    const cam = $('camCountdown');
+    if (remaining > 0 && remaining <= CAM_COUNTDOWN_S) {
+      const secs = Math.ceil(remaining);
+      if (secs !== lastCamCount) {
+        cam.textContent = secs;
+        cam.classList.remove('hidden');
+        cam.classList.remove('pop'); void cam.offsetWidth; cam.classList.add('pop');
+        lastCamCount = secs;
+      }
+    } else if (lastCamCount !== -1) {
+      cam.classList.add('hidden');
+      cam.classList.remove('pop');
+      lastCamCount = -1;
+    }
+
+    if (remaining <= 0) {
+      endAttempt('timeout');
+      return;
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+
+  rafId = requestAnimationFrame(loop);
+
+  activeCleanup = () => {
+    cancelled = true;
+    if (rafId) cancelAnimationFrame(rafId);
+    document.removeEventListener('visibilitychange', onVis);
+  };
+};
+phaseEnter['attempt-end'] = () => {
+  const last = state.attempts[state.attempts.length - 1];
+  const titles = {
+    success: '🔓 Sequence cleared!',
+    fail: '❌ Wrong gesture',
+    timeout: '⏱ Out of time',
+  };
+  $('attemptResultTitle').textContent = titles[last.result] || 'Attempt complete';
+  $('attemptCompleted').textContent = last.completed;
+  $('attemptTotal').textContent = String(state.sequenceLen);
+  $('attemptScoreVal').textContent = last.score;
+
+  const attemptsLeft = MAX_ATTEMPTS - state.attempts.length;
+  const tryAgain = $('attemptTryAgain');
+  const finish = $('attemptFinish');
+
+  tryAgain.classList.toggle('hidden', attemptsLeft <= 0);
+  tryAgain.onclick = () => {
+    state.attemptIdx++;
+    goto('intro');
+  };
+  finish.onclick = () => goto('final');
+};
+
+phaseEnter.final = () => {
+  // Tear down camera
+  if (state.stream) {
+    state.stream.getTracks().forEach(t => t.stop());
+    state.stream = null;
+  }
+  const score = finalScore(state.attempts);
+  const anySuccess = state.attempts.some(a => a.result === 'success');
+  $('finalTitle').textContent = anySuccess ? '🔓 Vault unlocked!' : '🔒 Vault still locked';
+  $('resTeam').textContent = state.teamId;
+  $('resScore').textContent = score;
+  const status = $('saveStatus');
+  const link = $('finalReturnLink');
+  link.href = catalogHref;
+  status.className = 'save-status';
+  status.textContent = 'SAVING…';
+  const attempt = async () => {
+    if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId: state.teamId, gameKey: GAME_CODE })) {
+      const err = new Error('locked'); err.locked = true; throw err;
+    }
+    return submitScore({
+      writer, lobbyId: session.lobbyId, teamId: state.teamId, gameKey: GAME_CODE, score,
+    });
+  };
+  attempt().then(() => {
+    status.className = 'save-status ok';
+    status.textContent = 'SAVED ✓';
+  }).catch(e => {
+    if (e.locked) {
+      status.className = 'save-status bad';
+      status.textContent = 'LOCKED — score not saved';
+      status.onclick = null;
+      return;
+    }
+    console.error('submit failed', e);
+    status.className = 'save-status bad';
+    status.textContent = 'FAILED — TAP TO RETRY';
+    status.onclick = () => phaseEnter.final();
+  });
+  wireRestart();
+};
+
+function wireRestart() {
+  $('finalPlayAgain').onclick = async () => {
+    if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:', force: true })) return;
+    // Tear down the camera/recognizer so the next loading phase reopens fresh
+    // at TRACKER_CEILING and calibration re-runs. Defensive — phaseEnter.final
+    // already does the same teardown, but wireRestart is also wired from
+    // enterAlreadyPlayed where final didn't run.
+    if (state.stream) { state.stream.getTracks().forEach(t => t.stop()); state.stream = null; }
+    if (state.recognizer) { try { state.recognizer.close(); } catch {} state.recognizer = null; }
+    state.teamN = null;
+    state.sequenceLen = null;
+    state.attempts = [];
+    state.attemptIdx = 0;
+    state.sequence = [];
+    state.stepIdx = 0;
+    goto('setup');
+  };
+}
+
+// Already-played view: show saved score + admin-gated restart, without re-submitting.
+function enterAlreadyPlayed(existing) {
+  state.teamId = _session?.teamId ?? 0;
+  $('phase-boot').classList.add('hidden');
+  for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+  $('phase-final').classList.remove('hidden');
+  $('briefing').classList.add('hidden');
+  $('finalTitle').textContent = '✅ Already completed';
+  $('resTeam').textContent = state.teamId;
+  $('resScore').textContent = existing;
+  const status = $('saveStatus');
+  status.className = 'save-status ok';
+  status.textContent = 'SAVED ✓';
+  status.onclick = null;
+  $('finalReturnLink').href = catalogHref;
+  wireRestart();
+}
+
+// Bootstrap
+function applyIndividualsCopy() {
+  if (!individuals) return;
+  const lbl = document.getElementById('resTeamLabel');
+  if (lbl) lbl.textContent = 'Player';
+  $('briefIntro').innerHTML =
+    "The camera verifies a gesture sequence like a living password. Watch it once, then repeat it back from memory — one wrong move and you're locked out.<br><br>" +
+    "<strong>Goal:</strong> Watch a 12-gesture sequence flash by once, then repeat it back from memory. <strong>Step up close so your hand fills the frame</strong>, and keep your other hand down so the camera doesn't catch a stray gesture. Each gesture has a <strong>10 s timer</strong> — run out and the attempt fails. Go in order. <strong>5 attempts</strong>, best score counts; the faster you finish, the higher the score.";
+}
+
+async function boot() {
+  const teamId = _session?.teamId ?? 0;
+  if (session?.lobbyId) {
+    try {
+      const modeSnap = await get(ref(db, `lobbies/${session.lobbyId}/meta/mode`));
+      individuals = modeSnap.exists() && modeSnap.val() === 'individuals';
+    } catch (e) { console.error('mode read failed', e); }
+  }
+  if (DEBUG && new URLSearchParams(location.search).has('individuals')) individuals = true;
+  applyIndividualsCopy();
+  if (session?.lobbyId) {
+    try {
+      const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${teamId}/${GAME_CODE}`));
+      if (snap.exists()) { enterAlreadyPlayed(snap.val()); return; }
+    } catch (e) { console.error('score check failed', e); }
+    if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId, gameKey: GAME_CODE })) {
+      renderLockedScreen(catalogHref);
+      return;
+    }
+  }
+  goto('setup');
+}
+for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+$('gesturePool').innerHTML = GESTURE_POOL.map(g => `<span title="${g.name}">${g.emoji}</span>`).join('');
+boot();
+</script>
+</body>
+</html>

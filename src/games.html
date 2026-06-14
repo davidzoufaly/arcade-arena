@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arcade Arena — Games</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script>(function(){try{var t=localStorage.getItem('ps-theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="stylesheet" href="shared/topbar.css">
+<link rel="stylesheet" href="shared/modal.css">
+<style>
+  :root {
+    --bg: #09090C; --bg-2: #18181B; --card: #222224;
+    --text: #FFFFFF; --muted: #848486;
+    --accent: #DAFE85; --accent-2: #657BC7; --good: #00e676;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 50% 0%, var(--bg-2) 0%, var(--bg) 60%);
+    color: var(--text); min-height: 100vh;
+  }
+  main { max-width: 1100px; margin: 0 auto; padding: 40px; }
+  h1 {
+    font-size: 36px; font-weight: 900; letter-spacing: -1px; margin-bottom: 8px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .subtitle { color: var(--muted); font-size: 17px; margin-bottom: 32px; }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-auto-rows: 1fr;   /* equal-height rows so a timed tile's extra line doesn't make it taller */
+    gap: 14px;
+  }
+  .tile {
+    background: var(--card); border-radius: 14px; padding: 18px;
+    border: 1px solid var(--border);
+    color: var(--text); text-decoration: none;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: all 0.15s; position: relative; overflow: hidden;
+    min-height: 130px;
+  }
+  .tile.play   { border-color: rgba(218,254,133,0.35); }
+  .tile.manual { border-color: rgba(101,123,199,0.30); }
+  .tile.quiz   { border-color: rgba(101,123,199,0.40); }
+  .tile.soon   { opacity: 0.4; pointer-events: none; border-style: dashed; }
+  .tile.locked { opacity: 0.5; pointer-events: none; border-style: dashed; border-color: rgba(255,77,109,0.4); }
+  .tile.locked .tile-tag { background: rgba(255,77,109,0.12); color: #ff4d6d; }
+  .tile .timer-line {           /* in-flow pill — never overlaps the emoji or the ✓, shows even after submit */
+    align-self: flex-start;
+    font-size: 12px; font-weight: 800; color: var(--accent);
+    background: rgba(218,254,133,0.12); padding: 2px 8px; border-radius: 999px;
+  }
+  .tile.timed { cursor: pointer; }
+
+  .tw-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 26px; width: min(440px, 92vw); text-align: center;
+    color: var(--text); margin: auto;   /* center: the global `* { margin: 0 }` reset kills the UA dialog centering */
+  }
+  .tw-box::backdrop { background: rgba(0,0,0,0.6); }
+  .tw-box h2 { font-size: 20px; margin-bottom: 12px; }
+  .tw-box p { color: var(--muted); line-height: 1.6; margin-bottom: 20px; font-size: 15px; }
+  .tw-box strong { color: var(--text); }
+  .tw-actions { display: flex; gap: 10px; justify-content: center; }
+  .tw-actions button {
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    padding: 12px 18px; border-radius: 10px; font-size: 16px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+  .tw-actions button.go { background: linear-gradient(135deg, var(--accent), #657BC7); border: none; color: var(--btn-on-accent); }
+  .tile:not(.soon):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  }
+  .tile-emoji { font-size: 28px; }
+  .icon-wrap { position: relative; }
+  .tile-icon { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 14px; display: block; transition: opacity 0.15s; }
+  /* submitted tiles: dim art, green ring, corner badge — readable over any image */
+  .tile.done { border-color: var(--good); box-shadow: 0 0 0 1px var(--good) inset; }
+  .tile.done .tile-icon { opacity: 0.45; }
+  .tile.done .icon-wrap:has(.tile-icon)::after {
+    content: ""; position: absolute; inset: 0; border-radius: 14px;
+    background: radial-gradient(circle at 50% 45%, rgba(0,230,118,0.18), transparent 70%);
+    pointer-events: none;
+  }
+  .tile h3 { font-size: 17px; font-weight: 800; }
+  .tile-tag {
+    align-self: flex-start; margin-top: auto;
+    font-size: 12px; font-weight: 700; padding: 3px 8px;
+    border-radius: 999px; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .tile.play   .tile-tag { background: rgba(218,254,133,0.12); color: var(--accent); }
+  .tile.manual .tile-tag { background: rgba(101,123,199,0.12); color: var(--accent-2); }
+  .tile.quiz   .tile-tag { background: rgba(101,123,199,0.14); color: #657BC7; }
+  .tile.soon   .tile-tag { background: rgba(255,255,255,0.08); color: var(--muted); }
+  .tile .check {
+    position: absolute; top: 10px; right: 10px;
+    width: 30px; height: 30px; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--good); color: #06210f; font-size: 17px; font-weight: 900;
+    border: 2px solid var(--card);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.55), 0 0 14px rgba(0,230,118,0.55);
+  }
+  .tile .score-line {
+    font-size: 13px; color: var(--muted);
+  }
+  .tile .score-line strong { color: var(--good); }
+  .admin-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .admin-section-label {
+    font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--muted); margin: 14px 0 2px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .admin-section-label:first-child { margin-top: 0; }
+  .admin-row {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+  }
+  .admin-row .ar-emoji { font-size: 24px; width: 32px; text-align: center; }
+  .admin-row .ar-name { font-weight: 800; flex: 1; }
+  .admin-row .ar-kind { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .admin-row .ar-actions { display: flex; gap: 6px; }
+  .admin-row .ar-actions button {
+    background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 6px 9px; font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+  /* Selected/active action: filled accent so it clearly reads as "on". */
+  .admin-row .ar-actions button.on { background: var(--accent); border-color: var(--accent); color: var(--btn-on-accent); font-weight: 800; }
+  .admin-newgame { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: grid; gap: 10px; width: 100%; }
+  .admin-newgame h2 { font-size: 18px; }
+  /* name | emoji | timer on one row, rules full-width below */
+  .admin-newgame .ng-fields { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; }
+  @media (max-width: 560px) { .admin-newgame .ng-fields { grid-template-columns: 1fr; } }
+  .admin-newgame input, .admin-newgame textarea {
+    background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 15px; width: 100%;
+  }
+  .admin-newgame textarea { resize: none; }
+  #ngCreate, #adminGateBtn {
+    justify-self: start; margin-top: 4px;
+    background: linear-gradient(135deg, var(--accent), #657BC7); border: none; color: var(--btn-on-accent);
+    border-radius: 10px; padding: 12px 28px; font-size: 16px; font-weight: 800;
+    cursor: pointer; font-family: inherit; transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
+  }
+  #ngCreate:hover, #adminGateBtn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(101,123,199,0.35); filter: brightness(1.05); }
+  #ngCreate:active, #adminGateBtn:active { transform: translateY(0); }
+  .admin-perteam {
+    margin: -4px 0 4px; padding: 12px 14px;
+    background: var(--bg-2); border: 1px solid var(--border); border-radius: 0 0 12px 12px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .admin-perteam .apt-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .admin-perteam .apt-row .apt-name { flex: 1; color: var(--text); font-weight: 600; }
+  .admin-perteam .apt-row button {
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 5px 9px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .admin-perteam .apt-row button:hover { border-color: var(--accent); }
+  /* Buffered-edit header: Cancel/Save appear top-right only while there are
+     unsaved changes, mirroring the quiz-admin page-head pattern. */
+  .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .head-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+  .head-actions button {
+    white-space: nowrap; font-family: inherit; font-weight: 800; font-size: 15px;
+    padding: 10px 18px; border-radius: 10px; cursor: pointer;
+  }
+  .head-actions .primary { background: linear-gradient(135deg, var(--accent), #657BC7); border: none; color: var(--btn-on-accent); }
+  .head-actions .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .head-actions .btn-ghost:hover { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <section id="team-view">
+    <h1>Games</h1>
+    <div class="subtitle" id="subtitle">Loading…</div>
+    <div class="grid" id="grid"></div>
+  </section>
+  <section id="admin-games" hidden>
+    <div class="page-head">
+      <h1>Manage games</h1>
+      <div class="head-actions" id="adminHeadActions"></div>
+    </div>
+    <p class="subtitle" id="adminSub">Add games to the lobby, lock them, set rules &amp; timers, or create your own.</p>
+    <div id="adminList" class="admin-list"></div>
+    <div class="admin-newgame">
+      <h2>Create a manual entry game</h2>
+      <div class="ng-fields">
+        <input id="ngName" type="text" maxlength="40" placeholder="Game name">
+        <input id="ngEmoji" type="text" maxlength="8" placeholder="Icon (emoji)">
+        <input id="ngTimer" type="number" min="0" placeholder="Time limit (min)">
+      </div>
+      <textarea id="ngRules" rows="3" placeholder="Rules (optional)"></textarea>
+      <button id="ngCreate">＋ Create manual entry game</button>
+      <div id="ngErr" class="lobby-banner err" hidden></div>
+    </div>
+  </section>
+
+  <section id="admin-gate" hidden>
+    <h1>Admins only</h1>
+    <p class="subtitle">Enter the host password to manage games.</p>
+    <button id="adminGateBtn">Enter password</button>
+  </section>
+</main>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getDatabase, ref, onValue, get, set } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { firebaseConfig } from './firebase-config.js';
+import { resolveSession, isAdminSession, participantNoun } from './shared/lobby.js';
+import { requireAdmin } from './shared/admin-gate.js';
+import { mountTopbar } from './shared/topbar.js';
+import { GAMES } from './shared/games-catalog.js';
+import { resolveCatalog, nextCustomKey, makeCustomGame, validateCustomGame } from './shared/lobby-games.js';
+import { resolveTimer, resolveRule, setGameOverride, setCellOverride } from './shared/game-config.js';
+import { resolveLock, setCell, toggleGame, resolveGameLock } from './shared/game-lock.js';
+import { allCategoriesSubmitted } from './shared/quiz.js';
+import { openModal } from './shared/modal.js';
+
+if (!firebaseConfig?.databaseURL || firebaseConfig.databaseURL.includes('REPLACE_ME')) {
+  document.body.innerHTML = '<div style="max-width:640px;margin:80px auto;padding:32px;background:var(--card);border-radius:16px;color:var(--text);font-family:system-ui">Firebase config missing. See SETUP.md.</div>';
+  throw new Error('firebase config not filled in');
+}
+
+const session = resolveSession();
+if (!session) {
+  location.replace('index.html');
+  throw new Error('no session');
+}
+mountTopbar({ activePage: 'games' });
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+if (isAdminSession(session)) {
+  document.getElementById('team-view').hidden = true;
+  // The admin session flag is user-forgeable and every action here writes to the
+  // DB (locks, timers, rules, custom games). Verify the host password first.
+  (async () => {
+    if (await requireAdmin(session.lobbyId)) {
+      mountAdminGames(db, session.lobbyId);
+      return;
+    }
+    // Modal dismissed without a valid password. Show a gate with a retry button
+    // that re-opens the same modal — no "back to lobby" link, which only bounced
+    // back here (index.html redirects an admin session straight to games).
+    const gate = document.getElementById('admin-gate');
+    gate.hidden = false;
+    document.getElementById('adminGateBtn').onclick = async () => {
+      if (await requireAdmin(session.lobbyId)) {
+        gate.hidden = true;
+        mountAdminGames(db, session.lobbyId);
+      }
+    };
+  })();
+} else {
+  document.getElementById('admin-games').hidden = true;
+  mountTeamGrid(db, session);
+}
+
+function mountTeamGrid(db, session) {
+const grid = document.getElementById('grid');
+const subtitle = document.getElementById('subtitle');
+
+let currentScores = null;
+let currentLocks = null;
+let currentTimers = null;
+let currentStarts = null;     // timerStarts/{key}/{teamId} — set once a timed game is entered
+let currentQuizCats = null;   // quiz/categories
+let currentQuizSubs = null;   // quiz/submissions/{teamId} for THIS team
+let currentGamesNode = null;
+
+// A game is "submitted" by this team. For Pub Quiz the score is published by the
+// host after grading, so a finished-but-ungraded quiz has no score yet — treat
+// all-categories-submitted as submitted instead of waiting on the PQ score key.
+function isGameSubmitted(key, g) {
+  if (g.kind === 'soon') return false;
+  if (g.kind === 'quiz') return allCategoriesSubmitted(currentQuizCats, currentQuizSubs);
+  return currentScores?.[key] !== undefined;
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function tileHref(key, g) {
+  const q = `?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
+  if (g.kind === 'play')   return `${g.href}${q}`;
+  if (g.kind === 'manual') return `games/manual.html?key=${key}&lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
+  if (g.kind === 'quiz')   return `games/quiz.html${q}`;
+  return null;
+}
+
+function render() {
+  const scoresForTeam = currentScores;
+  const effective = resolveCatalog(GAMES, currentGamesNode);
+  const shown = effective.filter(g => g.added);
+  const html = shown.map(g => {
+    const key = g.key;
+    const lockedTile = g.kind !== 'soon' && resolveLock(currentLocks, key, session.teamId) === 'locked';
+    const href = lockedTile ? null : tileHref(key, g);
+    const baseTag = g.kind === 'play' ? 'Playable' : g.kind === 'manual' ? 'Manual entry' : g.kind === 'quiz' ? 'Quiz' : 'Coming soon';
+    const tag = lockedTile ? 'Locked' : baseTag;
+    const score = scoresForTeam?.[key];
+    const submitted = isGameSubmitted(key, g);
+    const tick = submitted ? '<div class="check" title="Completed">✓</div>' : '';
+    const scoreLine = score !== undefined
+      ? `<div class="score-line">Score: <strong>${esc(String(score))}</strong></div>`
+      : (submitted ? `<div class="score-line">Awaiting host scoring…</div>` : '');
+    const mins = (g.kind === 'manual') ? resolveTimer(currentTimers, key, session.teamId) : undefined;
+    const hasTimer = mins !== undefined;
+    // Countdown is stamped at first entry (manual.html) and is refresh-proof, so re-entry
+    // never restarts it. Once started, link straight in — re-warning would falsely claim the
+    // timer "starts now".
+    const started = currentStarts?.[key]?.[session.teamId] !== undefined;
+    // Intercept ENTRY with a warning only for a fresh, unlocked, unsubmitted, not-yet-started timed game.
+    // The minute info itself shows whenever a timer is set (incl. after submit / when locked).
+    const timed = hasTimer && !lockedTile && score === undefined && !started;
+    const timerInfo = hasTimer ? `<div class="timer-line" title="Time limit">⏱ ${mins} min limit</div>` : '';
+    const tag2 = `<span class="tile-tag">${tag}</span>`;
+    const tileCls = `${lockedTile ? `${g.kind} locked` : g.kind}${submitted ? ' done' : ''}`;
+    const isDiv = g.kind === 'soon' || lockedTile || timed;
+    const open = isDiv ? '<div' : '<a';
+    const close = isDiv ? '</div>' : '</a>';
+    // timed tiles carry the destination in data-href; a click handler shows the warning dialog.
+    const hrefAttr = timed ? ` data-href="${href}" data-name="${esc(g.name)}" data-mins="${mins}"` : (href ? ` href="${href}"` : '');
+    const tileCls2 = timed ? `${tileCls} timed` : tileCls;
+    return `${open} class="tile ${tileCls2}"${hrefAttr}>
+      <div class="icon-wrap">
+        ${g.icon ? `<img class="tile-icon" src="${g.icon}" alt="${esc(g.name)}" loading="lazy">` : `<div class="tile-emoji">${g.emoji}</div>`}
+        ${tick}
+      </div>
+      <h3>${esc(g.name)}</h3>
+      ${scoreLine}
+      ${timerInfo}
+      ${tag2}
+    ${close}`;
+  }).join('');
+  grid.innerHTML = html;
+  for (const el of grid.querySelectorAll('.tile.timed')) {
+    el.addEventListener('click', () => openTimeWarning(el.dataset.href, el.dataset.name, el.dataset.mins));
+  }
+
+  const submitted = shown.filter(g => isGameSubmitted(g.key, g)).length;
+  const total = shown.length;
+  subtitle.textContent = `${submitted}/${total} games completed`;
+}
+
+function openTimeWarning(href, name, mins) {
+  const dialog = document.createElement('dialog');
+  dialog.className = 'tw-box';
+  dialog.innerHTML = `
+    <h2>⏱ ${esc(name)} has a ${esc(mins)}-minute limit</h2>
+    <p>Entering starts your countdown <strong>now</strong>. You must complete your score before it reaches 0, or you'll be recorded a <strong>0</strong>.</p>
+    <div class="tw-actions">
+      <button type="button" id="twCancel">Cancel</button>
+      <button type="button" class="go" id="twGo">Enter game</button>
+    </div>`;
+  document.body.appendChild(dialog);
+  dialog.addEventListener('close', () => dialog.remove());
+  dialog.querySelector('#twCancel').addEventListener('click', () => dialog.close());
+  dialog.querySelector('#twGo').addEventListener('click', () => { location.href = href; });
+  dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); }); // backdrop click cancels
+  dialog.showModal();
+}
+
+onValue(ref(db, `lobbies/${session.lobbyId}/scores/${session.teamId}`), snap => {
+  currentScores = snap.exists() ? snap.val() : null;
+  render();
+});
+
+onValue(ref(db, `lobbies/${session.lobbyId}/locks`), snap => {
+  currentLocks = snap.exists() ? snap.val() : null;
+  render();
+});
+
+onValue(ref(db, `lobbies/${session.lobbyId}/timers`), snap => {
+  currentTimers = snap.exists() ? snap.val() : null;
+  render();
+});
+
+onValue(ref(db, `lobbies/${session.lobbyId}/timerStarts`), snap => {
+  currentStarts = snap.exists() ? snap.val() : null;
+  render();
+});
+
+onValue(ref(db, `lobbies/${session.lobbyId}/quiz/categories`), snap => {
+  currentQuizCats = snap.exists() ? snap.val() : null;
+  render();
+});
+
+onValue(ref(db, `lobbies/${session.lobbyId}/quiz/submissions/${session.teamId}`), snap => {
+  currentQuizSubs = snap.exists() ? snap.val() : null;
+  render();
+});
+
+onValue(ref(db, `lobbies/${session.lobbyId}/games`), snap => {
+  currentGamesNode = snap.exists() ? snap.val() : null;
+  render();
+});
+}
+
+function mountAdminGames(db, lobbyId) {
+  const section = document.getElementById('admin-games');
+  section.hidden = false;
+  const listEl = document.getElementById('adminList');
+
+  let gamesNode = null, locks = null, timers = null, rules = null, teams = [], mode = 'teams';
+  const noun = () => participantNoun(mode);
+
+  // Buffered edits (quiz-admin parity): config changes accumulate in `draft` and
+  // only hit Firebase on Save; Cancel discards them. While dirty the view reads
+  // the draft so incoming onValue writes don't clobber an in-progress edit. The
+  // live vars keep updating regardless, so a clean view stays live.
+  let draft = null;   // { games, locks, timers, rules } or null when clean
+  const clone = v => v ? JSON.parse(JSON.stringify(v)) : null;
+  const srcGames  = () => draft ? draft.games  : gamesNode;
+  const srcLocks  = () => draft ? draft.locks  : locks;
+  const srcTimers = () => draft ? draft.timers : timers;
+  const srcRules  = () => draft ? draft.rules  : rules;
+
+  // Canonical *effective* state signature: resolved added/lock/timer/rule per
+  // game (+ per team). Used for dirty detection so a no-net-change edit (e.g.
+  // lock then unlock) compares equal even though the raw nodes differ (an
+  // explicit "unlocked" is structurally distinct from an absent key).
+  function effectiveSig(games, locks, timers, rules) {
+    const teamIds = teams.map(t => t.id).sort((a, b) => a - b);
+    return JSON.stringify(resolveCatalog(GAMES, games)
+      .slice().sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
+      .map(g => [
+        g.key, !!g.added,
+        resolveGameLock(locks, g.key),
+        resolveTimer(timers, g.key) ?? null,
+        resolveRule(rules, g.key, undefined, ''),
+        teamIds.map(id => [
+          resolveLock(locks, g.key, id),
+          resolveTimer(timers, g.key, id) ?? null,
+          resolveRule(rules, g.key, id, ''),
+        ]),
+      ]));
+  }
+
+  function isDirty() {
+    return !!draft && effectiveSig(draft.games, draft.locks, draft.timers, draft.rules)
+      !== effectiveSig(gamesNode, locks, timers, rules);
+  }
+
+  const path = p => `lobbies/${lobbyId}/${p}`;
+  onValue(ref(db, path('games')),  s => { gamesNode = s.val() || null; render(); });
+  onValue(ref(db, path('locks')),  s => { locks = s.val() || null; render(); });
+  onValue(ref(db, path('timers')), s => { timers = s.val() || null; render(); });
+  onValue(ref(db, path('rules')),  s => { rules = s.val() || null; render(); });
+  onValue(ref(db, path('teams')),  s => { teams = s.exists() ? Object.values(s.val()) : []; render(); });
+  onValue(ref(db, path('meta/mode')), s => { mode = s.val() || 'teams'; render(); });
+
+  // Mutate a config node in the draft (lazily snapshotting live state on first
+  // edit). Replaces the old immediate get→mutate→set; the set now happens in
+  // saveEdits(). Single-admin event tool: no concurrent-write guard needed.
+  function editNode(name, mutate) {
+    if (!draft) draft = { games: clone(gamesNode), locks: clone(locks), timers: clone(timers), rules: clone(rules) };
+    draft[name] ??= {};
+    mutate(draft[name]);
+    // Drop the draft if the edit left no net change vs live — keeps the view
+    // live and hides Save/Cancel when there's nothing to save.
+    if (!isDirty()) draft = null;
+    render();
+  }
+
+  async function saveEdits() {
+    if (!draft) return;
+    const d = draft;
+    await Promise.all([
+      set(ref(db, path('games')),  d.games  || {}),
+      set(ref(db, path('locks')),  d.locks  || {}),
+      set(ref(db, path('timers')), d.timers || {}),
+      set(ref(db, path('rules')),  d.rules  || {}),
+    ]);
+    draft = null;
+    render();
+  }
+
+  function cancelEdits() { draft = null; render(); }
+
+  function renderHeadActions() {
+    const el = document.getElementById('adminHeadActions');
+    if (!isDirty()) { el.innerHTML = ''; return; }
+    el.innerHTML = `<button class="btn-ghost" id="adminCancel">Cancel</button><button class="primary" id="adminSave">Save</button>`;
+    el.querySelector('#adminCancel').onclick = cancelEdits;
+    el.querySelector('#adminSave').onclick = () => {
+      const btn = el.querySelector('#adminSave'); btn.disabled = true;
+      saveEdits().catch(e => { alert('Save failed: ' + (e.message || e)); btn.disabled = false; });
+    };
+  }
+
+  function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+  function rowHtml(g) {
+    const added = g.added;
+    const locked = resolveGameLock(srcLocks(), g.key) === 'locked';
+    const mins = resolveTimer(srcTimers(), g.key);
+    const kindLabel = g.custom ? 'Custom' : g.kind === 'play' ? 'Playable' : g.kind === 'quiz' ? 'Quiz' : 'Manual entry';
+    const canTimer = g.kind === 'manual'; // manual-entry + custom only; quiz isn't time-enforceable
+    const canRules = g.kind !== 'play';    // playable games have no rules to edit
+    return `<div class="admin-row" data-key="${g.key}">
+      <span class="ar-emoji">${g.emoji}</span>
+      <span class="ar-name">${esc(g.name)} <span class="ar-kind">${kindLabel}</span></span>
+      <span class="ar-actions">
+        <button data-act="eye" class="${added ? 'on' : ''}" title="${added ? 'Remove from lobby' : 'Add to lobby'}">${added ? '－ Remove' : '＋ Add'}</button>
+        ${added ? `
+        <button data-act="lock" class="${locked ? '' : 'on'}" title="${locked ? 'Locked' : 'Unlocked'}">${locked ? '🔒' : '🔓'}</button>
+        ${canRules ? `<button data-act="rules" title="Edit rules">📋</button>` : ''}
+        ${canTimer ? `<button data-act="timer" title="Set time limit">⏱${mins ? ' ' + mins + 'm' : ''}</button>` : ''}
+        <button data-act="perteam" title="Per-${noun().toLowerCase()} overrides">⋯</button>` : ''}
+        ${g.custom ? `<button data-act="delete" title="Delete game">🗑</button>` : ''}
+      </span>
+    </div>`;
+  }
+
+  function render() {
+    renderHeadActions();
+    const openKey = listEl.querySelector('.admin-perteam')?.previousElementSibling?.dataset.key || null;
+    const eff = resolveCatalog(GAMES, srcGames());
+    const added = eff.filter(g => g.added);
+    const available = eff.filter(g => !g.added);
+    let html = '';
+    if (added.length) html += `<div class="admin-section-label">Added in lobby</div>` + added.map(rowHtml).join('');
+    if (available.length) html += `<div class="admin-section-label">Available</div>` + available.map(rowHtml).join('');
+    listEl.innerHTML = html;
+    for (const row of listEl.querySelectorAll('.admin-row')) {
+      const key = row.dataset.key;
+      row.querySelector('[data-act="eye"]').onclick   = () => toggleAdded(key);
+      const lk = row.querySelector('[data-act="lock"]'); if (lk) lk.onclick = () => editNode('locks', n => toggleGame(n, key));
+      const rl = row.querySelector('[data-act="rules"]'); if (rl) rl.onclick = () => editRules(key);
+      const t = row.querySelector('[data-act="timer"]'); if (t) t.onclick = () => editTimer(key);
+      const pt = row.querySelector('[data-act="perteam"]'); if (pt) pt.onclick = () => togglePerTeam(row, key);
+      const d = row.querySelector('[data-act="delete"]'); if (d) d.onclick = () => deleteCustom(key);
+    }
+    if (openKey) {
+      const row = listEl.querySelector(`.admin-row[data-key="${openKey}"]`);
+      if (row) togglePerTeam(row, openKey);
+    }
+  }
+
+  function perTeamOverridesExist(key) {
+    return !!(srcLocks()?.cells?.[key] || srcTimers()?.cells?.[key] || srcRules()?.cells?.[key]);
+  }
+
+  function toggleAdded(key) {
+    editNode('games', node => {
+      const cur = resolveCatalog(GAMES, node).find(g => g.key === key);
+      node[key] = { ...(node[key] || {}), added: !(cur?.added) };
+    });
+  }
+
+  function editRules(key) {
+    const eff = resolveCatalog(GAMES, srcGames()).find(g => g.key === key);
+    const current = resolveRule(srcRules(), key, undefined, eff?.rules ?? '');
+    const warn = perTeamOverridesExist(key) ? `<p>Saving game-level rules clears any per-team rules for this game.</p>` : '';
+    openModal({
+      title: 'Rules — ' + (eff?.name ?? key),
+      bodyHtml: `${warn}<label for="cfgInput">Rules (blank = default)</label><textarea id="cfgInput">${esc(current ?? '')}</textarea>`,
+      confirmLabel: 'Apply',
+      onConfirm: () => editNode('rules', n => setGameOverride(n, key, document.getElementById('cfgInput').value)),
+    });
+  }
+
+  function editTimer(key) {
+    const eff = resolveCatalog(GAMES, srcGames()).find(g => g.key === key);
+    const cur = resolveTimer(srcTimers(), key);
+    const warn = perTeamOverridesExist(key) ? `<p>Saving a game-level timer clears any per-team timers for this game.</p>` : '';
+    openModal({
+      title: 'Time limit — ' + (eff?.name ?? key),
+      bodyHtml: `${warn}<label for="cfgInput">Minutes (blank or 0 = no limit)</label><input id="cfgInput" type="number" min="0" value="${cur ?? ''}">`,
+      confirmLabel: 'Apply',
+      onConfirm: () => editNode('timers', n => setGameOverride(n, key, Number(document.getElementById('cfgInput').value))),
+    });
+  }
+
+  function togglePerTeam(row, key) {
+    const existing = row.nextElementSibling?.classList.contains('admin-perteam');
+    if (existing) { row.nextElementSibling.remove(); return; }
+    const canRules = (GAMES[key]?.kind ?? 'manual') !== 'play'; // playable games have no rules
+    const box = document.createElement('div');
+    box.className = 'admin-perteam';
+    box.innerHTML = teams.slice().sort((a,b)=>a.id-b.id).map(t => {
+      const locked = resolveLock(srcLocks(), key, t.id) === 'locked';
+      const mins = resolveTimer(srcTimers(), key, t.id);
+      return `<div class="apt-row" data-team="${t.id}">
+        <span class="apt-name">${esc(t.name || (noun() + ' ' + t.id))}</span>
+        <button data-pt="lock">${locked ? '🔒' : '🔓'}</button>
+        <button data-pt="timer">⏱${mins ? ' ' + mins + 'm' : ''}</button>
+        ${canRules ? `<button data-pt="rules">📋</button>` : ''}
+      </div>`;
+    }).join('');
+    for (const r of box.querySelectorAll('.apt-row')) {
+      const teamId = Number(r.dataset.team);
+      r.querySelector('[data-pt="lock"]').onclick = () => editNode('locks', n => {
+        const cur = resolveLock(n, key, teamId) === 'locked';
+        setCell(n, key, teamId, cur ? 'unlocked' : 'locked');
+      });
+      const tName = esc(teams.find(t => t.id === teamId)?.name || (noun() + ' ' + teamId));
+      r.querySelector('[data-pt="timer"]').onclick = () => {
+        const cur = resolveTimer(srcTimers(), key, teamId);
+        openModal({
+          title: `Time limit — ${tName}`,
+          bodyHtml: `<label for="cfgInput">Minutes (blank = clear)</label><input id="cfgInput" type="number" min="0" value="${cur ?? ''}">`,
+          confirmLabel: 'Apply',
+          onConfirm: () => editNode('timers', n => setCellOverride(n, key, teamId, Number(document.getElementById('cfgInput').value))),
+        });
+      };
+      const ptRules = r.querySelector('[data-pt="rules"]'); if (ptRules) ptRules.onclick = () => {
+        const eff = resolveCatalog(GAMES, srcGames()).find(g => g.key === key);
+        const cur = resolveRule(srcRules(), key, teamId, eff?.rules ?? '');
+        openModal({
+          title: `Rules — ${tName}`,
+          bodyHtml: `<label for="cfgInput">Rules (blank = clear)</label><textarea id="cfgInput">${esc(cur ?? '')}</textarea>`,
+          confirmLabel: 'Apply',
+          onConfirm: () => editNode('rules', n => setCellOverride(n, key, teamId, document.getElementById('cfgInput').value)),
+        });
+      };
+    }
+    row.insertAdjacentElement('afterend', box);
+  }
+
+  async function deleteCustom(key) {
+    // Structural change writes Firebase directly; a pending draft snapshot would
+    // resurrect it on Save, so require a clean (saved/cancelled) state first.
+    if (draft) { alert('Save or cancel your pending changes before deleting a game.'); return; }
+    if (!confirm('Delete this game? Its past scores are kept but hidden.')) return;
+    await set(ref(db, path('games/' + key)), null);
+  }
+
+  document.getElementById('ngCreate').onclick = async () => {
+    const errEl = document.getElementById('ngErr');
+    errEl.hidden = true;
+    if (draft) { errEl.textContent = 'Save or cancel your pending changes before creating a game.'; errEl.hidden = false; return; }
+    const name = document.getElementById('ngName').value;
+    const emoji = document.getElementById('ngEmoji').value;
+    const rulesTxt = document.getElementById('ngRules').value;
+    const timerRaw = document.getElementById('ngTimer').value;
+    const v = validateCustomGame({ name, emoji, rules: rulesTxt });
+    if (!v.ok) { errEl.textContent = v.error; errEl.hidden = false; return; }
+    const [gSnap, sSnap, hSnap] = await Promise.all([
+      get(ref(db, path('games'))), get(ref(db, path('scores'))), get(ref(db, path('history'))),
+    ]);
+    const taken = new Set(Object.keys(GAMES));
+    if (gSnap.exists()) Object.keys(gSnap.val()).forEach(k => taken.add(k));
+    if (sSnap.exists()) Object.values(sSnap.val()).forEach(byTeam => Object.keys(byTeam || {}).forEach(k => taken.add(k)));
+    if (hSnap.exists()) Object.values(hSnap.val()).forEach(h => h?.gameKey && taken.add(h.gameKey));
+    const node = gSnap.exists() ? gSnap.val() : {};
+    const maxOrder = Math.max(0, ...Object.values(node).filter(v => v?.custom).map(v => v.order || 0));
+    const key = nextCustomKey(taken);
+    const minutes = Number(timerRaw);
+    await set(ref(db, path('games/' + key)), makeCustomGame({ name, emoji, rules: rulesTxt, order: maxOrder + 1 }));
+    if (Number.isFinite(minutes) && minutes > 0) {
+      const tNode = (await get(ref(db, path('timers')))).val() || {};
+      setGameOverride(tNode, key, minutes);
+      await set(ref(db, path('timers')), tNode);
+    }
+    document.getElementById('ngName').value = '';
+    document.getElementById('ngEmoji').value = '';
+    document.getElementById('ngRules').value = '';
+    document.getElementById('ngTimer').value = '';
+  };
+}
+</script>
+</body>
+</html>

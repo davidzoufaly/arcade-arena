@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rankPointsByTeam } from '../ps-offsite-2026/shared/ranking.js';
+import { rankPointsByTeam } from '../src/shared/ranking.js';
 
 describe('rankPointsByTeam', () => {
   it('returns N points for top, 1 for bottom in N-team lobby', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolveOverride, hasOverride, resolveTimer, resolveRule,
-} from '../ps-offsite-2026/shared/game-config.js';
+} from '../src/shared/game-config.js';
 
 describe('resolveOverride precedence', () => {
   it('cell overrides game; absent => undefined', () => {
@@ -52,7 +52,7 @@ describe('resolveRule', () => {
   });
 });
 
-import { setGameOverride, setCellOverride } from '../ps-offsite-2026/shared/game-config.js';
+import { setGameOverride, setCellOverride } from '../src/shared/game-config.js';
 
 describe('setGameOverride SET vs CLEAR', () => {
   it('SET writes game value AND cascade-clears that game cells', () => {
@@ -101,7 +101,7 @@ describe('setCellOverride SET vs CLEAR', () => {
   });
 });
 
-import { deadlineFor, remainingMs, isExpired, formatMMSS } from '../ps-offsite-2026/shared/game-config.js';
+import { deadlineFor, remainingMs, isExpired, formatMMSS } from '../src/shared/game-config.js';
 
 describe('timer arithmetic', () => {
   const start = 1_000_000;

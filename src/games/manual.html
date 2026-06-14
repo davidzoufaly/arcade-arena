@@ -1,0 +1,340 @@
+<!-- src/games/manual.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arcade Arena — Game</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script>(function(){try{var t=localStorage.getItem('ps-theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../shared/topbar.css">
+<style>
+  :root {
+    --bg: #09090C; --bg-2: #18181B; --card: #222224;
+    --text: #FFFFFF; --muted: #848486;
+    --accent: #DAFE85; --accent-2: #657BC7; --good: #00e676; --bad: #ff4d6d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 50% 0%, var(--bg-2) 0%, var(--bg) 60%);
+    color: var(--text); min-height: 100vh;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 40px; }
+  .head { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+  .head .emoji { font-size: 48px; }
+  .head .icon { width: 72px; height: 72px; object-fit: cover; border-radius: 16px; flex: none; }
+  h1 { font-size: 32px; font-weight: 900; letter-spacing: -1px; }
+  .rules {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; margin-bottom: 24px;
+    line-height: 1.65; color: var(--text); font-size: 16px;
+  }
+  .rules p { margin-bottom: 10px; }
+  .rules ul { margin: 6px 0 14px 22px; }
+  .panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px;
+  }
+  .panel label { display: block; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 8px; }
+  .panel input[type=number] {
+    background: var(--bg-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; font-size: 22px; font-weight: 800; font-family: inherit;
+    width: 100%; margin-bottom: 14px;
+  }
+  .panel button {
+    background: linear-gradient(135deg, var(--accent), #657BC7);
+    border: none; color: var(--btn-on-accent); font-weight: 800; font-size: 17px;
+    padding: 12px 18px; border-radius: 10px; cursor: pointer; font-family: inherit;
+  }
+  .panel button:disabled { opacity: 0.5; cursor: default; }
+  .panel .current { color: var(--muted); font-size: 15px; margin-bottom: 10px; }
+  .panel .current strong { color: var(--good); }
+  .banner {
+    margin-top: 12px; padding: 10px 14px; border-radius: 10px;
+    font-size: 15px; font-weight: 700;
+  }
+  .banner.ok  { background: rgba(0,230,118,0.12); color: var(--good); }
+  .banner.bad { background: rgba(255,77,109,0.12); color: var(--bad); }
+  .countdown {
+    background: var(--card); border: 1px solid rgba(218,254,133,0.4);
+    border-radius: 14px; padding: 16px; margin-bottom: 20px;
+    font-size: 30px; font-weight: 900; text-align: center; letter-spacing: 1px;
+    color: var(--accent); font-variant-numeric: tabular-nums;
+  }
+  .countdown.low { color: var(--bad); border-color: rgba(255,77,109,0.6); }
+  .rules a { color: var(--accent); text-decoration: underline; font-weight: 600; word-break: break-all; }
+</style>
+</head>
+<body>
+<main>
+  <div id="container">Loading…</div>
+</main>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getDatabase, ref, get, set, update, push, onValue } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { firebaseConfig } from '../firebase-config.js';
+import { resolveSession } from '../shared/lobby.js';
+import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
+import { mountTopbar } from '../shared/topbar.js';
+import { GAMES } from '../shared/games-catalog.js';
+import { resolveCatalog } from '../shared/lobby-games.js';
+import { submitScore, firebaseWriter } from '../shared/score-submit.js';
+import { resolveTimer, resolveRule, deadlineFor, isExpired, formatMMSS } from '../shared/game-config.js';
+
+const session = resolveSession();
+if (!session) {
+  location.replace('../index.html');
+  throw new Error('no session');
+}
+mountTopbar({ activePage: 'games' });
+
+const params = new URLSearchParams(location.search);
+const key = params.get('key');
+
+const container = document.getElementById('container');
+const catalogHref = `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`;
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let gamesSnap;
+try {
+  gamesSnap = await get(ref(db, `lobbies/${session.lobbyId}/games`));
+} catch (e) {
+  container.innerHTML = `
+    <h1>Load error</h1>
+    <p style="color:#848486;margin-top:10px">Couldn't load this game. Check your connection and try again.</p>
+  `;
+  throw e;
+}
+const effective = resolveCatalog(GAMES, gamesSnap.exists() ? gamesSnap.val() : null);
+const game = effective.find(g => g.key === key) || null;
+
+if (!game || game.kind !== 'manual') {
+  container.innerHTML = `
+    <h1>Unknown game</h1>
+    <p style="color:#848486;margin-top:10px">No manual game registered for key <code>${esc(key ?? '(none)')}</code>.</p>
+  `;
+  throw new Error('unknown manual game');
+}
+const writer = firebaseWriter({ db, ref, update, push });
+
+const scorePath = `lobbies/${session.lobbyId}/scores/${session.teamId}/${key}`;
+const startPath = `lobbies/${session.lobbyId}/timerStarts/${key}/${session.teamId}`;
+
+// --- timer state
+let minutes;            // resolved limit (positive number) or undefined
+let startTs = null;     // ms epoch of entry, for timed games
+let timerId = null;
+let settled = false;    // one-shot latch for timed games (coordinates submit vs auto-0)
+let currentRules = null;
+
+function settle() {
+  if (settled) return false;
+  settled = true;
+  if (timerId !== null) { clearInterval(timerId); timerId = null; }
+  return true;
+}
+
+function linkify(escaped) {
+  return escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+function renderRules(text) {
+  const blocks = String(text || '').split(/\n\s*\n/);
+  return blocks.map(b => {
+    const lines = b.split('\n');
+    if (lines.every(l => l.startsWith('- '))) {
+      return `<ul>${lines.map(l => `<li>${linkify(esc(l.slice(2)))}</li>`).join('')}</ul>`;
+    }
+    return `<p>${linkify(esc(b.replace(/\n/g, ' ')))}</p>`;
+  }).join('');
+}
+
+// Re-render ONLY the rules block (live admin edits must not wipe the score input
+// or the countdown). No-op until the shell exists.
+function renderRulesBlock() {
+  const el = container.querySelector('.rules');
+  if (!el) return;
+  el.innerHTML = renderRules(resolveRule(currentRules, key, session.teamId, game.rules));
+}
+
+// Build the page shell once. mode: 'normal' | 'countdown' | 'readonly' | 'expired'.
+function renderShell(current, mode) {
+  const submitted = current !== null;
+  const readOnly = mode === 'readonly' || mode === 'expired';
+  const showCountdown = mode === 'countdown' || mode === 'expired';
+  const btnLabel = submitted ? 'Redo' : 'Complete';
+  container.innerHTML = `
+    <div class="head">
+      ${game.icon ? `<img class="icon" src="${game.icon}" alt="${esc(game.name)}">` : `<div class="emoji">${game.emoji}</div>`}
+      <h1>${esc(game.name)}</h1>
+    </div>
+    <div class="countdown" ${showCountdown ? '' : 'hidden'} id="countdown"></div>
+    <div class="rules"></div>
+    <div class="panel">
+      ${submitted ? `<div class="current">Currently completed: <strong>${esc(String(current))}</strong> pts</div>` : ''}
+      <label for="score">${submitted ? 'Redo raw score' : 'Raw score'}</label>
+      <input id="score" type="number" min="0" step="1" inputmode="numeric" value="${submitted ? esc(String(current)) : ''}" ${readOnly ? 'disabled' : ''} />
+      <button id="submitBtn" ${readOnly ? 'disabled' : ''}>${btnLabel}</button>
+      <div id="banner"></div>
+    </div>
+  `;
+  renderRulesBlock();
+  wireSubmit();
+}
+
+function wireSubmit() {
+  const input = document.getElementById('score');
+  const btn = document.getElementById('submitBtn');
+  const banner = document.getElementById('banner');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const raw = parseInt(input.value, 10);
+    if (!Number.isFinite(raw) || raw < 0) {
+      banner.className = 'banner bad';
+      banner.textContent = 'Enter a non-negative integer.';
+      return;
+    }
+    // Timed games: settle FIRST (sync, before any await) to win the race vs the
+    // interval auto-0. Non-timed games never settle (resubmit stays allowed).
+    if (minutes) {
+      if (!settle()) return; // auto-0 already fired
+    }
+    btn.disabled = true;
+    banner.className = '';
+    banner.textContent = '';
+    try {
+      if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: key })) {
+        banner.className = 'banner bad';
+        banner.textContent = 'Locked — score not saved.';
+        if (minutes) rearmCountdown(); // re-arm + restart clock
+        btn.disabled = false;
+        return;
+      }
+      // Guards the sub-1s window between the deadline passing and the next tick
+      // running autoZero: a click that won the settle() race after expiry still
+      // banks a 0, not a real score.
+      const late = minutes && isExpired(startTs, minutes, Date.now());
+      const toSave = late ? 0 : raw;
+      const saved = await submitScore({
+        writer, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: key, score: toSave,
+      });
+      banner.className = late ? 'banner bad' : 'banner ok';
+      banner.innerHTML = late
+        ? `⏱ Time's up — <strong>0</strong> recorded.`
+        : `Saved <strong>${esc(String(saved))}</strong> pts.`;
+      const cd = document.getElementById('countdown');
+      if (cd) cd.hidden = true;
+      // Timed game: keep input disabled (one-shot). Non-timed: re-enable for resubmit.
+    } catch (e) {
+      banner.className = 'banner bad';
+      banner.textContent = 'Save failed: ' + (e.message || 'unknown error');
+      if (minutes) rearmCountdown(); // re-arm + restart clock
+      btn.disabled = false;
+    } finally {
+      if (!minutes) btn.disabled = false;
+    }
+  });
+}
+
+async function autoZero() {
+  if (!settle()) return;
+  try {
+    await submitScore({ writer, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: key, score: 0 });
+  } catch (e) {
+    console.error('auto-0 failed', e);
+  }
+  const banner = document.getElementById('banner');
+  const input = document.getElementById('score');
+  const btn = document.getElementById('submitBtn');
+  const cd = document.getElementById('countdown');
+  if (cd) { cd.classList.add('low'); cd.textContent = "⏱ Time's up"; }
+  if (input) input.disabled = true;
+  if (btn) btn.disabled = true;
+  if (banner) { banner.className = 'banner bad'; banner.innerHTML = `⏱ Time's up — <strong>0</strong> recorded.`; }
+}
+
+// Re-arm a timed game after a rejected/failed submit. settle() cleared the
+// interval before the await, so restart the countdown — or auto-0 immediately
+// if the deadline already passed — otherwise the clock would freeze and the
+// auto-0 would never fire for an idle tab.
+function rearmCountdown() {
+  settled = false;
+  if (isExpired(startTs, minutes, Date.now())) autoZero();
+  else startCountdown();
+}
+
+function startCountdown() {
+  const tick = () => {
+    const remaining = deadlineFor(startTs, minutes) - Date.now();
+    const cd = document.getElementById('countdown');
+    if (cd) {
+      cd.hidden = false;
+      cd.textContent = `⏱ ${formatMMSS(remaining)} left`;
+      cd.classList.toggle('low', remaining <= 30000);
+    }
+    if (remaining <= 0) autoZero();
+  };
+  tick();
+  timerId = setInterval(tick, 1000);
+}
+
+// Live rules listener (the only realtime listener on this page).
+onValue(ref(db, `lobbies/${session.lobbyId}/rules`), snap => {
+  currentRules = snap.exists() ? snap.val() : null;
+  renderRulesBlock();
+});
+
+(async () => {
+  if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId: session.teamId, gameKey: key })) {
+    renderLockedScreen(catalogHref);
+    return;
+  }
+  // Read score + timers ONCE at boot (already-played branch and the limit are
+  // decided at entry).
+  const [scoreSnap, timersSnap] = await Promise.all([
+    get(ref(db, scorePath)),
+    get(ref(db, `lobbies/${session.lobbyId}/timers`)),
+  ]);
+  const current = scoreSnap.exists() ? scoreSnap.val() : null;
+  const timers = timersSnap.exists() ? timersSnap.val() : null;
+  minutes = resolveTimer(timers, key, session.teamId);
+
+  // Score-first: a team that already played keeps its result; never stamp a start.
+  if (current !== null) {
+    renderShell(current, minutes ? 'readonly' : 'normal');
+    return;
+  }
+  if (!minutes) {
+    renderShell(null, 'normal');
+    return;
+  }
+  // Timed, no score yet: establish/reuse the refresh-proof start timestamp.
+  const startSnap = await get(ref(db, startPath));
+  if (startSnap.exists()) {
+    startTs = startSnap.val();
+  } else {
+    startTs = Date.now();
+    await set(ref(db, startPath), startTs);
+  }
+  if (isExpired(startTs, minutes, Date.now())) {
+    renderShell(null, 'expired');
+    autoZero();
+  } else {
+    renderShell(null, 'countdown');
+    startCountdown();
+  }
+})();
+</script>
+</body>
+</html>

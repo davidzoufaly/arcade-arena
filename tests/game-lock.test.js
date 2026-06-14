@@ -3,7 +3,7 @@ import {
   resolveLock, resolveGameLock, resolveAllLock, isUnlocked,
   setAll, setGame, setCell, toggleAll, toggleGame, toggleCell,
   LOCKED, UNLOCKED,
-} from '../ps-offsite-2026/shared/game-lock.js';
+} from '../src/shared/game-lock.js';
 
 describe('resolveLock precedence', () => {
   it('cell overrides game overrides all', () => {

@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pantomime</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script>(function(){try{var t=localStorage.getItem('ps-theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<style>
+  :root {
+    --bg: #09090C;
+    --bg-2: #18181B;
+    --card: #222224;
+    --text: #FFFFFF;
+    --muted: #848486;
+    --accent: #657BC7;
+    --accent-2: #DAFE85;
+    --good: #00e676;
+    --bad: #ff4d6d;
+    --gold: #ffd84d;
+    --easy: #00e676;
+    --medium: #ffd84d;
+    --hard: #ff4d6d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 80% 0%, var(--bg-2) 0%, var(--bg) 60%);
+    color: var(--text); min-height: 100vh;
+    display: flex; flex-direction: column;
+  }
+  header {
+    padding: 8px 32px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 22px; font-weight: 800; }
+  main { max-width: 1280px; margin: 0 auto; padding: 32px; width: 100%; flex: 1 1 auto; min-height: 0; }
+  .card {
+    background: var(--card); border-radius: 20px; padding: 28px;
+    border: 1px solid var(--border); margin-bottom: 20px;
+  }
+  .briefing { font-size: 17px; line-height: 1.6; color: var(--muted); }
+  .briefing strong { color: var(--text); }
+
+  .setup { display: flex; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  input, select {
+    background: var(--bg-2); border: 1px solid var(--border);
+    color: var(--text); padding: 12px 16px; border-radius: 10px;
+    font-size: 18px; font-family: inherit;
+  }
+  button {
+    /* match the app's lime primary button. On this page --accent is blue and
+       --accent-2 is the lime, so build the gradient from --accent-2. */
+    background: linear-gradient(135deg, var(--accent-2), var(--accent));
+    border: none; color: var(--btn-on-accent);
+    padding: 12px 24px; border-radius: 10px;
+    font-size: 18px; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: transform 0.15s;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary {
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+  }
+
+  .game { display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
+  @media (max-width: 980px) { .game { grid-template-columns: 1fr; } }
+  .video-wrap {
+    position: relative; background: #000; border: 2px solid var(--accent-2); border-radius: 20px;
+    overflow: hidden; aspect-ratio: 4/3;
+    box-shadow: 0 0 0 0 rgba(0,230,118,0);
+    transition: box-shadow 0.15s ease-out;
+  }
+  .video-wrap.match-pulse { animation: match-pulse 0.6s ease-out; }
+  .video-wrap.miss-flash { animation: miss-flash 0.45s ease-out; }
+  @keyframes match-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(0,230,118,0.9), inset 0 0 0 6px rgba(0,230,118,0.0); }
+    30%  { box-shadow: 0 0 32px 8px rgba(0,230,118,0.65), inset 0 0 0 6px rgba(0,230,118,0.85); }
+    100% { box-shadow: 0 0 0 0 rgba(0,230,118,0),   inset 0 0 0 6px rgba(0,230,118,0.0); }
+  }
+  @keyframes miss-flash {
+    0%, 100% { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.0); }
+    50%      { box-shadow: inset 0 0 0 6px rgba(255,77,109,0.9); }
+  }
+  video, .skel-overlay-canvas {
+    width: 100%; height: 100%; object-fit: contain; display: block;
+  }
+  .skel-overlay-canvas { position: absolute; inset: 0; pointer-events: none; }
+
+  /* Lock progress: a green line that traces the camera border one side at a
+     time (right ↓, bottom ←, left ↑, top ←) as you hold the pose. Full loop
+     = locked. */
+  .lock-border {
+    position: absolute; inset: 5px; width: auto; height: auto;
+    pointer-events: none; z-index: 2; overflow: visible;
+  }
+  .lock-border path {
+    fill: none; stroke: var(--good); stroke-width: 7;
+    stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 100; stroke-dashoffset: 100;
+    vector-effect: non-scaling-stroke;
+    filter: drop-shadow(0 0 7px rgba(0,230,118,0.85));
+    transition: stroke-dashoffset 0.1s linear;
+  }
+  .lock-label {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,230,118,0.16); border: 1px solid var(--good);
+    color: var(--good); backdrop-filter: blur(8px);
+    padding: 8px 18px; border-radius: 999px;
+    font-size: 16px; font-weight: 800; letter-spacing: 1px;
+    white-space: nowrap; pointer-events: none;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .lock-label.show { opacity: 1; }
+  .video-overlay {
+    position: absolute; bottom: 16px; left: 16px;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 16px; font-family: ui-monospace, monospace;
+  }
+  .cam-countdown {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(120px, 30vh, 260px); font-weight: 900; line-height: 1;
+    color: var(--gold); font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 24px rgba(0,0,0,0.9), 0 4px 30px rgba(0,0,0,0.7);
+    pointer-events: none;
+  }
+  .cam-countdown.urgent { color: var(--bad); }
+  .cam-countdown.pop { animation: cam-pop 0.5s ease-out; }
+  @keyframes cam-pop {
+    0%   { transform: scale(0.4); opacity: 0; }
+    35%  { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .panel { display: flex; flex-direction: column; gap: 16px; }
+  .cam-flash {
+    position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.72); backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    padding: 12px 22px; border-radius: 14px;
+    font-size: 22px; font-weight: 800; color: var(--text);
+    white-space: nowrap; pointer-events: none; opacity: 0;
+  }
+  .cam-flash.show { animation: cam-flash-anim 1.6s ease-out forwards; }
+  @keyframes cam-flash-anim {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.92); }
+    15%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    72%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.97); }
+  }
+  .pose-card {
+    background: var(--card); border-radius: 20px; padding: 20px;
+    border: 2px solid var(--border); text-align: center;
+    transition: all 0.3s;
+  }
+  .pose-card.match { border-color: var(--good); background: rgba(0,230,118,0.08); }
+  .pose-card .label {
+    font-size: 13px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 4px;
+  }
+  .difficulty {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 800; letter-spacing: 1px;
+    text-transform: uppercase; margin-left: 8px;
+  }
+  .difficulty.easy { background: rgba(0,230,118,0.15); color: var(--easy); }
+  .difficulty.medium { background: rgba(255,216,77,0.15); color: var(--medium); }
+  .difficulty.hard { background: rgba(255,77,109,0.15); color: var(--hard); }
+
+  .pose-card .name { font-size: 24px; font-weight: 800; margin: 6px 0; }
+  .pose-card .desc { font-size: 15px; color: var(--muted); margin: 8px 0 16px; line-height: 1.4; }
+
+  .pose-ref {
+    background: var(--bg-2); border-radius: 12px; padding: 12px;
+    margin-bottom: 12px;
+  }
+  .pose-ref svg { width: 100%; height: 180px; display: block; overflow: hidden; }
+
+  .similarity-meter {
+    height: 36px; background: var(--bg-2); border-radius: 12px;
+    overflow: hidden; position: relative;
+  }
+  .similarity-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--bad), var(--gold), var(--good));
+    transition: width 0.2s;
+  }
+  .similarity-text {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums;
+  }
+
+  .checks {
+    text-align: left; margin-top: 10px;
+    background: var(--bg-2); border-radius: 12px; padding: 10px;
+    max-height: 130px; overflow-y: auto;
+  }
+  .check {
+    font-size: 14px; padding: 4px 0;
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--muted);
+  }
+  .check.pass { color: var(--good); }
+  .check.partial { color: var(--gold); }
+
+  .pose-list {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(85px, 1fr)); gap: 6px;
+  }
+  .pose-pill {
+    padding: 6px 8px; border-radius: 8px; text-align: center;
+    font-size: 13px; background: var(--bg-2);
+    border: 1px solid var(--border); color: var(--muted);
+  }
+  .pose-pill.done { color: var(--good); border-color: var(--good); }
+  .pose-pill.failed { color: var(--bad); border-color: var(--bad); opacity: 0.7; }
+  .pose-pill.current { color: var(--accent); border-color: var(--accent); }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .stat { background: var(--bg-2); padding: 12px; border-radius: 10px; text-align: center; }
+  .stat .value { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  .result { text-align: center; padding: 32px; }
+  .result h2 { font-size: 32px; margin-bottom: 8px; }
+  .result .score {
+    font-size: 72px; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--gold));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin: 16px 0;
+  }
+  .submit-code {
+    background: var(--bg-2); padding: 16px 24px; border-radius: 12px;
+    font-family: ui-monospace, monospace; font-size: 28px; font-weight: 800;
+    letter-spacing: 4px; display: inline-block; margin: 20px 0;
+    border: 2px dashed var(--accent); color: var(--accent);
+  }
+  .save-status {
+    display: inline-block; margin-top: 14px;
+    font-size: 14px; font-weight: 800; letter-spacing: 1.5px;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(255,255,255,0.08); color: var(--text);
+  }
+  .save-status.ok  { background: rgba(0,230,118,0.18); color: #00e676; }
+  .save-status.bad { background: rgba(255,77,109,0.18); color: #ff4d6d; cursor: pointer; }
+  .secondary-link {
+    color: var(--accent-2); text-decoration: none; font-weight: 700; font-size: 16px;
+    align-self: center; padding: 8px 14px;
+  }
+  .result-row { display: flex; gap: 12px; justify-content: center; align-items: center; }
+  .hidden { display: none !important; }
+  .breakdown {
+    display: flex; flex-direction: column; gap: 6px;
+    max-width: 400px; margin: 20px auto;
+    background: var(--bg-2); border-radius: 12px; padding: 16px;
+    text-align: left;
+  }
+  .breakdown-row {
+    display: flex; justify-content: space-between; font-size: 15px;
+    color: var(--muted);
+  }
+  .breakdown-row.failed { opacity: 0.5; }
+  .breakdown-row .pose-score { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  /* --- Playing phase: lock to viewport so panel (pose list) needs no scroll --- */
+  @media (min-width: 981px) {
+    body.playing { height: 100vh; overflow: hidden; }
+    body.playing main { padding-top: 16px; padding-bottom: 16px; }
+    body.playing #phase-playing { height: 100%; }
+    body.playing .game { height: 100%; align-items: stretch; }
+    body.playing .video-wrap { height: 100%; aspect-ratio: auto; }
+    body.playing .panel { height: 100%; min-height: 0; overflow: hidden; gap: 12px; }
+    body.playing .pose-list,
+    body.playing .stats,
+    body.playing .panel > div:last-child { flex: 0 0 auto; }
+    body.playing .pose-card {
+      display: flex; flex-direction: column; gap: 8px;
+      flex: 1 1 auto; min-height: 0; padding: 16px;
+    }
+    body.playing .pose-card .desc { margin: 0; }
+    body.playing .pose-ref { flex: 0 1 auto; min-height: 0; margin: 0; padding: 8px; }
+    body.playing .pose-ref svg { height: clamp(80px, 16vh, 150px); }
+    body.playing .checks { flex: 1 1 auto; min-height: 36px; max-height: none; margin-top: 0; }
+  }
+</style>
+<link rel="stylesheet" href="../shared/topbar.css">
+<link rel="stylesheet" href="../shared/modal.css">
+</head>
+<body>
+<header>
+  <h1>Pantomime</h1>
+</header>
+
+<main>
+  <div class="card briefing" id="briefing">
+    The camera watches how you move. <span id="pmIntroLine">Your team must mimic the target pose with speed and precision to score.</span><br><br>
+    <strong>Goal:</strong> Match each target pose with your body. The <strong>reference pose</strong> is shown beside the video so you can see what to aim for. Each pose has multiple checks — get every check above 85 %, then <strong>hold the pose still</strong> for the required time (1.2 s easy, 1.5 s medium, 2 s hard). Wobbling resets the hold timer.
+    <br><br>
+    <strong>Speed wins:</strong> each pose is worth up to 100 points — half from how clean your form is, half from <strong>how fast you lock it in</strong>. Nail it instantly = near 100; dawdle until the timer almost runs out = far fewer. Don't overthink — strike the pose and lock it fast.
+    <br><br>
+    <strong>8 poses per run</strong>, escalating from easy to hard. 25 s per pose. Run out of time = pose is skipped (zero points). <span id="pmTurnsLine">Players take turns — one person poses each round, the rest direct. </span><strong>2 attempts — best score counts 🏆.</strong>
+  </div>
+
+  <div id="phase-boot" class="card">
+    <div class="briefing" style="text-align:center; padding:40px;">Checking your progress…</div>
+  </div>
+
+  <div class="card hidden" id="phase-setup">
+    <h3 style="margin-bottom: 12px">Get ready</h3>
+    <div class="setup">
+      <button id="startBtn">Start game</button>
+    </div>
+    <div class="briefing" style="margin-top: 12px; font-size: 15px;">
+      Place the laptop at least 2 m from the person — full body must fit in frame (head to ankles). Plain background helps a lot.
+    </div>
+  </div>
+
+  <div id="phase-loading" class="card hidden">
+    <div class="briefing" style="text-align:center; padding:40px;">Loading AI model and camera…</div>
+  </div>
+
+  <div id="phase-countdown" class="card hidden">
+    <div style="text-align:center; padding:60px 24px;">
+      <div style="font-size: 180px; font-weight:900; line-height:1;
+                  background:linear-gradient(135deg, var(--accent), var(--gold));
+                  -webkit-background-clip:text; background-clip:text; color:transparent;"
+           id="countdownNum">3</div>
+    </div>
+  </div>
+
+  <div id="phase-playing" class="hidden">
+    <div class="game">
+      <div>
+        <div class="video-wrap" id="videoWrap">
+          <video id="video" playsinline autoplay muted></video>
+          <canvas id="overlay" class="skel-overlay-canvas"></canvas>
+          <svg class="lock-border" id="lockBorder" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <!-- Four segments fill in sequence: right ↓, bottom ←, left ↑, top ←. -->
+            <path class="lb-seg" d="M100 0 L100 100" pathLength="100" />
+            <path class="lb-seg" d="M100 100 L0 100" pathLength="100" />
+            <path class="lb-seg" d="M0 100 L0 0" pathLength="100" />
+            <path class="lb-seg" d="M100 0 L0 0" pathLength="100" />
+          </svg>
+          <div class="lock-label" id="lockLabel">🔒 HOLD STILL — locking…</div>
+          <div class="video-overlay" id="hint">Stand in front of the camera</div>
+          <div class="cam-countdown hidden" id="camCountdown"></div>
+          <div class="cam-flash" id="camFlash"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="pose-card" id="poseCard">
+          <div class="name" id="poseName">—</div>
+          <div class="label"><span id="diffBadge"></span></div>
+          <div class="desc" id="poseDesc">—</div>
+          <div class="pose-ref">
+            <svg id="poseRefSvg" viewBox="0 0 200 200"></svg>
+          </div>
+          <div class="similarity-meter">
+            <div class="similarity-fill" id="simFill"></div>
+            <div class="similarity-text" id="simText">0%</div>
+          </div>
+          <div class="checks" id="checks"></div>
+        </div>
+
+        <div class="pose-list" id="poseList"></div>
+
+        <div class="stats">
+          <div class="stat"><div class="value" id="poseIdx">—</div><div class="label">Pose</div></div>
+          <div class="stat"><div class="value" id="poseTimer">25</div><div class="label">Timeout</div></div>
+          <div class="stat"><div class="value" id="totalScore">0</div><div class="label">Points</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="phase-attempt-end" class="card result hidden">
+    <h2 id="pmAttemptTitle">Attempt 1 of 2 complete</h2>
+    <p style="color:var(--muted)">This run scored</p>
+    <div class="score" id="pmAttemptScore">0</div>
+    <div class="result-row" style="margin-top: 14px;">
+      <button id="pmTryAgain">Try again</button>
+      <button class="secondary" id="pmFinish">Finish</button>
+    </div>
+  </div>
+
+  <div id="phase-final" class="card result hidden">
+    <h2>👁️ Checkpoint cleared</h2>
+    <p style="color:var(--muted)"><span id="resTeamLabel">Team</span> <strong id="resTeam"></strong></p>
+    <div class="score" id="resScore">0</div>
+    <div class="breakdown" id="resBreakdown"></div>
+    <div id="saveStatus" class="save-status">SAVING…</div>
+    <div class="result-row" style="margin-top: 14px;">
+      <button onclick="replayFromFinal()">Restart game</button>
+      <a id="finalReturnLink" class="secondary-link" href="#">Return to catalog</a>
+    </div>
+    <p style="font-size: 14px;color:var(--muted);margin-top:10px">Something went wrong? Restart requires the admin password.</p>
+  </div>
+</main>
+
+<script type="module">
+// mediapipe runtime vendored (npm) + lazy-loaded only when the game starts —
+// Vite chunks the dynamic import so the heavy bundle never blocks page load.
+// Bindings filled by loadMp() before first use (see loadModel).
+let PoseLandmarker, FilesetResolver, DrawingUtils;
+let _mpPromise;
+function loadMp() {
+  if (!_mpPromise) _mpPromise = import('@mediapipe/tasks-vision').then((mod) => {
+    ({ PoseLandmarker, FilesetResolver, DrawingUtils } = mod);
+  });
+  return _mpPromise;
+}
+import {
+  LM,
+  SKEL_LINES,
+  POSE_POOL,
+  dist,
+  samplePoses,
+  scorePose,
+  finalScore,
+} from '../shared/pantomime-logic.js';
+import { mountTopbar } from '../shared/topbar.js';
+import { resolveSession } from '../shared/lobby.js';
+import { requireAdmin } from '../shared/admin-gate.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getDatabase, ref, update, push, get } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { firebaseConfig } from '../firebase-config.js';
+import { submitScore, firebaseWriter } from '../shared/score-submit.js';
+import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
+
+mountTopbar({ activePage: 'games' });
+const _session = resolveSession();
+const session = _session;
+// Individuals (solo) mode: one player, so no "next player — take turns" prompt
+// (#40). Resolved from lobby meta at boot.
+let individuals = false;
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const writer = firebaseWriter({ db, ref, update, push });
+const catalogHref = session
+  ? `../games.html?lobby=${encodeURIComponent(session.lobbyId)}&team=${session.teamId}`
+  : '../games.html';
+
+const PHASES = ['setup', 'loading', 'countdown', 'playing', 'attempt-end', 'final'];
+let activeCleanup = null;
+const phaseEnter = {};
+
+function $(id) { return document.getElementById(id); }
+
+function goto(phase) {
+  if (activeCleanup) { try { activeCleanup(); } catch {} activeCleanup = null; }
+  $('phase-boot').classList.add('hidden');
+  for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+  $(`phase-${phase}`).classList.remove('hidden');
+  $('briefing').classList.toggle('hidden', phase !== 'setup');
+  document.body.classList.toggle('playing', phase === 'playing');
+  const entry = phaseEnter[phase];
+  if (entry) entry();
+}
+
+const GAME_CODE = 'PM';
+
+let POSES = [];
+
+function refToSvg(ref, mapX, mapY) {
+  const lines = SKEL_LINES.map(([a, b]) => {
+    const pa = ref[a], pb = ref[b];
+    return `<line x1="${mapX(pa.x)}" y1="${mapY(pa.y)}" x2="${mapX(pb.x)}" y2="${mapY(pb.y)}" stroke="#657BC7" stroke-width="3" stroke-linecap="round" />`;
+  }).join('');
+  const points = Object.values(ref).map(p =>
+    `<circle cx="${mapX(p.x)}" cy="${mapY(p.y)}" r="3.5" fill="#DAFE85" />`
+  ).join('');
+  const head = ref.nose;
+  const headCircle = `<circle cx="${mapX(head.x)}" cy="${mapY(head.y) - 6}" r="10" fill="none" stroke="#657BC7" stroke-width="3" />`;
+  return headCircle + lines + points;
+}
+
+function renderRefSvg(pose) {
+  const W = 200, H = 200;
+  const svg = document.getElementById('poseRefSvg');
+
+  // Single figure with auto-expanding viewBox (raised arms can spill above).
+  const ref = pose.ref;
+  const idMap = v => v * W; // x and y share scale at W===H
+  const head = ref.nose;
+  let minX = 0, minY = 0, maxX = W, maxY = H;
+  for (const p of Object.values(ref)) {
+    minX = Math.min(minX, p.x * W - 4); maxX = Math.max(maxX, p.x * W + 4);
+    minY = Math.min(minY, p.y * H - 4); maxY = Math.max(maxY, p.y * H + 4);
+  }
+  minY = Math.min(minY, head.y * H - 16);
+  minX = Math.min(minX, head.x * W - 10); maxX = Math.max(maxX, head.x * W + 10);
+  svg.setAttribute('viewBox', `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
+  svg.innerHTML = refToSvg(ref, idMap, idMap);
+}
+
+const HOLD_MS_BY_DIFFICULTY = { easy: 1200, medium: 1500, hard: 2000 };
+
+// Drive the hold indicator: the green line tracing the camera border one side
+// at a time (right ↓, bottom ←, left ↑, top ←). Each of the 4 segments owns a
+// 25% slice of pct; full loop = locked. pct 0..100.
+const lockSegs = document.querySelectorAll('#lockBorder .lb-seg');
+function setHoldProgress(pct) {
+  lockSegs.forEach((seg, i) => {
+    const local = Math.max(0, Math.min(100, ((pct - i * 25) / 25) * 100));
+    seg.style.strokeDashoffset = (100 - local);
+  });
+  document.getElementById('lockLabel').classList.toggle('show', pct > 0);
+}
+const SIM_THRESHOLD = 0.85; // tighter than before
+const STABILITY_MAX_DRIFT = 0.015; // max landmark drift over recent window — anything more = wobble
+const STABILITY_WINDOW = 8; // recent frames to track for stability
+const HOLD_GRACE_FRAMES = 5; // brief sim/wobble blips pause the hold bar instead of zeroing it
+let landmarker = null;
+let stream = null;
+let running = false;
+let stepIndex = 0;
+let teamId = null;
+let scores = [];
+let holdStart = 0;
+let holdMissFrames = 0; // consecutive non-matching frames since the hold began
+let holdPausedAt = 0;   // bar width frozen during a grace blip
+let lastVideoTime = -1;
+let stepStartTs = 0;
+let recentLandmarks = []; // for stability check
+let lastCamCount = -1;
+const MAX_ATTEMPTS = 2;
+let attempts = []; // [{ score, scores }] — one per completed run, best counts
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  teamId = _session?.teamId ?? 0;
+  goto('loading');
+});
+
+async function loadModel() {
+  document.getElementById('startBtn').textContent = 'Loading AI…';
+  await loadMp();
+  const vision = await FilesetResolver.forVisionTasks(`${import.meta.env.BASE_URL}mediapipe/wasm`);
+  landmarker = await PoseLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      // Heavy model: best landmark accuracy, which the tighter pose checks rely on.
+      // Costs load time + FPS, but poses are held for ~1–2 s so FPS isn't critical.
+      modelAssetPath: `${import.meta.env.BASE_URL}mediapipe/models/pose_landmarker_heavy.task`,
+      delegate: 'GPU',
+    },
+    runningMode: 'VIDEO',
+    // Solo game: one poser per round, the rest direct. Detecting a single body
+    // avoids spending budget on (and matching against) bystanders in frame.
+    numPoses: 1,
+    // Lowered from 0.5 default so a poser standing further back / partly out of
+    // frame is still picked up and kept tracked across frames.
+    minPoseDetectionConfidence: 0.3,
+    minPosePresenceConfidence: 0.3,
+    minTrackingConfidence: 0.3,
+  });
+}
+
+phaseEnter.loading = async () => {
+  if (!landmarker) {
+    document.getElementById('startBtn').textContent = 'Loading AI…';
+    try { await loadModel(); }
+    catch (e) { alert('Failed to load AI model. Check internet and refresh.'); goto('setup'); return; }
+  }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 1280, height: 720 } });
+  } catch (e) { alert('Camera access required.'); goto('setup'); return; }
+
+  const video = document.getElementById('video');
+  video.srcObject = stream;
+  await video.play();
+  const canvas = document.getElementById('overlay');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  video.style.transform = 'scaleX(-1)';
+  canvas.style.transform = 'scaleX(-1)';
+
+  goto('countdown');
+};
+
+phaseEnter.countdown = () => {
+  let n = 3;
+  const el = document.getElementById('countdownNum');
+  el.textContent = n;
+  const timer = setInterval(() => {
+    n--;
+    if (n <= 0) { clearInterval(timer); goto('playing'); }
+    else el.textContent = n;
+  }, 1000);
+  activeCleanup = () => clearInterval(timer);
+};
+
+phaseEnter.playing = () => {
+  // Sample once on attempt 1; reuse the same poses across attempts so best-of-N is fair.
+  if (POSES.length === 0) POSES = samplePoses(POSE_POOL);
+  scores = [];
+  stepIndex = 0;
+  running = true;
+  renderPoseList();
+  startStep();
+  loop();
+  activeCleanup = () => { running = false; };
+};
+
+function startStep() {
+  holdStart = 0;
+  holdMissFrames = 0;
+  holdPausedAt = 0;
+  recentLandmarks = [];
+  stepStartTs = performance.now();
+  const pose = POSES[stepIndex];
+  document.getElementById('poseName').textContent = `${pose.emoji} ${pose.name}`;
+  document.getElementById('poseDesc').textContent = pose.desc;
+  document.getElementById('poseIdx').textContent = `${stepIndex + 1}/${POSES.length}`;
+  document.getElementById('totalScore').textContent = scores.reduce((a, b) => a + b, 0);
+  document.getElementById('diffBadge').innerHTML = `<span class="difficulty ${pose.difficulty}">${pose.difficulty}</span>`;
+  renderRefSvg(pose);
+  renderPoseList();
+  document.getElementById('camCountdown').classList.add('hidden');
+  document.getElementById('hint').textContent = 'Stand in front of the camera';
+  lastCamCount = -1;
+  if (!individuals) flashCam('👥 Next player — take turns');
+}
+
+function flashCam(text) {
+  const el = document.getElementById('camFlash');
+  el.textContent = text;
+  el.classList.remove('show');
+  void el.offsetWidth; // reflow -> restart animation
+  el.classList.add('show');
+}
+
+function pulseVideo(cls) {
+  const el = document.getElementById('videoWrap');
+  el.classList.remove('match-pulse', 'miss-flash');
+  void el.offsetWidth; // reflow -> restart animation
+  el.classList.add(cls);
+}
+
+function timeoutStep() {
+  pulseVideo('miss-flash');
+  scores.push(0);
+  advance();
+}
+
+function advance() {
+  stepIndex++;
+  document.getElementById('poseCard').classList.remove('match');
+  setHoldProgress(0);
+  if (stepIndex >= POSES.length) finish();
+  else startStep();
+}
+
+function loop() {
+  if (!running) return;
+  const video = document.getElementById('video');
+  if (video.currentTime !== lastVideoTime) {
+    lastVideoTime = video.currentTime;
+    const result = landmarker.detectForVideo(video, performance.now());
+    drawSkeleton(result);
+    handlePose(result);
+  }
+  const pose = POSES[stepIndex];
+  if (pose) {
+    const elapsed = (performance.now() - stepStartTs) / 1000;
+    const remaining = Math.max(0, pose.timeout - elapsed);
+    document.getElementById('poseTimer').textContent = Math.ceil(remaining);
+    const cam = document.getElementById('camCountdown');
+    const secs = Math.ceil(remaining);
+    if (remaining > 0 && remaining <= 5) {
+      if (secs !== lastCamCount) {
+        cam.textContent = secs;
+        cam.classList.remove('hidden');
+        cam.classList.toggle('urgent', secs <= 3);
+        cam.classList.remove('pop'); void cam.offsetWidth; cam.classList.add('pop');
+        lastCamCount = secs;
+      }
+    } else if (lastCamCount !== -1) {
+      cam.classList.add('hidden');
+      cam.classList.remove('pop');
+      lastCamCount = -1;
+    }
+    if (elapsed >= pose.timeout) { timeoutStep(); }
+  }
+  requestAnimationFrame(loop);
+}
+
+function drawSkeleton(result) {
+  const canvas = document.getElementById('overlay');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!result.landmarks || !result.landmarks[0]) return;
+  const drawingUtils = new DrawingUtils(ctx);
+  for (const landmarks of result.landmarks) {
+    drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, { color: '#DAFE85', lineWidth: 4 });
+    drawingUtils.drawLandmarks(landmarks, { color: '#00e676', lineWidth: 1, radius: 4 });
+  }
+}
+
+function torsoSize(lm) {
+  const shMid = { x: (lm[LM.L_SHOULDER].x + lm[LM.R_SHOULDER].x) / 2, y: (lm[LM.L_SHOULDER].y + lm[LM.R_SHOULDER].y) / 2 };
+  const hipMid = { x: (lm[LM.L_HIP].x + lm[LM.R_HIP].x) / 2, y: (lm[LM.L_HIP].y + lm[LM.R_HIP].y) / 2 };
+  return dist(shMid, hipMid);
+}
+function primaryBody(bodies) {
+  return bodies.slice().sort((a, b) => torsoSize(b) - torsoSize(a))[0];
+}
+function bodyVisible(lm) {
+  if (!lm || lm.length < 33) return false;
+  const required = [LM.L_SHOULDER, LM.R_SHOULDER, LM.L_HIP, LM.R_HIP, LM.L_KNEE, LM.R_KNEE, LM.L_ANKLE, LM.R_ANKLE];
+  return required.every(i => (lm[i].visibility ?? 1) > 0.4);
+}
+
+function handlePose(result) {
+  const pose = POSES[stepIndex];
+  const bodies = (result.landmarks || []).filter(b => b && b.length >= 33);
+
+  if (bodies.length === 0) {
+    document.getElementById('hint').textContent = 'Stand in front of the camera, full body visible';
+    document.getElementById('simFill').style.width = '0%';
+    document.getElementById('simText').textContent = '—';
+    holdStart = 0;
+    recentLandmarks = []; // dropout: don't mix pre/post frames in the stability window
+    return;
+  }
+  const lm = primaryBody(bodies);
+  if (!bodyVisible(lm)) {
+    document.getElementById('hint').textContent = 'Move so your full body is visible';
+    document.getElementById('simFill').style.width = '0%';
+    document.getElementById('simText').textContent = '—';
+    holdStart = 0;
+    recentLandmarks = []; // dropout: don't mix pre/post frames in the stability window
+    return;
+  }
+  document.getElementById('hint').textContent = '✓ Full body detected';
+  const checkResults = pose.checks.map(c => ({ name: c.name, val: c.fn(lm) }));
+  const frameForStability = lm.map(p => ({ x: p.x, y: p.y }));
+
+  const sim = checkResults.reduce((s, c) => s + c.val, 0) / checkResults.length;
+  const pct = Math.round(sim * 100);
+
+  // Stability: max per-joint drift across the recent window.
+  recentLandmarks.push(frameForStability);
+  if (recentLandmarks.length > STABILITY_WINDOW) recentLandmarks.shift();
+  const joints = [LM.L_WRIST, LM.R_WRIST, LM.L_ANKLE, LM.R_ANKLE, LM.L_KNEE, LM.R_KNEE];
+  let stabilityDrift = 0;
+  if (recentLandmarks.length >= STABILITY_WINDOW) {
+    for (const j of joints) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const frame of recentLandmarks) {
+        const p = frame[j];
+        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+      }
+      stabilityDrift = Math.max(stabilityDrift, maxX - minX, maxY - minY);
+    }
+  }
+  const stable = stabilityDrift <= STABILITY_MAX_DRIFT;
+
+  document.getElementById('simFill').style.width = pct + '%';
+  document.getElementById('simText').textContent = pct + '%';
+  document.getElementById('checks').innerHTML = checkResults.map(c => {
+    const cls = c.val > 0.85 ? 'pass' : c.val > 0.5 ? 'partial' : '';
+    const icon = c.val > 0.85 ? '✓' : c.val > 0.5 ? '◐' : '·';
+    return `<div class="check ${cls}"><span>${c.name}</span><span>${icon} ${(c.val * 100).toFixed(0)}%</span></div>`;
+  }).join('');
+  document.getElementById('checks').innerHTML += `<div class="check ${stable ? 'pass' : ''}"><span>Hold steady (no wobble)</span><span>${stable ? '✓' : '◌'} ${(stabilityDrift * 100).toFixed(1)}%</span></div>`;
+
+  const holdMs = HOLD_MS_BY_DIFFICULTY[pose.difficulty];
+
+  if (sim > SIM_THRESHOLD && stable) {
+    if (holdStart === 0) holdStart = performance.now();
+    holdMissFrames = 0;
+    const held = performance.now() - holdStart;
+    holdPausedAt = Math.min(100, (held / holdMs) * 100);
+    setHoldProgress(holdPausedAt);
+    document.getElementById('poseCard').classList.add('match');
+    document.getElementById('hint').textContent = '🔒 Hold still — locking…';
+    if (held >= holdMs) {
+      const elapsed = (performance.now() - stepStartTs) / 1000;
+      scores.push(scorePose({ sim, locked: true, elapsed, timeout: pose.timeout }));
+      pulseVideo('match-pulse');
+      advance();
+    }
+  } else if (holdStart !== 0 && ++holdMissFrames <= HOLD_GRACE_FRAMES) {
+    // Brief blip mid-hold: freeze the bar instead of zeroing it. holdStart is
+    // pushed forward by the blip so dropped frames don't count toward the hold.
+    holdStart = performance.now() - (holdPausedAt / 100) * holdMs;
+    setHoldProgress(holdPausedAt);
+    document.getElementById('poseCard').classList.add('match');
+  } else {
+    holdStart = 0;
+    holdMissFrames = 0;
+    holdPausedAt = 0;
+    setHoldProgress(0);
+    document.getElementById('poseCard').classList.remove('match');
+  }
+}
+
+function renderPoseList() {
+  const wrap = document.getElementById('poseList');
+  wrap.innerHTML = POSES.map((p, i) => {
+    let cls = '';
+    if (i < stepIndex) cls = scores[i] > 0 ? 'done' : 'failed';
+    else if (i === stepIndex) cls = 'current';
+    const scoreSuffix = i < stepIndex ? (scores[i] > 0 ? ` ${scores[i]}` : ' ✗') : '';
+    return `<div class="pose-pill ${cls}">${p.emoji} ${p.name}${scoreSuffix}</div>`;
+  }).join('');
+}
+
+function finish() {
+  running = false;
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  attempts.push({ score: finalScore(scores), scores: scores.slice() });
+  if (attempts.length < MAX_ATTEMPTS) goto('attempt-end');
+  else goto('final');
+}
+
+phaseEnter['attempt-end'] = () => {
+  const last = attempts[attempts.length - 1];
+  $('pmAttemptTitle').textContent = `Attempt ${attempts.length} of ${MAX_ATTEMPTS} complete`;
+  $('pmAttemptScore').textContent = last.score;
+  $('pmTryAgain').onclick = () => { goto('loading'); };
+  $('pmFinish').onclick = () => goto('final');
+};
+
+phaseEnter.final = () => {
+  // Best attempt counts; show its score + breakdown.
+  const best = attempts.reduce((a, b) => (b.score > a.score ? b : a), attempts[0]);
+  const final = best.score;
+  const breakdownScores = best.scores;
+  document.getElementById('resTeam').textContent = teamId;
+  document.getElementById('resScore').textContent = final;
+  document.getElementById('resBreakdown').classList.remove('hidden');
+  document.getElementById('resBreakdown').innerHTML = POSES.map((p, i) => {
+    const s = breakdownScores[i] ?? 0;
+    return `<div class="breakdown-row ${s === 0 ? 'failed' : ''}">
+      <span>${p.emoji} ${p.name} <span class="difficulty ${p.difficulty}">${p.difficulty}</span></span>
+      <span class="pose-score">${s === 0 ? '— skipped' : s + ' / 100'}</span>
+    </div>`;
+  }).join('');
+  const status = document.getElementById('saveStatus');
+  const link = document.getElementById('finalReturnLink');
+  link.href = catalogHref;
+  status.className = 'save-status';
+  status.textContent = 'SAVING…';
+  const attempt = async () => {
+    if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId, gameKey: GAME_CODE })) {
+      const err = new Error('locked'); err.locked = true; throw err;
+    }
+    return submitScore({
+      writer, lobbyId: session.lobbyId, teamId, gameKey: GAME_CODE, score: final,
+    });
+  };
+  attempt().then(() => {
+    status.className = 'save-status ok';
+    status.textContent = 'SAVED ✓';
+  }).catch(e => {
+    if (e.locked) {
+      status.className = 'save-status bad';
+      status.textContent = 'LOCKED — score not saved';
+      status.onclick = null;
+      return;
+    }
+    console.error('submit failed', e);
+    status.className = 'save-status bad';
+    status.textContent = 'FAILED — TAP TO RETRY';
+    status.onclick = () => phaseEnter.final();
+  });
+};
+
+window.resetGame = function() {
+  running = false;
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  scores = []; stepIndex = 0;
+  POSES = [];
+  attempts = [];
+  goto('setup');
+};
+
+window.replayFromFinal = async function() {
+  if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:', force: true })) return;
+  window.resetGame();
+};
+
+// Already-played view: show saved score + admin-gated restart, without re-submitting.
+function enterAlreadyPlayed(existing) {
+  $('phase-boot').classList.add('hidden');
+  for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+  $('phase-final').classList.remove('hidden');
+  $('briefing').classList.add('hidden');
+  document.body.classList.remove('playing');
+  document.getElementById('resTeam').textContent = teamId;
+  document.getElementById('resScore').textContent = existing;
+  document.getElementById('resBreakdown').innerHTML = '';
+  document.getElementById('resBreakdown').classList.add('hidden');
+  const status = document.getElementById('saveStatus');
+  status.className = 'save-status ok';
+  status.textContent = 'SAVED ✓';
+  status.onclick = null;
+  document.getElementById('finalReturnLink').href = catalogHref;
+}
+
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    hiddenAt = performance.now();
+  } else if (hiddenAt && stepStartTs) {
+    stepStartTs += performance.now() - hiddenAt;
+    hiddenAt = 0;
+    // rAF was paused while hidden, so any in-progress hold has a stale
+    // holdStart. Force a fresh hold + stability window so the first frame
+    // back doesn't compute an inflated "held" time and lock instantly.
+    holdStart = 0;
+    holdPausedAt = 0;
+    recentLandmarks = [];
+  }
+});
+
+function applyIndividualsCopy() {
+  if (!individuals) return;
+  const lbl = document.getElementById('resTeamLabel');
+  if (lbl) lbl.textContent = 'Player';
+  const intro = document.getElementById('pmIntroLine');
+  if (intro) intro.textContent = 'You mimic the target pose with speed and precision to score.';
+  const turns = document.getElementById('pmTurnsLine');
+  if (turns) turns.textContent = '';
+}
+
+async function boot() {
+  teamId = _session?.teamId ?? 0;
+  if (session?.lobbyId) {
+    try {
+      const modeSnap = await get(ref(db, `lobbies/${session.lobbyId}/meta/mode`));
+      individuals = modeSnap.exists() && modeSnap.val() === 'individuals';
+    } catch (e) { console.error('mode read failed', e); }
+  }
+  const params = new URLSearchParams(location.search);
+  if (params.has('debug') && params.has('individuals')) individuals = true;
+  applyIndividualsCopy();
+  if (session?.lobbyId) {
+    try {
+      const snap = await get(ref(db, `lobbies/${session.lobbyId}/scores/${teamId}/${GAME_CODE}`));
+      if (snap.exists()) { enterAlreadyPlayed(snap.val()); return; }
+    } catch (e) { console.error('score check failed', e); }
+    if (await isGameLockedFor({ db, ref, get, lobbyId: session.lobbyId, teamId, gameKey: GAME_CODE })) {
+      renderLockedScreen(catalogHref);
+      return;
+    }
+  }
+  goto('setup');
+}
+for (const p of PHASES) $(`phase-${p}`).classList.add('hidden');
+boot();
+</script>
+</body>
+</html>

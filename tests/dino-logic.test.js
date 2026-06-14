@@ -28,7 +28,8 @@ import {
   RAMP_S_SOLO, SPEED_MAX_SOLO, SPAWN_FRAMES_MIN_SOLO, HIGH_PROB_MAX_SOLO,
   SOLO_JUMP_STRENGTH,
   PEAK_JUMP_STRENGTH,
-} from '../ps-offsite-2026/shared/dino-logic.js';
+  TEAM_JUMP_STRENGTH, TEAM_DOUBLE_JUMP_STRENGTH, doubleJumpThreshold,
+} from '../src/shared/dino-logic.js';
 
 describe('constants', () => {
   it('PALM_COUNT_WINDOW is 4', () => expect(PALM_COUNT_WINDOW).toBe(4));
@@ -60,6 +61,22 @@ describe('palmCountToJumpStrength', () => {
   // MIN_N (1). One palm against teamN=0 = peak jump 22.
   it('teamN=0 → clamped to MIN_N',          () => expect(palmCountToJumpStrength(1, 0)).toBe(PEAK_JUMP_STRENGTH));
   it('teamN=0, 2 palms → still clamped to peak', () => expect(palmCountToJumpStrength(2, 0)).toBe(PEAK_JUMP_STRENGTH));
+});
+
+describe('team double jump', () => {
+  it('single jump is lower than solo (and than the old per-hand floor)', () => {
+    expect(TEAM_JUMP_STRENGTH).toBeLessThan(SOLO_JUMP_STRENGTH);
+  });
+  it('double-jump kick is stronger than the single jump', () => {
+    expect(TEAM_DOUBLE_JUMP_STRENGTH).toBeGreaterThan(TEAM_JUMP_STRENGTH);
+  });
+  it('2-player team → threshold is both hands', () => expect(doubleJumpThreshold(2)).toBe(2));
+  it('threshold never below 2 (one hand can never arm it)', () => {
+    expect(doubleJumpThreshold(1)).toBe(2);
+    expect(doubleJumpThreshold(0)).toBe(2);
+  });
+  it('larger team → whole team must raise palms', () => expect(doubleJumpThreshold(5)).toBe(5));
+  it('teamN nullish → FALLBACK_N', () => expect(doubleJumpThreshold(null)).toBe(FALLBACK_N));
 });
 
 describe('pickCalibratedHandCount', () => {

@@ -11,7 +11,7 @@ import {
   failScore,
   scoreAttempt,
   finalScore,
-} from '../ps-offsite-2026/shared/gesture-lock-logic.js';
+} from '../src/shared/gesture-lock-logic.js';
 
 describe('SEQUENCE_LEN', () => {
   it('is 16', () => {
