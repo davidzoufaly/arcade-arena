@@ -14,7 +14,7 @@ The app lives under [`src/`](src/). There's a small build step (Vite) and a one-
 |---|---|---|---|
 | Gesture Lock | camera (hands) | First a 20s calibration: everyone raises one hand and the game counts the team size. Then a random sequence flashes once (4 gestures per person, with repeats from six: open palm, fist, thumbs up, thumbs down, victory, index up). The team repeats it from memory. One wrong gesture fails the attempt; 10 seconds per gesture. 5 attempts, best one counts. | MediaPipe Gesture Recognizer |
 | Pantomime | camera (full body) | Hit 8 progressively harder poses: 2 easy, 3 medium, 3 hard (no duo poses, you pose solo). Get every geometric check above 85%, then hold still for the required time (1.2 / 1.5 / 2 s by difficulty). Wobbling resets the hold. Points are half form, half how fast you lock in — a green line traces the camera border as the hold runs. 25 s per pose, players take turns (one poses, the rest direct), 2 attempts, best one counts. | MediaPipe Pose Landmarker (heavy) |
-| Dino Run | camera (hands) | A runner runs and the team controls it with open palms. Palms are counted, not fingers, so more open palms = higher jump. A fist ducks, victory keeps it steady. Only **2–3 players** are active per wave and the team rotates who plays: a 20s calibration counts raised hands and scales jump strength, then a ~20s wave of obstacles runs, then a 10s break to swap players. Endless, speeds up over time. 5 attempts, best one counts. | MediaPipe Hand Landmarker |
+| Dino Run | camera (hands) | A runner runs and the team controls it with open palms. Palms are counted, not fingers, so more open palms = higher jump. A fist ducks, victory keeps it steady. **Two players** are active per wave and the team rotates who plays: a 20s calibration counts raised hands and scales jump strength, then a ~20s wave of obstacles runs, then a 10s break to swap players. A team of 2 plays the whole run together. Endless, speeds up over time. 5 attempts, best one counts. | MediaPipe Hand Landmarker |
 | Flappy | microphone | The whole team shouts into the mic and lifts an object between gaps, louder = higher. Endless, speeds up. Score is the number of gates passed. 5 attempts, best one counts. | Web Audio (loudness from mic, no ML model) |
 
 The four browser games score 0 to 100 and write it to the shared scoreboard the moment the team joins a lobby.
@@ -72,14 +72,14 @@ Columns and ranking **follow the added games** — only games enabled in games.h
 
 The admin view of games.html is the game control panel for the lobby:
 
-- **Add / remove games** — 👁 / 🚫 enables or hides a game in the team lobby. The scoreboard and topbar only count added games.
+- **Add / remove games** — each game row has a **＋ Add** / **－ Remove** button. The list is split into **Added in lobby** and **Available**; only added games show on the scoreboard and topbar.
 - **🔒 / 🔓 Lock** — locks/unlocks a game. A locked game is greyed out in games.html and shows a "Locked" tag.
 - **📋 Rules** — the rules text the team sees on the game. Empty = default text from the catalog.
 - **⏱ Time limit** — a limit in minutes for manual-entry and custom games (empty/0 = no limit). The team sees it in games.html and gets a warning before entering.
 - **⋯ Per-team** — expands sub-rows to set lock / limit / rules for a single team separately.
-- **Custom games** — create a new game (name max 40 chars, emoji, rules, optional limit). Each gets a `CUSTOMxxxx` key and a 🗑 delete button.
+- **Custom games** — create a new game (name max 40 chars, emoji, rules, optional limit). Each gets a `CUxxxx` key (e.g. `CUP2A5`) and a 🗑 delete button.
 
-Lock precedence: per-team > game > default (locked).
+Lock precedence: per-team > game > default (unlocked).
 
 ### Reset
 
