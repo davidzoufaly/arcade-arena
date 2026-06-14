@@ -1,4 +1,4 @@
-// ps-offsite-2026/shared/quiz.js
+// src/shared/quiz.js
 // Pure helpers for the Pub Quiz category/question flow. No Firebase imports
 // (so this is unit-testable and usable inside the Firebase-free lobby.js).
 //

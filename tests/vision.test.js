@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isPalmOpen, isFist, isVictorySign } from '../ps-offsite-2026/shared/vision.js';
+import { isPalmOpen, isFist, isVictorySign } from '../src/shared/vision.js';
 
 // Minimal 21-landmark hand; only finger tips/pips drive these helpers.
 // tipY/pipY are 4-element arrays for index, middle, ring, pinky.

@@ -4,7 +4,7 @@ import {
   seedCategories, orderedCategories, currentCategoryId,
   allCategoriesSubmitted, nextOrder, bonusIndices, teamQuizScore,
   DEFAULT_CATEGORY_COUNT, DEFAULT_QUESTION_COUNT,
-} from '../ps-offsite-2026/shared/quiz.js';
+} from '../src/shared/quiz.js';
 
 describe('seedCategories', () => {
   it('seeds 4 categories with deterministic c1..c4 keys by default', () => {

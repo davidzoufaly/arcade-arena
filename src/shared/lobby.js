@@ -1,4 +1,4 @@
-// ps-offsite-2026/shared/lobby.js
+// src/shared/lobby.js
 import './theme.css';      // global theming — loaded on every page via lobby.js
 import './theme.js';       // mounts light/dark switcher
 import { seedCategories } from './quiz.js';

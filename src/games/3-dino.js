@@ -1,4 +1,4 @@
-import { createCamStream, createHandTracker, isPalmOpen, isFist, isVictorySign } from '../shared/vision.js';
+import { createCamStream, createHandTracker, isPalmOpen, isFist } from '../shared/vision.js';
 import { showDenialModal } from '../shared/perms.js';
 import { mountTopbar } from '../shared/topbar.js';
 import { resolveSession } from '../shared/lobby.js';
@@ -16,6 +16,7 @@ import {
   runSpeed, spawnIntervalFrames, highObstacleProb,
   SEGMENT_PLAY_S, rotateSecondsLeft, segmentSecondsLeft,
   SOLO_JUMP_STRENGTH, PEAK_JUMP_STRENGTH,
+  TEAM_JUMP_STRENGTH, TEAM_DOUBLE_JUMP_STRENGTH, doubleJumpThreshold,
 } from '../shared/dino-logic.js';
 import { warmupSecondsLeft } from '../shared/warmup-logic.js';
 
@@ -102,37 +103,38 @@ const DEBUG_TEAM_N = DEBUG ? (() => {
 })() : null;
 if (DEBUG_TEAM_N !== null) state.teamN = DEBUG_TEAM_N;
 
-// Pre-build pip placeholders. The row is rebuilt to the detected team size at
-// calibration lock-in. Until then it shows the full ceiling (or DEBUG_TEAM_N
-// if the debug param forced it).
+// Players actually at the camera per wave. Calibration measures the FULL team
+// size (state.teamN) only to decide whether to rotate — but a team lobby always
+// runs exactly two players at once (a 2-player team plays together; a 3+ team
+// rotates pairs in). Solo (#43) is one. The HUD, jump scaling and double-jump
+// threshold all key off this, not the full team size.
+const ACTIVE_PLAYERS_TEAM = 2;
+const activePlayers = () => (individuals ? 1 : ACTIVE_PLAYERS_TEAM);
+
 const palmDotsEl = $('palmDots');
-const initialPipCount = DEBUG_TEAM_N !== null ? DEBUG_TEAM_N : TRACKER_CEILING;
-for (let i = 0; i < initialPipCount; i++) {
-  const d = document.createElement('div');
-  d.className = 'pip';
-  palmDotsEl.appendChild(d);
+// One pip per ACTIVE player (not the whole team) so the HUD never implies more
+// than two hands are in play. Rebuilt once the active count is known.
+function rebuildPips(count) {
+  palmDotsEl.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const d = document.createElement('div');
+    d.className = 'pip';
+    palmDotsEl.appendChild(d);
+  }
 }
+// Until the mode is resolved at boot, show two placeholder pips (the team
+// default); the solo/loading paths rebuild to the real active count.
+rebuildPips(DEBUG_TEAM_N !== null ? Math.min(DEBUG_TEAM_N, ACTIVE_PLAYERS_TEAM) : ACTIVE_PLAYERS_TEAM);
 function updatePalmHud(n) {
   const pips = palmDotsEl.children;
   for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('on', i < n);
   // Solo: a single palm = a fixed-strength jump (#42), so the meter just reads
-  // armed/idle (100% / 0%) rather than scaling with hand count — otherwise a
-  // fixed SOLO_JUMP_STRENGTH against the team peak divisor would cap the bar at
-  // ~73%. Teams: scale against PEAK_JUMP_STRENGTH so a full team fills the bar.
+  // armed/idle (100% / 0%). Teams: scale against the two active players so both
+  // palms up fills the bar (and arms the mid-air double jump).
   const pct = individuals
     ? (n > 0 ? 100 : 0)
-    : (palmCountToJumpStrength(n, state.teamN ?? FALLBACK_N) / PEAK_JUMP_STRENGTH) * 100;
+    : (palmCountToJumpStrength(n, activePlayers()) / PEAK_JUMP_STRENGTH) * 100;
   $('jumpFill').style.width = `${pct}%`;
-}
-
-// Live control-state chip so players see jump-armed vs ducking vs ready.
-function updatePoseHud(eff, fist, ready) {
-  const el = $('poseState');
-  if (!el) return;
-  if (fist) { el.textContent = '✊ DUCK'; el.className = 'pose-state duck'; }
-  else if (eff > 0) { el.textContent = `✋ JUMP ×${eff}`; el.className = 'pose-state jump'; }
-  else if (ready) { el.textContent = '✌️ READY'; el.className = 'pose-state ready'; }
-  else { el.textContent = 'SHOW HANDS'; el.className = 'pose-state'; }
 }
 
 // SETUP
@@ -167,7 +169,7 @@ phaseEnter.loading = async () => {
   }
   // Individuals mode: no hand-count locking (#43) — one player, jump strength is
   // fixed, so skip the calibrate phase entirely and start the run.
-  if (individuals) { state.teamN = 1; goto('intro'); return; }
+  if (individuals) { state.teamN = 1; rebuildPips(1); goto('intro'); return; }
   goto('calibrate');
 };
 
@@ -222,16 +224,14 @@ phaseEnter.calibrate = () => {
 
     state.teamN = detected;
 
-    // Rebuild HUD pip row to match the detected count.
-    palmDotsEl.innerHTML = '';
-    for (let i = 0; i < state.teamN; i++) {
-      const d = document.createElement('div');
-      d.className = 'pip';
-      palmDotsEl.appendChild(d);
-    }
+    // HUD shows one pip per ACTIVE player (always two for a team), not the full
+    // detected team — only two play per wave; the rest rotate in.
+    rebuildPips(activePlayers());
 
     console.info('Dino calibration: locked', {
       teamN: state.teamN,
+      activePlayers: activePlayers(),
+      rotates: state.teamN > ACTIVE_PLAYERS_TEAM,
       cap: newTracker ? newCap : TRACKER_CEILING,
       samples: g.samples.length,
       recreateOk: !!newTracker,
@@ -301,6 +301,11 @@ phaseEnter.intro = () => {
 
 // PLAY
 phaseEnter.play = () => {
+  // Only two players play per wave. A 2-player team is the whole team, so it
+  // plays one continuous endless run (nobody to swap in). A 3+ team rotates the
+  // extra players in during the 10s breaks. Solo (#42) never rotates.
+  const rotates = !individuals && (state.teamN ?? FALLBACK_N) > ACTIVE_PLAYERS_TEAM;
+
   const canvas = $('dinoCanvas');
   const ctx = canvas.getContext('2d');
   // Size the backing store to the on-screen size × DPR so the canvas stays
@@ -328,7 +333,7 @@ phaseEnter.play = () => {
   const g = {
     y: GROUND_Y - RUNNER_H, vy: 0, ducking: false,
     score: 0, obs: [], spawnTimer: 0, runPhase: 0,
-    palmWindow: [], lastEff: 0,
+    palmWindow: [], lastEff: 0, dblUsed: false,
     // Sub-phase machine. Team size is already locked by the calibrate phase
     // (which runs before play), so play always starts in 'warmup'.
     subPhase: 'warmup',
@@ -377,9 +382,7 @@ phaseEnter.play = () => {
     if (g.palmWindow.length > PALM_COUNT_WINDOW) g.palmWindow.shift();
     const eff = DEBUG ? (debugPalms ?? 0) : effectivePalmCount(g.palmWindow);
     const fist = hands.some(isFist);
-    const ready = hands.some(isVictorySign);
     updatePalmHud(eff);
-    updatePoseHud(eff, fist, ready);
     return { eff, fist };
   }
 
@@ -410,15 +413,25 @@ phaseEnter.play = () => {
     if (controllable) { ({ eff, fist } = readInput()); }
     const onGround = g.y + RUNNER_H >= GROUND_Y - 0.5;
     if (controllable && onGround && eff > 0 && g.lastEff === 0) {
-      // Solo: any open palm = a fixed-strength jump (#42). Teams: scaled by the
-      // collective palm count against locked team size.
-      g.vy = -(individuals ? SOLO_JUMP_STRENGTH : palmCountToJumpStrength(eff, state.teamN ?? FALLBACK_N));
+      // Solo: any open palm = a fixed-strength jump (#42). Teams: a lowered
+      // single jump that fires on the FIRST player's palm so it stays snappy.
+      g.vy = -(individuals ? SOLO_JUMP_STRENGTH : TEAM_JUMP_STRENGTH);
+      g.dblUsed = false; // a fresh takeoff re-arms the mid-air double jump
+    }
+    // Team double jump: once per airtime, a SECOND player joining the gesture
+    // mid-air (palm count reaches the whole-team threshold while airborne) kicks
+    // the runner higher. Threshold ≥ 2 means one player re-raising their own
+    // palm can never trigger it — it always needs another hand.
+    if (controllable && !individuals && !onGround && !g.dblUsed &&
+        eff >= doubleJumpThreshold(activePlayers())) {
+      g.vy = -TEAM_DOUBLE_JUMP_STRENGTH;
+      g.dblUsed = true;
     }
     g.lastEff = eff;
     g.ducking = controllable && fist && onGround;
     g.vy += GRAVITY * dt;
     g.y += g.vy * dt;
-    if (g.y + RUNNER_H > GROUND_Y) { g.y = GROUND_Y - RUNNER_H; g.vy = 0; }
+    if (g.y + RUNNER_H > GROUND_Y) { g.y = GROUND_Y - RUNNER_H; g.vy = 0; g.dblUsed = false; }
 
     const speed = runSpeed(elapsedSec, individuals);
     g.runPhase += 0.3 * dt;
@@ -541,9 +554,16 @@ phaseEnter.play = () => {
   function drawSegmentHint(secondsLeft) {
     ctx.save();
     ctx.textAlign = 'center';
-    ctx.fillStyle = css('--muted');
-    ctx.font = 'bold 20px system-ui, sans-serif';
-    ctx.fillText(`↻ rotate in ${secondsLeft}`, CANVAS_W / 2, 40);
+    const txt = `↻ rotate in ${secondsLeft}`;
+    // Dark halo behind the text so it stays readable over particles/obstacles,
+    // then the bright accent fill — bigger + higher contrast than the old muted
+    // 20px so players actually notice the rotate is coming.
+    ctx.font = 'bold 34px system-ui, sans-serif';
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = css('--bg');
+    ctx.strokeText(txt, CANVAS_W / 2, 48);
+    ctx.fillStyle = css('--accent');
+    ctx.fillText(txt, CANVAS_W / 2, 48);
     ctx.restore();
   }
 
@@ -570,11 +590,12 @@ phaseEnter.play = () => {
   }
 
   function tickPlay(dt, now) {
-    // Teams: segment expired → switch to rotate. The collision check below never
-    // runs this frame (we return first), so a crash on the exact boundary frame
-    // is voided — the rotate break wins the tie. Rotate rendering begins next
-    // frame. Solo (#42): no rotate breaks — play is one continuous run.
-    if (!individuals && (now - g.segStartMs) / 1000 >= SEGMENT_PLAY_S) {
+    // Teams (3+): segment expired → switch to rotate. The collision check below
+    // never runs this frame (we return first), so a crash on the exact boundary
+    // frame is voided — the rotate break wins the tie. Rotate rendering begins
+    // next frame. Solo (#42) and 2-player teams: no rotate breaks — play is one
+    // continuous run.
+    if (rotates && (now - g.segStartMs) / 1000 >= SEGMENT_PLAY_S) {
       g.liveBankMs += now - g.segStartMs;
       g.subPhase = 'rotate';
       g.rotateStartMs = now;
@@ -588,7 +609,7 @@ phaseEnter.play = () => {
     step(dt, elapsed, true);
     if (cancelled) return true;
     draw();
-    if (!individuals) {
+    if (rotates) {
       const segLeft = segmentSecondsLeft((now - g.segStartMs) / 1000);
       if (segLeft <= 5) drawSegmentHint(segLeft);
     }
@@ -725,7 +746,7 @@ phaseEnter.final = () => {
 
 function wireRestart() {
   $('finalPlayAgain').onclick = async () => {
-    if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:' })) return;
+    if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:', force: true })) return;
     // Tear down the camera/tracker so the next loading phase reopens a fresh
     // tracker at TRACKER_CEILING. Defensive — phaseEnter.final already does
     // the same teardown, but wireRestart is also wired from enterAlreadyPlayed

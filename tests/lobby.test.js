@@ -3,7 +3,7 @@ import {
   generateLobbyId, generatePwd, isValidLobbyId, ALPHABET, PWD_WORDS,
   getSession, setSession, clearSession, SESSION_KEY, LEGACY_TEAM_KEY,
   createLobbyApi, isAdminSession,
-} from '../ps-offsite-2026/shared/lobby.js';
+} from '../src/shared/lobby.js';
 
 describe('ALPHABET', () => {
   it('excludes ambiguous chars 0 O 1 I', () => {
@@ -98,7 +98,7 @@ describe('session helpers', () => {
     globalThis.localStorage.setItem(LEGACY_TEAM_KEY, '7');
     // Reset module cache so the side-effect re-runs on next import
     vi.resetModules();
-    await import('../ps-offsite-2026/shared/lobby.js');
+    await import('../src/shared/lobby.js');
     expect(globalThis.localStorage.getItem(LEGACY_TEAM_KEY)).toBeNull();
   });
 });
@@ -300,14 +300,14 @@ describe('resolveSession', () => {
   it('returns URL params when both are valid', async () => {
     mockLocation('?lobby=7K2X&team=3');
     mockLocalStorage();
-    const { resolveSession } = await import('../ps-offsite-2026/shared/lobby.js');
+    const { resolveSession } = await import('../src/shared/lobby.js');
     expect(resolveSession()).toEqual({ lobbyId: '7K2X', teamId: 3 });
   });
 
   it('falls back to session when URL lobby is invalid', async () => {
     mockLocation('?lobby=ps-bad&team=3');
     mockLocalStorage();
-    const mod = await import('../ps-offsite-2026/shared/lobby.js');
+    const mod = await import('../src/shared/lobby.js');
     mod.setSession({ lobbyId: 'PS-AAAA', teamId: 5, teamPwd: 'X' });
     expect(mod.resolveSession()).toEqual({ lobbyId: 'PS-AAAA', teamId: 5 });
   });
@@ -315,7 +315,7 @@ describe('resolveSession', () => {
   it('falls back to session when URL team is missing', async () => {
     mockLocation('?lobby=7K2X');
     mockLocalStorage();
-    const mod = await import('../ps-offsite-2026/shared/lobby.js');
+    const mod = await import('../src/shared/lobby.js');
     mod.setSession({ lobbyId: 'AAAA', teamId: 9, teamPwd: 'X' });
     expect(mod.resolveSession()).toEqual({ lobbyId: 'AAAA', teamId: 9 });
   });
@@ -323,7 +323,7 @@ describe('resolveSession', () => {
   it('falls back to session when URL team is non-numeric', async () => {
     mockLocation('?lobby=7K2X&team=abc');
     mockLocalStorage();
-    const mod = await import('../ps-offsite-2026/shared/lobby.js');
+    const mod = await import('../src/shared/lobby.js');
     mod.setSession({ lobbyId: 'AAAA', teamId: 2, teamPwd: 'X' });
     expect(mod.resolveSession()).toEqual({ lobbyId: 'AAAA', teamId: 2 });
   });
@@ -331,7 +331,7 @@ describe('resolveSession', () => {
   it('falls back to session when URL team is <= 0', async () => {
     mockLocation('?lobby=7K2X&team=0');
     mockLocalStorage();
-    const mod = await import('../ps-offsite-2026/shared/lobby.js');
+    const mod = await import('../src/shared/lobby.js');
     mod.setSession({ lobbyId: 'AAAA', teamId: 1, teamPwd: 'X' });
     expect(mod.resolveSession()).toEqual({ lobbyId: 'AAAA', teamId: 1 });
   });
@@ -339,7 +339,7 @@ describe('resolveSession', () => {
   it('returns null when neither URL nor session has data', async () => {
     mockLocation('');
     mockLocalStorage();
-    const { resolveSession } = await import('../ps-offsite-2026/shared/lobby.js');
+    const { resolveSession } = await import('../src/shared/lobby.js');
     expect(resolveSession()).toBeNull();
   });
 });
@@ -374,7 +374,7 @@ describe('resolveSession admin', () => {
   it('returns admin context from a stored admin session', async () => {
     mockLocation('');
     mockLocalStorage();
-    const mod = await import('../ps-offsite-2026/shared/lobby.js');
+    const mod = await import('../src/shared/lobby.js');
     mod.setSession({ lobbyId: 'PS-AAAA', role: 'admin' });
     expect(mod.resolveSession()).toEqual({ lobbyId: 'PS-AAAA', role: 'admin' });
   });

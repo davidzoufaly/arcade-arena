@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { submitScore } from '../ps-offsite-2026/shared/score-submit.js';
+import { submitScore } from '../src/shared/score-submit.js';
 
 function makeFakeWriter() {
   return {

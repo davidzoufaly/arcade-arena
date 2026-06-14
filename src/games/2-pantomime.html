@@ -91,8 +91,9 @@
   }
   .skel-overlay-canvas { position: absolute; inset: 0; pointer-events: none; }
 
-  /* Lock progress: a green line that traces the camera border (right → bottom
-     → left → top) as you hold the pose. Full loop = locked. */
+  /* Lock progress: a green line that traces the camera border one side at a
+     time (right ↓, bottom ←, left ↑, top ←) as you hold the pose. Full loop
+     = locked. */
   .lock-border {
     position: absolute; inset: 5px; width: auto; height: auto;
     pointer-events: none; z-index: 2; overflow: visible;
@@ -120,13 +121,6 @@
     background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
     padding: 10px 16px; border-radius: 10px;
     font-size: 16px; font-family: ui-monospace, monospace;
-  }
-  .step-badge {
-    position: absolute; top: 16px; left: 16px;
-    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-    padding: 8px 14px; border-radius: 999px;
-    font-size: 16px; font-weight: 800; letter-spacing: 0.5px;
-    color: var(--accent);
   }
   .cam-countdown {
     position: absolute; inset: 0;
@@ -216,25 +210,6 @@
   .check.pass { color: var(--good); }
   .check.partial { color: var(--gold); }
 
-  .hold-bar {
-    margin-top: 10px; height: 8px; background: rgba(255,255,255,0.08);
-    border-radius: 999px; overflow: hidden;
-  }
-  .hold-fill {
-    height: 100%; width: 0%;
-    background: linear-gradient(90deg, var(--accent-2), var(--good));
-    transition: width 0.1s linear;
-  }
-  .timer-bar {
-    margin-top: 8px; height: 4px; background: rgba(255,255,255,0.08);
-    border-radius: 999px; overflow: hidden;
-  }
-  .timer-fill {
-    height: 100%; width: 100%;
-    background: var(--accent);
-    transition: width 0.1s linear;
-  }
-
   .pose-list {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(85px, 1fr)); gap: 6px;
   }
@@ -311,7 +286,6 @@
     body.playing .pose-card .desc { margin: 0; }
     body.playing .pose-ref { flex: 0 1 auto; min-height: 0; margin: 0; padding: 8px; }
     body.playing .pose-ref svg { height: clamp(80px, 16vh, 150px); }
-    body.playing .hold-bar, body.playing .timer-bar { margin-top: 0; }
     body.playing .checks { flex: 1 1 auto; min-height: 36px; max-height: none; margin-top: 0; }
   }
 </style>
@@ -367,10 +341,13 @@
           <video id="video" playsinline autoplay muted></video>
           <canvas id="overlay" class="skel-overlay-canvas"></canvas>
           <svg class="lock-border" id="lockBorder" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path id="lockBorderPath" d="M100 0 L100 100 L0 100 L0 0 Z" pathLength="100" />
+            <!-- Four segments fill in sequence: right ↓, bottom ←, left ↑, top ←. -->
+            <path class="lb-seg" d="M100 0 L100 100" pathLength="100" />
+            <path class="lb-seg" d="M100 100 L0 100" pathLength="100" />
+            <path class="lb-seg" d="M0 100 L0 0" pathLength="100" />
+            <path class="lb-seg" d="M100 0 L0 0" pathLength="100" />
           </svg>
           <div class="lock-label" id="lockLabel">🔒 HOLD STILL — locking…</div>
-          <div class="step-badge" id="stepBadge">1 / 8</div>
           <div class="video-overlay" id="hint">Stand in front of the camera</div>
           <div class="cam-countdown hidden" id="camCountdown"></div>
           <div class="cam-flash" id="camFlash"></div>
@@ -378,8 +355,8 @@
       </div>
       <div class="panel">
         <div class="pose-card" id="poseCard">
-          <div class="label">Match this pose <span id="diffBadge"></span></div>
           <div class="name" id="poseName">—</div>
+          <div class="label"><span id="diffBadge"></span></div>
           <div class="desc" id="poseDesc">—</div>
           <div class="pose-ref">
             <svg id="poseRefSvg" viewBox="0 0 200 200"></svg>
@@ -388,8 +365,6 @@
             <div class="similarity-fill" id="simFill"></div>
             <div class="similarity-text" id="simText">0%</div>
           </div>
-          <div class="hold-bar"><div class="hold-fill" id="holdFill"></div></div>
-          <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
           <div class="checks" id="checks"></div>
         </div>
 
@@ -399,10 +374,6 @@
           <div class="stat"><div class="value" id="poseIdx">—</div><div class="label">Pose</div></div>
           <div class="stat"><div class="value" id="poseTimer">25</div><div class="label">Timeout</div></div>
           <div class="stat"><div class="value" id="totalScore">0</div><div class="label">Points</div></div>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button class="secondary" style="flex:1" onclick="skipCurrent()">Skip pose</button>
-          <button class="secondary" style="flex:1" onclick="replayFromFinal()">Restart</button>
         </div>
       </div>
     </div>
@@ -530,11 +501,15 @@ function renderRefSvg(pose) {
 
 const HOLD_MS_BY_DIFFICULTY = { easy: 1200, medium: 1500, hard: 2000 };
 
-// Drive the hold indicator: the panel bar + the green line tracing the camera
-// border (offset 100→0 draws right → bottom → left → top). pct 0..100.
+// Drive the hold indicator: the green line tracing the camera border one side
+// at a time (right ↓, bottom ←, left ↑, top ←). Each of the 4 segments owns a
+// 25% slice of pct; full loop = locked. pct 0..100.
+const lockSegs = document.querySelectorAll('#lockBorder .lb-seg');
 function setHoldProgress(pct) {
-  document.getElementById('holdFill').style.width = pct + '%';
-  document.getElementById('lockBorderPath').style.strokeDashoffset = (100 - pct);
+  lockSegs.forEach((seg, i) => {
+    const local = Math.max(0, Math.min(100, ((pct - i * 25) / 25) * 100));
+    seg.style.strokeDashoffset = (100 - local);
+  });
   document.getElementById('lockLabel').classList.toggle('show', pct > 0);
 }
 const SIM_THRESHOLD = 0.85; // tighter than before
@@ -638,7 +613,6 @@ function startStep() {
   recentLandmarks = [];
   stepStartTs = performance.now();
   const pose = POSES[stepIndex];
-  document.getElementById('stepBadge').textContent = `${stepIndex + 1} / ${POSES.length}`;
   document.getElementById('poseName').textContent = `${pose.emoji} ${pose.name}`;
   document.getElementById('poseDesc').textContent = pose.desc;
   document.getElementById('poseIdx').textContent = `${stepIndex + 1}/${POSES.length}`;
@@ -695,7 +669,6 @@ function loop() {
     const elapsed = (performance.now() - stepStartTs) / 1000;
     const remaining = Math.max(0, pose.timeout - elapsed);
     document.getElementById('poseTimer').textContent = Math.ceil(remaining);
-    document.getElementById('timerFill').style.width = (remaining / pose.timeout * 100) + '%';
     const cam = document.getElementById('camCountdown');
     const secs = Math.ceil(remaining);
     if (remaining > 0 && remaining <= 5) {
@@ -840,13 +813,6 @@ function renderPoseList() {
   }).join('');
 }
 
-window.skipCurrent = function() {
-  if (!running || stepIndex >= POSES.length) return;
-  scores.push(0);
-  pulseVideo('miss-flash');
-  advance();
-};
-
 function finish() {
   running = false;
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
@@ -918,7 +884,7 @@ window.resetGame = function() {
 };
 
 window.replayFromFinal = async function() {
-  if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:' })) return;
+  if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:', force: true })) return;
   window.resetGame();
 };
 

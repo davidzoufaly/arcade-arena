@@ -1,4 +1,4 @@
-// ps-offsite-2026/shared/game-gate.js
+// src/shared/game-gate.js
 // Firebase glue around game-lock.js: read the lock node for one (game, team)
 // and render a full-page "locked" screen. Caller injects ref/get/db so this
 // stays dependency-light and matches the per-page Firebase setup.

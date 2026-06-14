@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rms, smooth, SustainTracker } from '../ps-offsite-2026/shared/audio.js';
+import { rms, smooth, SustainTracker } from '../src/shared/audio.js';
 
 describe('rms', () => {
   it('returns 0 for zeros', () => {

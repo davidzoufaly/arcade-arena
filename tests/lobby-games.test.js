@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { GAMES } from '../ps-offsite-2026/shared/games-catalog.js';
+import { GAMES } from '../src/shared/games-catalog.js';
 import {
   resolveCatalog, addedKeys, nextCustomKey, makeCustomGame, validateCustomGame,
   SAFE_ALPHABET,
-} from '../ps-offsite-2026/shared/lobby-games.js';
+} from '../src/shared/lobby-games.js';
 
 describe('resolveCatalog', () => {
   it('with no lobby node: playable added, manual/quiz not added', () => {

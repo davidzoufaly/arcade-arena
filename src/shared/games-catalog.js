@@ -1,4 +1,4 @@
-// ps-offsite-2026/shared/games-catalog.js
+// src/shared/games-catalog.js
 export const GAMES = {
   GZ: { name: 'Gesture Lock', emoji: '✋', kind: 'play',   href: 'games/1-gesture-lock.html' },
   PM: { name: 'Pantomime', emoji: '🤸', kind: 'play',   href: 'games/2-pantomime.html' },

@@ -10,6 +10,9 @@ export function ampToThrust(amp, floor) {
 // Voice level maps directly to vertical speed instead of acceleration, so
 // control feels real-time: louder → rise now, silence → fall now. No coasting.
 export const METER_MAX = 0.30; // amplitude that fills the volume bar / commands full rise
+// Solo (individuals) lobby: a lower volume threshold so one quiet player can fly
+// without shouting — a softer voice already fills the bar / commands full rise.
+export const METER_MAX_SOLO = 0.12;
 export const FALL_V = 7;       // downward speed at/below the noise floor (empty bar)
 export const RISE_CAP = 12;    // upward speed at/above METER_MAX (full bar)
 export const RESPONSE = 0.4;   // how fast vy chases its target (0..1 per frame); higher = snappier, less float

@@ -9,7 +9,7 @@ import { firebaseConfig } from '../firebase-config.js';
 import { submitScore, firebaseWriter } from '../shared/score-submit.js';
 import { isGameLockedFor, renderLockedScreen } from '../shared/game-gate.js';
 import {
-  METER_MAX,
+  METER_MAX, METER_MAX_SOLO,
   nextVelocity, scoreAttempt, finalScore,
   pipeSpeed, pipeSpawnFrames, pipeGap,
 } from '../shared/flappy-logic.js';
@@ -94,6 +94,9 @@ phaseEnter.intro = () => {
 
 // PLAY
 phaseEnter.play = () => {
+  // Solo lobby uses a lower volume threshold so one player needn't shout.
+  const meterMax = individuals ? METER_MAX_SOLO : METER_MAX;
+
   const canvas = $('flappyCanvas');
   const ctx = canvas.getContext('2d');
   // Size the backing store to the on-screen size × DPR so the canvas stays
@@ -165,16 +168,16 @@ phaseEnter.play = () => {
   }
 
   function updateMeter(amp) {
-    const pct = Math.max(0, Math.min(100, (amp / METER_MAX) * 100));
+    const pct = Math.max(0, Math.min(100, (amp / meterMax) * 100));
     $('voiceFill').style.width = `${pct}%`;
-    $('floorLine').style.left = `${Math.min(100, (g.floor / METER_MAX) * 100)}%`;
+    $('floorLine').style.left = `${Math.min(100, (g.floor / meterMax) * 100)}%`;
   }
 
   function step(dt, elapsedSec) {
     const amp = state.audio.amplitude();
     updateMeter(amp);
     // Real-time control: vy chases a sound-driven target speed (no momentum coast).
-    g.vy = nextVelocity(g.vy, amp, g.floor, dt);
+    g.vy = nextVelocity(g.vy, amp, g.floor, dt, meterMax);
     g.y += g.vy * dt;
     // One radius drives BOTH the drawn orb and its hitbox: rising → pulse bigger.
     // (Previously the orb was drawn at ORB_R*1.1 while thrusting but the hitbox
@@ -257,7 +260,7 @@ phaseEnter.play = () => {
         // Loud-room guard: cap the noise floor below METER_MAX so a usable rise
         // range always remains. Without this, a noisy room calibrates the floor
         // at/above the meter max and the orb can only ever fall (unwinnable).
-        g.floor = Math.min(median, METER_MAX * 0.7);
+        g.floor = Math.min(median, meterMax * 0.7);
         g.calibrating = false;
         g.warming = true;
         g.warmStartMs = now;
@@ -371,7 +374,7 @@ phaseEnter.final = () => {
 
 function wireRestart() {
   $('finalPlayAgain').onclick = async () => {
-    if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:' })) return;
+    if (!await requireAdmin(session?.lobbyId, { promptText: 'Something went wrong? Enter admin password to restart:', force: true })) return;
     state.attempts = [];
     state.attemptIdx = 0;
     goto('setup');

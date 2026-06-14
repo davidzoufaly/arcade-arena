@@ -5,7 +5,7 @@ import {
   dist,
   angle,
   smoothScore,
-} from '../ps-offsite-2026/shared/pantomime-logic.js';
+} from '../src/shared/pantomime-logic.js';
 
 describe('LM', () => {
   it('exposes MediaPipe pose landmark indices', () => {
@@ -82,7 +82,7 @@ describe('smoothScore', () => {
   });
 });
 
-import { POSE_POOL } from '../ps-offsite-2026/shared/pantomime-logic.js';
+import { POSE_POOL } from '../src/shared/pantomime-logic.js';
 
 describe('POSE_POOL', () => {
   it('has 12 poses', () => {
@@ -138,7 +138,7 @@ describe('POSE_POOL', () => {
   });
 });
 
-import { samplePoses } from '../ps-offsite-2026/shared/pantomime-logic.js';
+import { samplePoses } from '../src/shared/pantomime-logic.js';
 
 describe('samplePoses', () => {
   it('default mix returns 8 solo poses (2 easy + 3 medium + 3 hard)', () => {
@@ -199,7 +199,7 @@ describe('samplePoses', () => {
   });
 });
 
-import { scorePose, finalScore } from '../ps-offsite-2026/shared/pantomime-logic.js';
+import { scorePose, finalScore } from '../src/shared/pantomime-logic.js';
 
 describe('scorePose', () => {
   it('returns 0 when not locked', () => {

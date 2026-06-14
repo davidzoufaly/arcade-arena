@@ -1,4 +1,4 @@
-// ps-offsite-2026/shared/modal.js
+// src/shared/modal.js
 // Shared confirmation/input dialog. Styles live in shared/modal.css (link it on
 // the page). Builds a <dialog class="modal-box">, appends it, auto-removes on
 // close. bodyHtml may contain an #cfgInput field — it gets autofocus.

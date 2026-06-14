@@ -422,6 +422,32 @@ function mountAdminGames(db, lobbyId) {
   const srcTimers = () => draft ? draft.timers : timers;
   const srcRules  = () => draft ? draft.rules  : rules;
 
+  // Canonical *effective* state signature: resolved added/lock/timer/rule per
+  // game (+ per team). Used for dirty detection so a no-net-change edit (e.g.
+  // lock then unlock) compares equal even though the raw nodes differ (an
+  // explicit "unlocked" is structurally distinct from an absent key).
+  function effectiveSig(games, locks, timers, rules) {
+    const teamIds = teams.map(t => t.id).sort((a, b) => a - b);
+    return JSON.stringify(resolveCatalog(GAMES, games)
+      .slice().sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
+      .map(g => [
+        g.key, !!g.added,
+        resolveGameLock(locks, g.key),
+        resolveTimer(timers, g.key) ?? null,
+        resolveRule(rules, g.key, undefined, ''),
+        teamIds.map(id => [
+          resolveLock(locks, g.key, id),
+          resolveTimer(timers, g.key, id) ?? null,
+          resolveRule(rules, g.key, id, ''),
+        ]),
+      ]));
+  }
+
+  function isDirty() {
+    return !!draft && effectiveSig(draft.games, draft.locks, draft.timers, draft.rules)
+      !== effectiveSig(gamesNode, locks, timers, rules);
+  }
+
   const path = p => `lobbies/${lobbyId}/${p}`;
   onValue(ref(db, path('games')),  s => { gamesNode = s.val() || null; render(); });
   onValue(ref(db, path('locks')),  s => { locks = s.val() || null; render(); });
@@ -437,6 +463,9 @@ function mountAdminGames(db, lobbyId) {
     if (!draft) draft = { games: clone(gamesNode), locks: clone(locks), timers: clone(timers), rules: clone(rules) };
     draft[name] ??= {};
     mutate(draft[name]);
+    // Drop the draft if the edit left no net change vs live — keeps the view
+    // live and hides Save/Cancel when there's nothing to save.
+    if (!isDirty()) draft = null;
     render();
   }
 
@@ -457,7 +486,7 @@ function mountAdminGames(db, lobbyId) {
 
   function renderHeadActions() {
     const el = document.getElementById('adminHeadActions');
-    if (!draft) { el.innerHTML = ''; return; }
+    if (!isDirty()) { el.innerHTML = ''; return; }
     el.innerHTML = `<button class="btn-ghost" id="adminCancel">Cancel</button><button class="primary" id="adminSave">Save</button>`;
     el.querySelector('#adminCancel').onclick = cancelEdits;
     el.querySelector('#adminSave').onclick = () => {

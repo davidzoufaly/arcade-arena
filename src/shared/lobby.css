@@ -1,4 +1,4 @@
-/* ps-offsite-2026/shared/lobby.css */
+/* src/shared/lobby.css */
 .lobby-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
