@@ -4,6 +4,10 @@ A game-based competition for company offsites, running entirely in the browser. 
 
 The app lives under [`src/`](src/). There's a small build step (Vite) and a one-time Firebase setup — see [src/SETUP.md](src/SETUP.md).
 
+![The games portal — a team's home screen after joining a lobby](docs/screenshots/portal.png)
+
+> Screenshots use a synthetic camera feed (AI-generated faces) in place of live webcam input.
+
 ---
 
 ## Games
@@ -19,9 +23,27 @@ The app lives under [`src/`](src/). There's a small build step (Vite) and a one-
 
 The four browser games score 0 to 100 and write it to the shared scoreboard the moment the team joins a lobby.
 
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/gesture-lock.png" alt="Gesture Lock — calibration counts raised hands"><br><sub><b>Gesture Lock</b> — the camera verifies a gesture sequence from memory.</sub></td>
+    <td width="50%"><img src="docs/screenshots/pantomime.png" alt="Pantomime — pose matching against a target"><br><sub><b>Pantomime</b> — match the target pose; landmarks track the body.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/dino.png" alt="Dino Run — runner controlled by open palms, camera PiP"><br><sub><b>Dino Run</b> — open palms jump the runner; a camera tile tracks hands.</sub></td>
+    <td width="50%"><img src="docs/screenshots/flappy.png" alt="Flappy — voice-controlled, team volume meter"><br><sub><b>Flappy</b> — the team shouts to lift the object; louder = higher.</sub></td>
+  </tr>
+</table>
+
 ### Manual-entry challenges
 
 A couple of challenges are played off-screen and the host enters the points: AI Jailbreak and Draw & Guess. Plus a live Pub Quiz. The host enters these points in scoreboard.html and grades the quiz in quiz-admin.html.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/manual.png" alt="AI Jailbreak manual challenge — rules and score entry"><br><sub><b>AI Jailbreak</b> — an off-screen challenge with host-entered points.</sub></td>
+    <td width="50%"><img src="docs/screenshots/quiz.png" alt="Pub Quiz — team answer entry, one category at a time"><br><sub><b>Pub Quiz</b> — the team types answers one category at a time.</sub></td>
+  </tr>
+</table>
 
 ---
 
@@ -68,9 +90,14 @@ Outside edit mode it's a live ranking. The **Edit** button switches to edit mode
 
 Columns and ranking **follow the added games** — only games enabled in games.html show up, removed ones drop out. A game's column header carries a **read-only lock indicator** (🔒 / 🔓); the actual locking is done in games.html. Outside edit mode there's a **Celebrate winner** button — a popover with the winner and full-screen confetti.
 
+![Live scoreboard — teams ranked with per-game scores and totals](docs/screenshots/scoreboard.png)
+
 ### Game management (games.html, admin)
 
 The admin view of games.html is the game control panel for the lobby:
+
+![Game management — add/remove games, lock, set rules and timers](docs/screenshots/admin.png)
+
 
 - **Add / remove games** — each game row has a **＋ Add** / **－ Remove** button. The list is split into **Added in lobby** and **Available**; only added games show on the scoreboard and topbar.
 - **🔒 / 🔓 Lock** — locks/unlocks a game. A locked game is greyed out in games.html and shows a "Locked" tag.
@@ -101,6 +128,9 @@ In general: more light from the front, calm single-color background, no backligh
 The host runs the Pub Quiz. The app holds neither questions nor correct answers, only category names, how many questions each has, and which are bonus. The host reads questions aloud and grades answers manually.
 
 A new lobby starts with 4 categories of 8 questions each (Category 1 to 4). The host builds the quiz in quiz-admin.html, requires the admin password:
+
+![Quiz admin — categories, bonus toggles, and grading](docs/screenshots/quiz-admin.png)
+
 
 1. **Editing categories.** Rename, add (+ Add category) or remove categories, change the question count (− / +), and mark any question as bonus with the Q1 to Qn toggles. Edits are buffered, published only with Save.
 2. **Flow.** The host reads questions aloud. In quiz.html the team writes one answer for a question in the current category and submits it. That locks the category (answers can no longer change) and reveals the next. Always just one category, no going back.
