@@ -92,6 +92,10 @@ Columns and ranking **follow the added games** — only games enabled in games.h
 
 ![Live scoreboard — teams ranked with per-game scores and totals](docs/screenshots/scoreboard.png)
 
+Hit **Celebrate winner** and the room gets a podium and full-screen confetti:
+
+![Winner celebration — podium with gold/silver/bronze and confetti](docs/screenshots/celebration.png)
+
 ### Game management (games.html, admin)
 
 The admin view of games.html is the game control panel for the lobby:
