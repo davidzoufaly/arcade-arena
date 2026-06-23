@@ -849,7 +849,7 @@ phaseEnter.recall = () => {
   // Pause the recall/per-gesture clocks while the tab is hidden so a tab switch
   // doesn't burn the 10 s timer or inflate the elapsed time. Registered on entry
   // and torn down in activeCleanup, so it only runs during recall (mirrors
-  // dino/flappy's per-play-phase onVis).
+  // dino/hollerball's per-play-phase onVis).
   const onVis = () => {
     if (document.hidden) {
       hiddenAt = performance.now();

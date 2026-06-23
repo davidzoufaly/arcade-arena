@@ -19,7 +19,7 @@ import {
   pipeGap,
   scoreAttempt,
   finalScore,
-} from '../src/shared/flappy-logic.js';
+} from '../src/shared/hollerball-logic.js';
 
 describe('constants', () => {
   it('GAIN is 25', () => expect(GAIN).toBe(25));

@@ -19,7 +19,7 @@ The app lives under [`src/`](src/). There's a small build step (Vite) and a one-
 | Gesture Lock | camera (hands) | First a 20s calibration: everyone raises one hand and the game counts the team size. Then a random sequence flashes once (4 gestures per person, with repeats from six: open palm, fist, thumbs up, thumbs down, victory, index up). The team repeats it from memory. One wrong gesture fails the attempt; 10 seconds per gesture. 5 attempts, best one counts. | MediaPipe Gesture Recognizer |
 | Pantomime | camera (full body) | Hit 8 progressively harder poses: 2 easy, 3 medium, 3 hard (no duo poses, you pose solo). Get every geometric check above 85%, then hold still for the required time (1.2 / 1.5 / 2 s by difficulty). Wobbling resets the hold. Points are half form, half how fast you lock in — a green line traces the camera border as the hold runs. 25 s per pose, players take turns (one poses, the rest direct), 2 attempts, best one counts. | MediaPipe Pose Landmarker (heavy) |
 | Dino Run | camera (hands) | A runner runs and the team controls it with open palms. Palms are counted, not fingers, so more open palms = higher jump. A fist ducks, victory keeps it steady. **Two players** are active per wave and the team rotates who plays: a 20s calibration counts raised hands and scales jump strength, then a ~20s wave of obstacles runs, then a 10s break to swap players. A team of 2 plays the whole run together. Endless, speeds up over time. 5 attempts, best one counts. | MediaPipe Hand Landmarker |
-| Flappy | microphone | The whole team shouts into the mic and lifts an object between gaps, louder = higher. Endless, speeds up. Score is the number of gates passed. 5 attempts, best one counts. | Web Audio (loudness from mic, no ML model) |
+| Hollerball | microphone | The whole team shouts into the mic and lifts an orb between gaps, louder = higher. Endless, speeds up. Score is the number of gates passed. 5 attempts, best one counts. | Web Audio (loudness from mic, no ML model) |
 
 The four browser games score 0 to 100 and write it to the shared scoreboard the moment the team joins a lobby.
 
@@ -30,7 +30,7 @@ The four browser games score 0 to 100 and write it to the shared scoreboard the 
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/dino.png" alt="Dino Run — runner controlled by open palms, camera PiP"><br><sub><b>Dino Run</b> — open palms jump the runner; a camera tile tracks hands.</sub></td>
-    <td width="50%"><img src="docs/screenshots/flappy.png" alt="Flappy — voice-controlled, team volume meter"><br><sub><b>Flappy</b> — the team shouts to lift the object; louder = higher.</sub></td>
+    <td width="50%"><img src="docs/screenshots/hollerball.png" alt="Hollerball — voice-controlled, team volume meter"><br><sub><b>Hollerball</b> — the team shouts to lift the orb; louder = higher.</sub></td>
   </tr>
 </table>
 
@@ -142,14 +142,14 @@ Scoring: +1 for each correct question and +1 extra when the bonus is also correc
 
 ## AI models
 
-The camera games run on MediaPipe: Gesture Recognizer (Gesture Lock), Pose Landmarker heavy (Pantomime), and Hand Landmarker (Dino Run). The runtime and models are **self-hosted**, not from a CDN — `@mediapipe/tasks-vision` comes from npm, and the wasm + `.task` models (~60 MB) live under `src/public/mediapipe/` (gitignored, fetched by `scripts/fetch-vision-assets.mjs` on postinstall/predev/prebuild). The runtime is lazy-loaded only when a game starts. Details in [src/SETUP.md](src/SETUP.md). Flappy needs no model; it reads loudness from the mic via Web Audio.
+The camera games run on MediaPipe: Gesture Recognizer (Gesture Lock), Pose Landmarker heavy (Pantomime), and Hand Landmarker (Dino Run). The runtime and models are **self-hosted**, not from a CDN — `@mediapipe/tasks-vision` comes from npm, and the wasm + `.task` models (~60 MB) live under `src/public/mediapipe/` (gitignored, fetched by `scripts/fetch-vision-assets.mjs` on postinstall/predev/prebuild). The runtime is lazy-loaded only when a game starts. Details in [src/SETUP.md](src/SETUP.md). Hollerball needs no model; it reads loudness from the mic via Web Audio.
 
 ### What a team's laptop needs
 
 - Any laptop from roughly the last 5 years. Integrated graphics are enough, no dedicated GPU needed.
 - A current Chrome, Edge, Safari, or Firefox.
 - At least 4 GB RAM.
-- A built-in or USB camera (camera games) and a working mic (Flappy).
+- A built-in or USB camera (camera games) and a working mic (Hollerball).
 - Internet only for the first load of each game. After that the model is cached and the game runs even without wifi.
 
 Gesture Lock and Dino Run run smoothly on integrated graphics. Pantomime uses the heavy pose model, so expect noticeably lower FPS there. It's enough to hold poses, but it's the heaviest game. Memory per browser tab comes to 200 to 400 MB, more for the heavy model.

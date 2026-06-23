@@ -12,7 +12,7 @@ import {
   METER_MAX, METER_MAX_SOLO,
   nextVelocity, scoreAttempt, finalScore,
   pipeSpeed, pipeSpawnFrames, pipeGap,
-} from '../shared/flappy-logic.js';
+} from '../shared/hollerball-logic.js';
 import { warmupSecondsLeft } from '../shared/warmup-logic.js';
 
 mountTopbar({ activePage: 'games' });
@@ -97,7 +97,7 @@ phaseEnter.play = () => {
   // Solo lobby uses a lower volume threshold so one player needn't shout.
   const meterMax = individuals ? METER_MAX_SOLO : METER_MAX;
 
-  const canvas = $('flappyCanvas');
+  const canvas = $('hollerballCanvas');
   const ctx = canvas.getContext('2d');
   // Size the backing store to the on-screen size × DPR so the canvas stays
   // crisp on HiDPI / upscaled displays, then scale the context so all drawing
@@ -401,11 +401,11 @@ function enterAlreadyPlayed(existing) {
 // Bootstrap
 function applyIndividualsCopy() {
   if (!individuals) return;
-  const who = $('flappyGoalWho');
+  const who = $('hollerballGoalWho');
   if (who) who.textContent = 'yell';
-  const introWho = $('flappyIntroWho');
+  const introWho = $('hollerballIntroWho');
   if (introWho) introWho.textContent = 'When the run starts, yell to fly.';
-  const vol = $('flappyVolLabel');
+  const vol = $('hollerballVolLabel');
   if (vol) vol.textContent = 'Volume';
   const lbl = $('resTeamLabel');
   if (lbl) lbl.textContent = 'Player';

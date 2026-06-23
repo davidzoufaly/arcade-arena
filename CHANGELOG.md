@@ -49,7 +49,7 @@
 - Airlock Override (Gesture Lock). Camera reads hands. The team repeats a gesture sequence from memory.
 - Human Mimic Checkpoint (Pantomime). Camera reads the body. The team hits poses.
 - Gravity Corridor (Dino Dash). Camera reads hands. The team jumps with a runner.
-- Sonic Stabilizer (Flappy Voice). Microphone. The team lifts an object by shouting.
+- Sonic Stabilizer (Hollerball). Microphone. The team lifts an orb by shouting.
 - Each game scores 0 to 100. It writes itself to the scoreboard.
 
 ### Host-scored challenges
