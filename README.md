@@ -10,6 +10,26 @@ The app lives under [`src/`](src/). There's a small build step (Vite) and a one-
 
 ---
 
+## Contents
+
+- [Games](#games)
+  - [Played in the browser (on the team's laptop)](#played-in-the-browser-on-the-teams-laptop)
+  - [Manual-entry challenges](#manual-entry-challenges)
+- [Format](#format)
+  - [Self-paced](#self-paced)
+  - [Lobby and scoring](#lobby-and-scoring)
+  - [Mode: teams vs. individuals](#mode-teams-vs-individuals)
+- [Host panel](#host-panel)
+  - [Scoreboard (scoreboard.html)](#scoreboard-scoreboardhtml)
+  - [Game management (games.html, admin)](#game-management-gameshtml-admin)
+  - [Reset](#reset)
+  - [Tips for the camera games (environment)](#tips-for-the-camera-games-environment)
+- [Pub Quiz setup](#pub-quiz-setup)
+- [AI models](#ai-models)
+  - [What a team's laptop needs](#what-a-teams-laptop-needs)
+
+---
+
 ## Games
 
 ### Played in the browser (on the team's laptop)
